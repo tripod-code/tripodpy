@@ -39,7 +39,7 @@ setup(
     classifiers=[],
 
     packages=find_packages(),
-    install_requires=["simframe"],
+    install_requires=["dustpy"],
     include_package_data=True,
     zip_safe=False,
 )
