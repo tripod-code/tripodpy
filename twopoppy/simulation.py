@@ -31,15 +31,21 @@ class Simulation(dp.Simulation):
 
     # Note: the next two functions are to hide methods from DustPy that are not used in TwoPopPy
     # I have to check if there is a cleaner way of doing this.
+    def __dir__(self):
+        '''This function hides all attributes in _excludefromparten from inherited DustPy object. It is only hiding them. They can still be accessed.'''
+        return sorted((set(dir(self.__class__)) | set(self.__dict__.keys())) - set(self._excludefromparent))
+
     def __getattribute__(self, __name):
         '''This function raises an attribute error if the hidden attributes are accessed.'''
         if __name in super(dp.Simulation, self).__getattribute__("_excludefromparent"):
             raise AttributeError(__name)
         return super(dp.Simulation, self).__getattribute__(__name)
 
-    def __dir__(self):
-        '''This function hides all attributes in _excludefromparten from inherited DustPy object. It is only hiding them. They can still be accessed.'''
-        return sorted((set(dir(self.__class__)) | set(self.__dict__.keys())) - set(self._excludefromparent))
+    def __setattr__(self, name, value):
+        '''This function removes attribute from list of hidden attributes if user manually set is.'''
+        if name in self._excludefromparent:
+            self._excludefromparent.remove(name)
+        return super().__setattr__(name, value)
 
     def initialize(self):
         '''Function initializes the simulation frame.
