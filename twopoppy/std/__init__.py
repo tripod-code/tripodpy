@@ -1,7 +1,7 @@
 '''Package containing standard functions that can be used in simulations.'''
 
-from twopoppy.std import dust
-from twopoppy.std import sim
+from . import dust
+from . import sim
 
 
 __all__ = [
