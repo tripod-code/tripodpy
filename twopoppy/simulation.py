@@ -1,4 +1,3 @@
-from xml.dom.minidom import Attr
 import dustpy as dp
 import dustpy.constants as c
 import numpy as np

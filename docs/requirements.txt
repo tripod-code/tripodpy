@@ -1,0 +1,7 @@
+dustpy
+numpy
+numpydoc
+simframe
+sphinx
+sphinx_rtd_theme
+sphinx-automodapi
