@@ -21,7 +21,7 @@ def setup_package():
         name=package_name,
 
         description="",
-        # long_description=open("README.md").read(),
+        long_description=open("README.md").read(),
         long_description_content_type="text/markdown",
         keywords="",
 
