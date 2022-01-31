@@ -50,51 +50,7 @@ class Simulation(dp.Simulation):
         if name in self._excludefromparent:
             self._excludefromparent.remove(name)
         return super().__setattr__(name, value)
-
-    def initialize(self):
-        '''Function initializes the simulation frame.
-
-        Function sets all fields that are None with a standard value.
-        If the grids are not set, it will call ``Simulation.makegrids()`` first.'''
-
-        if not isinstance(self.grid.Nr, Field):
-            self.makegrids()
-
-        # Set integration variable
-        if self.t is None:
-            self.addintegrationvariable("t", 0., description="Time [s]")
-            self.t.cfl = 0.1
-
-            # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific time step function
-            self.t.updater = dp.std.sim.dt
-
-            self.t.snapshots = np.logspace(3., 5., num=21, base=10.) * c.year
-
-        # Initialize groups
-        self._initializestar()
-        self._initializegrid()
-        self._initializegas()
-        self._initializedust()
-
-        # Set integrator
-        if self.integrator is None:
-            # Todo: Add instructions for dust quantities
-            instructions = [
-                Instruction(dp.std.gas.impl_1_direct,
-                            self.gas.Sigma,
-                            controller={"rhs": self.gas._rhs
-                                        },
-                            description="Gas: implicit 1st-order direct solver"
-                            ),
-            ]
-            self.integrator = Integrator(
-                self.t, description="Default integrator")
-            self.integrator.instructions = instructions
-
-        # Set writer
-        if self.writer is None:
-            self.writer = dp.utils.hdf5writer()
-
+    
     def run(self):
         """This functions runs the simulation."""
         # Print welcome message
@@ -145,6 +101,59 @@ class Simulation(dp.Simulation):
         self.grid.addfield(
             "A", A, description="Radial grid annulus area [cm²]", constant=True)
 
+    def initialize(self):
+        '''Function initializes the simulation frame.
+
+        Function sets all fields that are None with a standard value.
+        If the grids are not set, it will call ``Simulation.makegrids()`` first.'''
+
+        if not isinstance(self.grid.Nr, Field):
+            self.makegrids()
+
+        # Set integration variable
+        if self.t is None:
+            self.addintegrationvariable("t", 0., description="Time [s]")
+            self.t.cfl = 0.1
+
+            # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific time step function
+            self.t.updater = dp.std.sim.dt
+
+            self.t.snapshots = np.logspace(3., 5., num=21, base=10.) * c.year
+
+        # Initialize groups
+        self._initializestar()
+        self._initializegrid()
+        self._initializegas()
+        self._initializedust()
+
+        # Set integrator
+        if self.integrator is None:
+            # Todo: Add instructions for dust quantities
+            instructions = [
+                # Instruction(std.dust.impl_1_direct,
+                #            self.dust.Sigma,
+                #            controller={"rhs": self.dust._rhs
+                #                        },
+                #            description="Dust: implicit 1st-order direct solver"
+                #            ),
+                Instruction(dp.std.gas.impl_1_direct,
+                            self.gas.Sigma,
+                            controller={"rhs": self.gas._rhs
+                                        },
+                            description="Gas: implicit 1st-order direct solver"
+                            ),
+            ]
+            self.integrator = Integrator(
+                self.t, description="Default integrator")
+            self.integrator.instructions = instructions
+            # Todo: Add preparator and finalizer?
+            # self.integrator.preparator = std.sim.prepare_implicit_dust
+            # self.integrator.finalizer = std.sim.finalize_implicit_dust
+
+        # Set writer
+        if self.writer is None:
+            self.writer = dp.utils.hdf5writer()
+
     def _initializedust(self):
         '''Function to initialize dust quantities'''
         # Todo: write this function
@@ -158,10 +167,11 @@ class Simulation(dp.Simulation):
             self.grid._Nm), int(self.grid._Nm))
 
         # Particle size
-        # Todo: this needs to be modified for TwoPopPy
         if self.dust.a is None:
             self.dust.addfield(
                 "a", np.ones(shape2), description="Particle size [cm]")
+            # Todo: TwoPopPy specific function needed here
+            self.dust.a.updater = std.dust.a
         # Diffusivity
         if self.dust.D is None:
             self.dust.addfield(
@@ -217,6 +227,17 @@ class Simulation(dp.Simulation):
             rhos = self.ini.dust.rhoMonomer * np.ones(shape2)
             self.dust.addfield(
                 "rhos", rhos, description="Solid state density [g/cm³]")
+        # Probabilities
+        if self.dust.p.frag is None:
+            self.dust.p.frag = Field(self, np.zeros(
+                shape1), description="Fragmentation probability")
+            # Todo: TwoPopPy specific function needed here
+            self.dust.p.frag.updater = std.dust.p_frag
+        if self.dust.p.stick is None:
+            self.dust.p.stick = Field(self, np.zeros(
+                shape1), description="Sticking probability")
+            # Todo: TwoPopPy specific function needed here
+            self.dust.p.stick.updater = std.dust.p_stick
         # Source terms
         if self.dust.S.ext is None:
             self.dust.S.addfield(
@@ -247,8 +268,8 @@ class Simulation(dp.Simulation):
         if self.dust.v.rel.brown is None:
             self.dust.v.rel.addfield(
                 "brown", np.zeros(shape3), description="Relative Brownian motion velocity [cm/s]")
-            # Todo: This functions needs to be modified for TwoPopPy
-            self.dust.v.rel.brown.updater = dp.std.dust.vrel_brownian_motion
+            # Todo: TwoPopPy specific function needed here
+            self.dust.v.rel.brown.updater = std.dust.vrel_brownian_motion
         if self.dust.v.rel.rad is None:
             self.dust.v.rel.addfield(
                 "rad", np.zeros(shape3), description="Relative radial velocity [cm/s]")
@@ -273,6 +294,13 @@ class Simulation(dp.Simulation):
             self.dust.v.addfield(
                 "rad", np.zeros(shape2), description="Radial velocity [cm/s]")
             self.dust.v.rad.updater = dp.std.dust.vrad
+        # Initialize dust quantities partly to calculate Sigma
+        
+        try:
+            self.dust.update()
+        except:
+            pass
+        
         # Floor value
         if self.dust.SigmaFloor is None:
             # Todo: What is a reasonable value for this in TwoPopPy
@@ -291,6 +319,10 @@ class Simulation(dp.Simulation):
         # Todo: Differentiator and Jacobinator need to be modified for TwoPopPy
         self.dust.Sigma.differentiator = dp.std.dust.Sigma_deriv
         self.dust.Sigma.jacobinator = dp.std.dust.jacobian
+        
+        # Fully initialize dust quantities
+        self.dust.update()
+        
         # Hidden fields
         # We store the old values of the surface density in a hidden field
         # to calculate the fluxes through the boundaries in case of implicit integration.
