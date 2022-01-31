@@ -229,12 +229,12 @@ class Simulation(dp.Simulation):
         # Probabilities
         if self.dust.p.frag is None:
             self.dust.p.frag = Field(self, np.zeros(
-                shape1), description="Fragmentation probability")
+                shape3), description="Fragmentation probability")
             # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific function
             self.dust.p.frag.updater = dp.std.dust.p_frag
         if self.dust.p.stick is None:
             self.dust.p.stick = Field(self, np.zeros(
-                shape1), description="Sticking probability")
+                shape3), description="Sticking probability")
             # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific function
             self.dust.p.stick.updater = dp.std.dust.p_stick
         # Source terms
