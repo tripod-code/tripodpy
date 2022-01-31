@@ -18,15 +18,20 @@ class Simulation(dp.Simulation):
 
         super().__init__(**kwargs)
 
-        # Todo: Deleting not needed entries from ini object
+        # Deleting not needed entries from ini object
+        del(self.ini.dust.crateringMassRatio)
+        del(self.ini.dust.excavatedMass)
+        del(self.ini.dust.fragmentDistribution)
+        del(self.ini.grid.Nmbpd)
+        del(self.ini.grid.mmin)
+        del(self.ini.grid.mmax)
 
         # Deleting Fields that are not needed
-        del(self.grid.m)
-        del(self.grid.Nm)
         del(self.dust.coagulation)
         del(self.dust.kernel)
-        del(self.dust.p)
         del(self.dust.S.coag)
+        del(self.grid.m)
+        del(self.grid.Nm)
 
     # Note: the next two functions are to hide methods from DustPy that are not used in TwoPopPy
     # I have to check if there is a cleaner way of doing this.
