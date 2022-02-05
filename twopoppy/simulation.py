@@ -19,6 +19,7 @@ class Simulation(dp.Simulation):
         super().__init__(**kwargs)
         
         # Add new fields
+        self.dust.m = None
         self.dust.exp = Group(self, description="Distribution exponents")
         self.dust.exp.calc = None
         self.dust.exp.frag = None
@@ -30,7 +31,7 @@ class Simulation(dp.Simulation):
         self.dust.size.int = None
         self.dust.size.mean = None
         self.dust.size.updater = ["mean", "max", "int"]
-        self.dust.updater = ["delta", "rhos", "fill", "exp", "size", "a", "St", "H",
+        self.dust.updater = ["delta", "rhos", "fill", "exp", "size", "a", "m", "St", "H",
                              "rho", "backreaction", "v", "D", "eps", "kernel", "p", "S"]
 
         # Deleting not needed entries from ini object
@@ -185,7 +186,13 @@ class Simulation(dp.Simulation):
             self.dust.addfield(
                 "a", np.ones(shape2), description="Particle size [cm]")
             # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific function
-            self.dust.a.updater = dp.std.dust.a
+            self.dust.a.updater = std.dust.a
+        # Particle mass
+        if self.dust.m is None:
+            self.dust.addfield(
+                "m", np.ones(shape2), description="Particle mass [g]")
+            # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific function
+            self.dust.m.updater = std.dust.m
         # Diffusivity
         if self.dust.D is None:
             self.dust.addfield(
@@ -246,12 +253,12 @@ class Simulation(dp.Simulation):
             self.dust.p.frag = Field(self, np.zeros(
                 shape3), description="Fragmentation probability")
             # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific function
-            self.dust.p.frag.updater = dp.std.dust.p_frag
+            self.dust.p.frag.updater = std.dust.p_frag
         if self.dust.p.stick is None:
             self.dust.p.stick = Field(self, np.zeros(
                 shape3), description="Sticking probability")
             # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific function
-            self.dust.p.stick.updater = dp.std.dust.p_stick
+            self.dust.p.stick.updater = std.dust.p_stick
         # Source terms
         if self.dust.S.ext is None:
             self.dust.S.addfield(
@@ -264,7 +271,7 @@ class Simulation(dp.Simulation):
             self.dust.S.addfield(
                 "tot", np.zeros(shape2), description="Tot sources [g/cm²/s]")
             # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific function
-            self.dust.S.tot.updater = dp.std.dust.S_tot
+            self.dust.S.tot.updater = std.dust.S_tot
         # Stokes number
         if self.dust.St is None:
             self.dust.addfield(
@@ -283,7 +290,7 @@ class Simulation(dp.Simulation):
             self.dust.v.rel.addfield(
                 "brown", np.zeros(shape3), description="Relative Brownian motion velocity [cm/s]")
             # Todo: Placeholder! This needs to be replaced with a TwoPopPy specific function
-            self.dust.v.rel.brown.updater = dp.std.dust.vrel_brownian_motion
+            self.dust.v.rel.brown.updater = std.dust.vrel_brownian_motion
         if self.dust.v.rel.rad is None:
             self.dust.v.rel.addfield(
                 "rad", np.zeros(shape3), description="Relative radial velocity [cm/s]")
@@ -358,7 +365,7 @@ class Simulation(dp.Simulation):
         # Surface density, if not set
         if self.dust.Sigma is None:
             # Todo: This needs to be replaced with TwoPopPy specific functions
-            Sigma = dp.std.dust.MRN_distribution(self)
+            Sigma = std.dust.MRN_distribution(self)
             Sigma = np.where(Sigma <= self.dust.SigmaFloor,
                              0.1*self.dust.SigmaFloor,
                              Sigma)
