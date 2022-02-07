@@ -19,7 +19,7 @@ def a(sim):
     -------
     a : Field
         Particle sizes"""
-    return dust_f.a(sim.dust.size.min, sim.dust.size.max, sim.dust.exp.calc)
+    return dust_f.a(sim.dust.size.min, sim.dust.size.max, sim.dust.size.int, sim.dust.exp.calc)
   
 def m(sim):
     """Function calculates the particle mass from the particle sizes.
@@ -31,7 +31,7 @@ def m(sim):
     -------
     m : Field
         Particle masses"""
-    return dust_f.m(sim.dust.a)
+    return dust_f.m(sim.dust.a, sim.dust.rhos, sim.dust.fill)
 
 def p_frag(sim):
     """Function calculates the fragmentation probability.
