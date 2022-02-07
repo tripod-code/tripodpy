@@ -19,7 +19,7 @@ def a(sim):
     -------
     a : Field
         Particle sizes"""
-    return dust_f.a(sim.dust.size.min, sim.dust.size.max, sim.dust.size.int, sim.dust.exp.calc)
+    return dust_f.a(sim.dust.size.min, sim.dust.size.max, sim.dust.exp.calc)
   
 def m(sim):
     """Function calculates the particle mass from the particle sizes.
@@ -135,7 +135,7 @@ def p_frag(sim):
         Mass-averaged particle size"""
     return dust_f.sizemean(sim.dust.size.min, sim.dust.size.max, sim.dust.exp.calc)
   
-  # Todo: Adjust function to Twopoppy
+  # TODO: Adjust function to Twopoppy
   def MRN_distribution(sim):
     """Function calculates the initial particle mass distribution. The parameters are taken from the
     ``Simulation.ini`` object.
@@ -160,6 +160,7 @@ def p_frag(sim):
     # Set maximum particle size
     if(sim.ini.dust.allowDriftingParticles):
         aIni = sim.ini.dust.aIniMax
+    # TODO: Adjust routine for limiting max particle size to Twopoppy
     else:
         # Calculating pressure gradient
         P = sim.gas.P
