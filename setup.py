@@ -1,5 +1,16 @@
-from setuptools import find_packages
-from setuptools import setup
+import setuptools
+import sys
+
+try:
+    from numpy.distutils.core import Extension
+    from numpy.distutils.core import setup
+except ImportError as exc:  # We do not have our build deps installed
+    msg = "Error: {} must be installed before running the build.".format(
+        exc.name)
+    msg = "Please install NumPy first. You can do this with `pip install numpy`"
+    print(msg)
+    sys.exit(1)
+
 import pathlib
 
 
@@ -7,6 +18,14 @@ def setup_package():
 
     package_name = "twopoppy"
     here = pathlib.Path(__file__).absolute().parent
+
+    # Fortran modules
+    ext_const = Extension(name="twopoppy.constants._constants_f",
+                          sources=["twopoppy/constants/constants.f90"])
+    ext_dust = Extension(name="twopoppy.std.dust_f",
+                         sources=["twopoppy/constants/constants.f90",
+                                  "twopoppy/std/dust.f90"])
+    extensions = [ext_const, ext_dust]
 
     def read_version():
         with (here / package_name / '__init__.py').open() as fid:
@@ -37,9 +56,11 @@ def setup_package():
         version=read_version(),
         license="",
 
+        ext_modules=extensions,
+
         classifiers=[],
 
-        packages=find_packages(),
+        packages=setuptools.find_packages(),
         install_requires=["dustpy", "numpy", "simframe"],
         include_package_data=True,
         zip_safe=False,

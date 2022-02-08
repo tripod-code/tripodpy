@@ -143,7 +143,7 @@ subroutine vrel_brownian_motion(cs, m, T, vrel, Nr, Nm)
   implicit none
 
   double precision, intent(in)  :: cs(Nr)
-  double precision, intent(in)  :: m(Nm)
+  double precision, intent(in)  :: m(Nr, Nm)
   double precision, intent(in)  :: T(Nr)
   double precision, intent(out) :: vrel(Nr, Nm, Nm)
   integer,          intent(in)  :: Nr
