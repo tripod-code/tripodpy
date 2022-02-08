@@ -21,10 +21,15 @@ def setup_package():
 
     # Fortran modules
     ext_const = Extension(name="twopoppy.constants._constants_f",
-                          sources=["twopoppy/constants/constants.f90"])
+                          sources=[
+                              "twopoppy/constants/constants.f90"
+                          ])
     ext_dust = Extension(name="twopoppy.std.dust_f",
-                         sources=["twopoppy/constants/constants.f90",
-                                  "twopoppy/std/dust.f90"])
+                         sources=[
+                             "twopoppy/constants/constants.f90",
+                             "twopoppy/utils/interpolation.f90",
+                             "twopoppy/std/dust.f90"
+                         ])
     extensions = [ext_const, ext_dust]
 
     def read_version():
