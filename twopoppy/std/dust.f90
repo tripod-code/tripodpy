@@ -1,12 +1,13 @@
-subroutine a(sizemin, sizemax, sizeint, expcalc, sizes, Nr, Nm)
+subroutine a(amin, amax, aint, xicalc, sizes, Nr, Nm)
   ! Subroutine calculates the particle sizes.
+  ! a = [a0, a1, 0.5*amean, amean]
   !
   ! Parameters
   ! ----------
-  ! sizemin(Nr) : Minimal particle size
-  ! sizemax(Nr) : Maximum particle size
-  ! sizeint(Nr) : Intermediate particle size
-  ! expcalc(Nr) : Calculated distribution exponent
+  ! amin(Nr) : Minimal particle size
+  ! amax(Nr) : Maximum particle size
+  ! aint(Nr) : Intermediate particle size
+  ! xicalc(Nr) : Calculated distribution exponent
   ! Nr : Number of radial grid cells
   ! Nm : Number of mass bins
   !
@@ -16,10 +17,10 @@ subroutine a(sizemin, sizemax, sizeint, expcalc, sizes, Nr, Nm)
 
   implicit None
 
-  double precision, intent(in)  :: sizemin(Nr)
-  double precision, intent(in)  :: sizemax(Nr)
-  double precision, intent(in)  :: sizeint(Nr)
-  double precision, intent(in)  :: expcalc(Nr)
+  double precision, intent(in)  :: amin(Nr)
+  double precision, intent(in)  :: amax(Nr)
+  double precision, intent(in)  :: aint(Nr)
+  double precision, intent(in)  :: xicalc(Nr)
   double precision, intent(out) :: sizes(Nr, Nm)
   integer,          intent(in)  :: Nr
   integer,          intent(in)  :: Nm
@@ -27,23 +28,33 @@ subroutine a(sizemin, sizemax, sizeint, expcalc, sizes, Nr, Nm)
   integer :: i
 
   do i=1, Nr
-    if(expcalc(i) .eq. -5) then
+    if(xicalc(i) .eq. -5) then
       sizes(i, 1) = &
-      sizeint(i) * sizemin(i) / ( sizeint(i) - sizemin(i) ) * log( sizeint(i) / sizemin(i) )
+      aint(i) * amin(i) / ( aint(i) - amin(i) ) * log( aint(i) / amin(i) )
       sizes(i, 2) = &
-      sizemax(i) * sizeint(i) / ( sizemax(i) - sizeint(i) ) * log( sizemax(i) / sizeint(i) )
-    else if(expcalc(i) .eq. -4) then
-      sizes(i, 1) = ( sizeint(i) - sizemin(i) ) / log( sizeint(i) / sizemin(i) )
-      sizes(i, 2) = ( sizemax(i) - sizeint(i) ) / log( sizemax(i) / sizeint(i) )
+      amax(i) * aint(i) / ( amax(i) - aint(i) ) * log( amax(i) / aint(i) )
+      sizes(i, 4) = &
+      amax(i) * amin(i) / ( amax(i) - amin(i) ) * log( amax(i) / amin(i) )
+      sizes(i, 3) = 0.5d0 * sizes(i, 4)
+    else if(xicalc(i) .eq. -4) then
+      sizes(i, 1) = ( aint(i) - amin(i) ) / log( aint(i) / amin(i) )
+      sizes(i, 2) = ( amax(i) - aint(i) ) / log( amax(i) / aint(i) )
+      sizes(i, 4) = ( amax(i) - amin(i) ) / log( amax(i) / amin(i) )
+      sizes(i, 3) = 0.5d0 * sizes(i, 4)
     else
       sizes(i, 1) = &
-      ( expcalc(i) + 4.d0 ) / ( expcalc(i) + 5.d0 ) * ( sizeint(i)**( expcalc(i) + 5.d0 ) -&
-      sizemin(i)**( expcalc(i) + 5.d0) ) / ( sizeint(i)**( expcalc(i) + 4.d0 ) - sizemin(i)&
-      **( expcalc(i) + 4.d0) )
+      ( xicalc(i) + 4.d0 ) / ( xicalc(i) + 5.d0 ) * ( aint(i)**( xicalc(i) + 5.d0 ) -&
+      amin(i)**( xicalc(i) + 5.d0) ) / ( aint(i)**( xicalc(i) + 4.d0 ) - amin(i)&
+      **( xicalc(i) + 4.d0) )
       sizes(i, 2) = &
-      ( expcalc(i) + 4.d0 ) / ( expcalc(i) + 5.d0 ) * ( sizemax(i)**( expcalc(i) + 5.d0 ) -&
-      sizeint(i)**( expcalc(i) + 5.d0) ) / ( sizemax(i)**( expcalc(i) + 4.d0 ) - sizeint(i)&
-      **( expcalc(i) + 4.d0) )
+      ( xicalc(i) + 4.d0 ) / ( xicalc(i) + 5.d0 ) * ( amax(i)**( xicalc(i) + 5.d0 ) -&
+      aint(i)**( xicalc(i) + 5.d0) ) / ( amax(i)**( xicalc(i) + 4.d0 ) - aint(i)&
+      **( xicalc(i) + 4.d0) )
+      sizes(i, 4) = &
+      ( xicalc(i) + 4.d0 ) / ( xicalc(i) + 5.d0 ) * ( amax(i)**( xicalc(i) + 5.d0 ) -&
+      amin(i)**( xicalc(i) + 5.d0) ) / ( amax(i)**( xicalc(i) + 4.d0 ) - amin(i)&
+      **( xicalc(i) + 4.d0) )
+      sizes(i, 3) = 0.5d0 * sizes(i, 4)
     end if
   end do
 
@@ -88,7 +99,7 @@ end subroutine m
 subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
   ! Subroutine calculates the fragmentation probability.
   ! It is assuming a Maxwell-Boltzmann velocity distribution.
-  ! 
+  !
   ! Parameters
   ! ----------
   ! vrel(Nr, Nm, Nm) : Relative velocity
@@ -111,7 +122,7 @@ subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
   double precision, intent(out) :: pf(Nr)
   integer,          intent(in)  :: Nr
   integer,          intent(in)  :: Nm
-  
+
   double precision :: dum
   integer :: i
 
@@ -172,45 +183,45 @@ subroutine vrel_brownian_motion(cs, m, T, vrel, Nr, Nm)
 
 end subroutine vrel_brownian_motion
 
-subroutine expcalc(Sigma, sizemax, sizeint, expo, Nr, Nm)
+subroutine xicalc(Sigma, amax, aint, xi, Nr, Nm)
   ! Subroutine calculates the particle size distribution exponent.
-  ! 
+  !
   ! Parameters
   ! ----------
   ! Sigma (Nr, Nm) : Dust surface density
-  ! sizemax(Nr) : Maximum particle size
-  ! sizeint(Nr) : Intermediate particle size
+  ! amax(Nr) : Maximum particle size
+  ! aint(Nr) : Intermediate particle size
   ! Nr : Number or radial grid cells
   ! Nm : Number of mass bins
   !
   ! Returns
   ! -------
-  ! expo(Nr) : Calculated distribution exponent
+  ! xi(Nr) : Calculated distribution exponent
 
   implicit none
 
   double precision, intent(in)  :: Sigma(Nr, Nm)
-  double precision, intent(in)  :: sizemax(Nr)
-  double precision, intent(in)  :: sizeint(Nr)
-  double precision, intent(out) :: expo(Nr)
+  double precision, intent(in)  :: amax(Nr)
+  double precision, intent(in)  :: aint(Nr)
+  double precision, intent(out) :: xi(Nr)
   integer,          intent(in)  :: Nr
   integer,          intent(in)  :: Nm
-  
+
   integer :: i
 
   do i=1, Nr
-    expo(i) = log( Sigma(i, 1) / Sigma(i, 2) ) / log( sizemax(i) / sizeint(i) ) - 4.d0
+    xi(i) = log( Sigma(i, 1) / Sigma(i, 2) ) / log( amax(i) / aint(i) ) - 4.d0
   end do
 
-end subroutine expcalc
+end subroutine xicalc
 
-subroutine sizeint(sizemin, sizemax, intsize, Nr)
+subroutine aint(amin, amax, intsize, Nr)
   ! Subroutine calculates the intermediate particle size.
-  ! 
+  !
   ! Parameters
   ! ----------
-  ! sizemin(Nr) : Minimum particle size
-  ! sizemax(Nr) : Maximum particle size
+  ! amin(Nr) : Minimum particle size
+  ! amax(Nr) : Maximum particle size
   ! Nr : Number or radial grid cells
   !
   ! Returns
@@ -219,53 +230,13 @@ subroutine sizeint(sizemin, sizemax, intsize, Nr)
 
   implicit none
 
-  double precision, intent(in)  :: sizemin(Nr)
-  double precision, intent(in)  :: sizemax(Nr)
+  double precision, intent(in)  :: amin(Nr)
+  double precision, intent(in)  :: amax(Nr)
   double precision, intent(out) :: intsize(Nr)
   integer,          intent(in)  :: Nr
-  
+
   double precision :: onehalf = 1.d0/2.d0
-  
-  intsize = ( sizemin * sizemax )**onehalf
 
-end subroutine sizeint
+  intsize = ( amin * amax )**onehalf
 
-subroutine sizemean(sizemin, sizemax, expcalc, meansize, Nr)
-  ! Subroutine calculates the mass-averaged particle sizes.
-  !
-  ! Parameters
-  ! ----------
-  ! sizemin(Nr) : Minimal particle size
-  ! sizemax(Nr) : Maximum particle size
-  ! expcalc(Nr) : Calculated distribution exponent
-  ! Nr : Number of radial grid cells
-  !
-  ! Returns
-  ! -------
-  ! meansize(Nr) : Mass-averaged particle size
-
-  implicit None
-
-  double precision, intent(in)  :: sizemin(Nr)
-  double precision, intent(in)  :: sizemax(Nr)
-  double precision, intent(in)  :: expcalc(Nr)
-  double precision, intent(out) :: meansize(Nr)
-  integer,          intent(in)  :: Nr
-
-  integer :: i
-
-  do i=1, Nr
-    if(expcalc(i) .eq. -5) then
-      meansize(i) = &
-      sizemax(i) * sizemin(i) / ( sizemax(i) - sizemin(i) ) * log( sizemax(i) / sizemin(i) )
-    else if(expcalc(i) .eq. -4) then
-      meansize(i) = ( sizemax(i) - sizemin(i) ) / log( sizemax(i) / sizemin(i) )
-    else
-      meansize(i) = &
-      ( expcalc(i) + 4.d0 ) / ( expcalc(i) + 5.d0 ) * ( sizemax(i)**( expcalc(i) + 5.d0 ) -&
-      sizemin(i)**( expcalc(i) + 5.d0) ) / ( sizemax(i)**( expcalc(i) + 4.d0 ) - sizemin(i)&
-      **( expcalc(i) + 4.d0) )
-    end if
-  end do
-
-end subroutine sizemean
+end subroutine aint

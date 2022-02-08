@@ -8,7 +8,7 @@ import numpy as np
 # import scipy.sparse as sp
 
 # from simframe.integration import Scheme
-  
+
 def a(sim):
     """Function calculates the particle size from the specific particle sizes and the distribution exponent.
     Parameters
@@ -19,8 +19,8 @@ def a(sim):
     -------
     a : Field
         Particle sizes"""
-    return dust_f.a(sim.dust.size.min, sim.dust.size.max, sim.dust.size.int, sim.dust.exp.calc)
-  
+    return dust_f.a(sim.dust.s.amin, sim.dust.s.amax, sim.dust.s.aint, sim.dust.xi.calc)
+
 def m(sim):
     """Function calculates the particle mass from the particle sizes.
     Parameters
@@ -46,7 +46,7 @@ def p_frag(sim):
     pf : Field
         Fragmentation propability."""
     return dust_f.pfrag(sim.dust.v.rel.tot, sim.dust.v.frag)
-  
+
   def p_stick(sim):
     """Function calculates the sticking probability.
     The sticking probability is simply 1 minus the
@@ -63,7 +63,7 @@ def p_frag(sim):
     p[0] = 0.
     p[-1] = 0.
     return p
-  
+
   def S_tot(sim, Sigma=None):
     """Function calculates the total source terms.
     Parameters
@@ -85,7 +85,7 @@ def p_frag(sim):
         if Shyd is None:
             Shyd = sim.dust.S.hyd
     return Shyd + Sext
-  
+
   def vrel_brownian_motion(sim):
     """Function calculates the relative particle velocities due to Brownian motion.
     The maximum value is set to the sound speed.
@@ -98,8 +98,8 @@ def p_frag(sim):
     vrel : Field
         Relative velocities"""
     return dust_f.vrel_brownian_motion(sim.gas.cs, sim.dust.m, sim.gas.T)
-  
-  def expcalc(sim):
+
+  def xicalc(sim):
     """Function calculates the exponent of the distribution.
     Parameters
     ----------
@@ -107,11 +107,11 @@ def p_frag(sim):
         Parent simulation frame
     Returns
     -------
-    expcalc : Field
+    xicalc : Field
         Calculated exponent of distribution"""
-    return dust_f.expcalc(sim.dust.Sigma, sim.dust.size.max, sim.dust.size.int)
-  
-  def sizeint(sim):
+    return dust_f.xicalc(sim.dust.Sigma, sim.dust.s.amax, sim.dust.s.aint)
+
+  def aint(sim):
     """Function calculates the intermediate particle size.
     Parameters
     ----------
@@ -119,22 +119,10 @@ def p_frag(sim):
         Parent simulation frame
     Returns
     -------
-    sizeint : Field
+    aint : Field
         Intermediate particle size"""
-    return dust_f.sizeint(sim.dust.size.min, sim.dust.size.max)
-  
-  def sizemean(sim):
-    """Function calculates the mass-averaged particle size.
-    Parameters
-    ----------
-    sim : Frame
-        Parent simulation frame
-    Returns
-    -------
-    sizeint : Field
-        Mass-averaged particle size"""
-    return dust_f.sizemean(sim.dust.size.min, sim.dust.size.max, sim.dust.exp.calc)
-  
+    return dust_f.aint(sim.dust.s.amin, sim.dust.s.amax)
+
   # TODO: Adjust function to Twopoppy
   def MRN_distribution(sim):
     """Function calculates the initial particle mass distribution. The parameters are taken from the
