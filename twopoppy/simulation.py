@@ -21,19 +21,18 @@ class Simulation(dp.Simulation):
 
         # Add new fields
         self.dust.m = None
-        self.dust.addgroup("exp", description="Distribution exponents")
-        self.dust.exp.calc = None
-        self.dust.exp.frag = None
-        self.dust.exp.drift = None
-        self.dust.exp.updater = ["calc"]
-        self.dust.addgroup("size", description="Specific particle sizes")
-        self.dust.size.min = None
-        self.dust.size.max = None
-        self.dust.size.int = None
-        self.dust.size.mean = None
-        self.dust.size.updater = ["mean", "max", "int"]
+        self.dust.addgroup("xi", description="Distribution exponents")
+        self.dust.xi.calc = None
+        self.dust.xi.frag = None
+        self.dust.xi.stick = None
+        self.dust.xi.updater = ["calc"]
+        self.dust.addgroup("s", description="Specific particle sizes")
+        self.dust.s.amin = None
+        self.dust.s.amax = None
+        self.dust.s.aint = None
+        self.dust.s.updater = ["aint"]
         # TODO: take update order from dustpy and add new quatities in the right places
-        self.dust.updater = ["delta", "rhos", "fill", "exp", "size", "a", "m", "St", "H",
+        self.dust.updater = ["delta", "rhos", "fill", "s", "xi", "a", "m", "St", "H",
                              "rho", "backreaction", "v", "D", "eps", "p", "S"]
 
         # Deleting not needed entries from ini object
@@ -90,7 +89,7 @@ class Simulation(dp.Simulation):
         before calling ``Simulation.makegrids()``.'''
 
         # Number of mass species. Hard coded
-        Nm = 2
+        Nm = 4
 
         # The mass grid does not exist. But we store the size of the
         # particle dimension in a hidden variable.
@@ -312,39 +311,32 @@ class Simulation(dp.Simulation):
                 "rad", np.zeros(shape2), description="Radial velocity [cm/s]")
             self.dust.v.rad.updater = dp.std.dust.vrad
         # Distribution exponents
-        if self.dust.exp.calc is None:
-            self.dust.exp.addfield(
+        if self.dust.xi.calc is None:
+            self.dust.xi.addfield(
                 "calc", np.zeros(shape1), description="Calculated distribution exponent")
-            # Todo: TwoPopPy specific function
-            self.dust.exp.calc.updater = std.dust.expcalc
-        if self.dust.exp.frag is None:
-            expfrag = self.ini.dust.distExp * np.ones(shape1)
-            self.dust.exp.addfield(
-                "frag", expfrag, description="Fragmentation distribution exponent")
-        if self.dust.exp.drift is None:
-            expdrift = (self.ini.dust.distExp + 1.) * np.ones(shape1)
-            self.dust.exp.addfield(
-                "drift", expdrift, description="Drift distribution exponent")
+            self.dust.xi.calc.updater = std.dust.xicalc
+        if self.dust.xi.frag is None:
+            xifrag = self.ini.dust.distExp * np.ones(shape1)
+            self.dust.xi.addfield(
+                "frag", xifrag, description="Fragmentation distribution exponent")
+        if self.dust.xi.stick is None:
+            xistick = (self.ini.dust.distExp + 1.) * np.ones(shape1)
+            self.dust.xi.addfield(
+                "stick", xistick, description="Drift distribution exponent")
         # Specific particle sizes
-        if self.dust.size.min is None:
-            sizemin = 0.1 * self.ini.dust.aIniMax * np.ones(shape1)
-            self.dust.size.addfield(
-                "min", sizemin, description="Minimum particle size")
-        if self.dust.size.max is None:
-            sizemax = self.ini.dust.aIniMax * np.ones(shape1)
-            self.dust.size.addfield(
-                "max", sizemax, description="Maximum particle size")
-        if self.dust.size.int is None:
-            sizeint = np.sqrt(0.1) * self.ini.dust.aIniMax * np.ones(shape1)
-            self.dust.size.addfield(
-                "int", sizeint, description="Intermediate particle size")
-            # Todo: TwoPopPy specific function
-            self.dust.size.int.updater = std.dust.sizeint
-        if self.dust.size.mean is None:
-            self.dust.size.addfield(
-                "mean", np.zeros(shape1), description="Mass-averaged particle size")
-            # Todo: TwoPopPy specific function
-            self.dust.size.mean.updater = std.dust.sizemean
+        if self.dust.s.amin is None:
+            amin = 0.1 * self.ini.dust.aIniMax * np.ones(shape1)
+            self.dust.s.addfield(
+                "amin", amin, description="Minimum particle size")
+        if self.dust.s.amax is None:
+            amax = self.ini.dust.aIniMax * np.ones(shape1)
+            self.dust.s.addfield(
+                "amax", amax, description="Maximum particle size")
+        if self.dust.s.aint is None:
+            aint = np.sqrt(0.1) * self.ini.dust.aIniMax * np.ones(shape1)
+            self.dust.s.addfield(
+                "aint", aint, description="Intermediate particle size")
+            self.dust.s.aint.updater = std.dust.aint
 
         # Initialize dust quantities partly to calculate Sigma
         try:
