@@ -22,7 +22,7 @@ def a(sim):
     -------
     a : Field
         Particle sizes"""
-    return dust_f.a(sim.dust.s.amin, sim.dust.s.amax, sim.dust.s.aint, sim.dust.xi.calc)
+    return dust_f.a(sim.dust.s.amin, sim.dust.s.amax, sim.dust.s.aint, sim.dust.xi.calc, sim.grid._Nm_long)
 
 
 def m(sim):
