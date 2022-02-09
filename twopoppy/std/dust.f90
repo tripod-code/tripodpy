@@ -231,7 +231,7 @@ end subroutine m
 subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
   ! Subroutine calculates the fragmentation probability.
   ! It is assuming a Maxwell-Boltzmann velocity distribution.
-  !
+  ! 
   ! Parameters
   ! ----------
   ! vrel(Nr, Nm, Nm) : Relative velocity
@@ -241,7 +241,7 @@ subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
   !
   ! Returns
   ! -------
-  ! pf(Nr) : Fragmentation probability in [0, 1]
+  ! pf(Nr, Nm, Nm) : Fragmentation probability in [0, 1]
   !
   ! Notes
   ! -----
@@ -251,16 +251,23 @@ subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
 
   double precision, intent(in)  :: vrel(Nr, Nm, Nm)
   double precision, intent(in)  :: vfrag(Nr)
-  double precision, intent(out) :: pf(Nr)
+  double precision, intent(out) :: pf(Nr, Nm, Nm)
   integer,          intent(in)  :: Nr
   integer,          intent(in)  :: Nm
-
+  
   double precision :: dum
+  integer :: ir
   integer :: i
+  integer :: j
 
-  do i=1, Nr
-    dum = (vfrag(i)/vrel(i, 2, 2))**2
-    pf(i) = (1.5d0*dum + 1.d0) * exp(-1.5d0*dum)
+  do i=1, Nm
+    do j=1, i
+      do ir=2, Nr-1
+        dum = (vfrag(ir)/vrel(ir, j, i))**2
+        pf(ir, j, i) = (1.5d0*dum + 1.d0) * exp(-1.5d0*dum)
+        pf(ir, i, j) = pf(ir, j, i)
+      end do
+    end do
   end do
 
 end subroutine pfrag
