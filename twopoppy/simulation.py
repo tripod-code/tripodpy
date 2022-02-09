@@ -201,6 +201,8 @@ class Simulation(dp.Simulation):
         shape2Sigmaravel = (int(self.grid.Nr * self.grid._Nm_short))
         # Radial grid interfaces and long particle grid
         shape2p1 = (int(self.grid.Nr) + 1, int(self.grid._Nm_long))
+        # Radial grid interfaces and short particle grid
+        shape2p1Sigma = (int(self.grid.Nr) + 1, int(self.grid._Nm_short))
         # Radial grid and twice long mass grid for relative velocities etc.
         shape3 = (int(self.grid.Nr), int(
             self.grid._Nm_long), int(self.grid._Nm_long))
@@ -241,16 +243,17 @@ class Simulation(dp.Simulation):
         # Fluxes
         if self.dust.Fi.adv is None:
             self.dust.Fi.addfield(
-                "adv", np.zeros(shape2p1), description="Advective flux [g/cm/s]")
-            self.dust.Fi.adv.updater = dp.std.dust.F_adv
+                "adv", np.zeros(shape2p1Sigma), description="Advective flux [g/cm/s]")
+            self.dust.Fi.adv.updater = std.dust.F_adv
         if self.dust.Fi.diff is None:
             self.dust.Fi.addfield(
-                "diff", np.zeros(shape2p1), description="Diffusive flux [g/cm/s]")
-            self.dust.Fi.diff.updater = dp.std.dust.F_diff
+                "diff", np.zeros(shape2p1Sigma), description="Diffusive flux [g/cm/s]")
+            self.dust.Fi.diff.updater = std.dust.F_diff
         if self.dust.Fi.tot is None:
             self.dust.Fi.addfield(
-                "tot", np.zeros(shape2p1), description="Total flux [g/cm/s]")
-            self.dust.Fi.tot.updater = dp.std.dust.F_tot
+                "tot", np.zeros(shape2p1Sigma), description="Total flux [g/cm/s]")
+            # TODO: Use DustPy updater after DustPy update
+            self.dust.Fi.tot.updater = std.dust.F_tot
         # Filling factor
         if self.dust.fill is None:
             self.dust.addfield(

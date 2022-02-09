@@ -25,6 +25,74 @@ def a(sim):
     return dust_f.a(sim.dust.s.amin, sim.dust.s.amax, sim.dust.s.aint, sim.dust.xi.calc, sim.grid._Nm_long)
 
 
+def F_adv(sim, Sigma=None):
+    """Function calculates the advective flux at the cell interfaces. It is linearly interpolating
+    the velocities onto the grid cel interfaces and is assuming
+    vi(0, :) = vi(1, :) and vi(Nr, :) = vi(Nr-1, :).
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    Sigma : Field, optional, default : None
+        Surface density to be used if not None
+
+    Returns
+    -------
+    Fi : Field
+        Advective mass fluxes through the grid cell interfaces"""
+    Sigma = Sigma if Sigma is not None else sim.dust.Sigma
+    return dust_f.fi_adv(sim.dust.Sigma, sim.dust.v.rad, sim.grid.r, sim.grid.ri)
+
+
+def F_diff(sim, Sigma=None):
+    '''Function calculates the diffusive flux at the cell interfaces'''
+    if Sigma is None:
+        Sigma = sim.dust.Sigma
+
+    Fi = dust_f.fi_diff(sim.dust.D,
+                        Sigma,
+                        sim.gas.Sigma,
+                        sim.dust.St,
+                        np.sqrt(sim.dust.delta.rad*sim.gas.cs**2),
+                        sim.grid.r,
+                        sim.grid.ri)
+    Fi[:1, :] = 0.
+    Fi[-1:, :] = 0.
+
+    return Fi
+
+
+# TODO: This function is not needed after a DustPy update.
+def F_tot(sim, Sigma=None):
+    """Function calculates the total mass fluxes through grid cell interfaces.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    Sigma : Field, optional, default : None
+        Surface density to be used if not None
+
+    Returns
+    -------
+    Ftot : Field
+        Total mass flux through interfaces"""
+    Fi = np.zeros_like(sim.dust.Fi.tot)
+    if Sigma is None:
+        Sigma = sim.dust.Sigma
+        Fdiff = sim.dust.Fi.diff
+        Fadv = sim.dust.Fi.adv
+    else:
+        Fdiff = sim.dust.Fi.diff.updater.beat(sim, Sigma=Sigma)
+        Fadv = sim.dust.Fi.adv.updater.beat(sim, Sigma=Sigma)
+    if Fdiff is not None:
+        Fi += Fdiff
+    if Fadv is not None:
+        Fi += Fadv
+    return Fi
+
+
 def m(sim):
     """Function calculates the particle mass from the particle sizes.
 

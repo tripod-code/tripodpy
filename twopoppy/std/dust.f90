@@ -60,6 +60,137 @@ subroutine a(amin, amax, aint, xicalc, sizes, Nr, Nm)
 
 end subroutine a
 
+
+subroutine fi_adv(Sigma, v, r, ri, Fi, Nr, Nm_s, Nm_l)
+  ! Function calculates the advective mass fluxes through the grid cell interfaces.
+  ! Velocity v is linearly interpolated on grid cell interfaces with
+  ! vi(1, :) = vi(2, :) and vi(Nr+1, :) = vi(Nr, :).
+  !
+  ! Parameters
+  ! ----------
+  ! Sigma(Nr, Nm) : Surface density
+  ! v(Nr, Nm) : Radial velocity at grid cell centers
+  ! r(Nr) : Radial grid cell centers
+  ! ri(Nr+1) : Radial grid cell interfaces
+  ! Nr : Number of radial grid cells
+  ! Nm_s : Short number of mass bins
+  ! Nm_l : Long number of mass bins
+  !
+  ! Returns
+  ! -------
+  ! Fi(Nr+1, Nm) : Flux through grid cell interfaces.
+
+  implicit none
+
+  double precision, intent(in)  :: Sigma(Nr, Nm_s)
+  double precision, intent(in)  :: v(Nr, Nm_l)
+  double precision, intent(in)  :: r(Nr)
+  double precision, intent(in)  :: ri(Nr+1)
+  double precision, intent(out) :: Fi(Nr+1, Nm_s)
+  integer,          intent(in)  :: Nr
+  integer,          intent(in)  :: Nm_s
+  integer,          intent(in)  :: Nm_l
+
+  double precision :: vi(Nr+1)
+  integer :: i
+  integer :: ir
+
+  do i=1, Nm_s
+    call interp1d(ri, r, v(:, i), vi, Nr)
+    do ir=2, Nr
+      Fi(ir, i) = Sigma(ir-1, i)*max(0.0, vi(ir)) + Sigma(ir, i)*min(vi(ir), 0.d0)
+    end do
+    Fi(1, i) = Sigma(1, i)*min(vi(2), 0.d0)
+    Fi(Nr+1, i) = Sigma(Nr, i)*max(0.0, vi(Nr))
+  end do
+
+end subroutine fi_adv
+
+
+subroutine fi_diff(D, SigmaD, SigmaG, St, u, r, ri, Fi, Nr, Nm_s, Nm_l)
+  ! Subroutine calculates the diffusive dust fluxes at the grid cell interfaces.
+  ! The flux at the boundaries is assumed to be constant.
+  !
+  ! Parameters
+  ! ----------
+  ! D(Nr, Nm) : Dust diffusivity
+  ! SigmaD(Nr, Nm) : Dust surface densities
+  ! SigmaG(Nr) : Gas surface density
+  ! St(Nr, Nm) : Stokes number
+  ! u(Nr) : Gas turbulent RMS velocity
+  ! r(Nr) : Radial grid cell centers
+  ! ri(Nr+1) : Radial grid cell interfaces
+  ! Nr : Number of radial grid cells
+  ! Nm_s : Short number of mass bins
+  ! Nm_l : Long number of mass bins
+  !
+  ! Returns
+  ! -------
+  ! Fi(Nr+1, Nm) : Diffusive fluxes at grid cell interfaces
+
+  implicit none
+
+  double precision, intent(in)  :: D(Nr, Nm_l)
+  double precision, intent(in)  :: SigmaD(Nr, Nm_s)
+  double precision, intent(in)  :: SigmaG(Nr)
+  double precision, intent(in)  :: St(Nr, Nm_l)
+  double precision, intent(in)  :: u(Nr)
+  double precision, intent(in)  :: r(Nr)
+  double precision, intent(in)  :: ri(Nr+1)
+  double precision, intent(out) :: Fi(Nr+1, Nm_s)
+  integer,          intent(in)  :: Nr
+  integer,          intent(in)  :: Nm_s
+  integer,          intent(in)  :: Nm_l
+
+  double precision :: Di(Nr+1, Nm_s)
+  double precision :: eps(Nr, Nm_s)
+  double precision :: gradepsi(Nr+1, Nm_s)
+  double precision :: lambda
+  double precision :: P
+  double precision :: SigDi(Nr+1, Nm_s)
+  double precision :: SigGi(Nr+1)
+  double precision :: Sti(Nr+1, Nm_s)
+  double precision :: ui(Nr+1)
+  double precision :: w
+  integer :: ir
+  integer :: i
+
+  Fi(:, :) = 0.d0
+
+  call interp1d(ri, r, SigmaG, SigGi, Nr)
+  call interp1d(ri, r, u, ui, Nr)
+
+  do i=1, Nm_s
+    call interp1d(ri(:), r(:), D(:, i), Di(:, i), Nr)
+    call interp1d(ri(:), r(:), SigmaD(:, i), SigDi(:, i), Nr)
+    eps(:, i) = SigmaD(:, i) / SigmaG(:)
+    call interp1d(ri(:), r(:), St(:, i), Sti(:, i), Nr)
+  end do
+
+  do ir=2, Nr
+    gradepsi(ir, :) = ( eps(ir, :) - eps(ir-1, :) ) / ( r(ir) - r(ir-1) )
+  end do
+
+  do i=1, Nm_s
+    do ir=2, Nr
+      w = ui(ir) * SigDi(ir, i) / (1.d0 + Sti(ir, i)**2)
+      Fi(ir, i) = -Di(ir, i) * SigGi(ir) * gradepsi(ir, i)
+      P = abs( Fi(ir, i) / w )
+      lambda = ( 1.d0 + P ) / ( 1.d0 + P + P**2 )
+      if(lambda .GT. HUGE(lambda)) then
+        Fi(ir, i) = w
+      else
+        Fi(ir, i) = lambda * Fi(ir, i)
+      end if
+    end do
+  end do
+
+  Fi(   1, :) = Fi( 2, :)
+  Fi(Nr+1, :) = Fi(Nr, :)
+
+end subroutine fi_diff
+
+
 subroutine m(a, rho, fill, masses, Nr, Nm)
   ! Subroutine calculates the particle masses.
   !
@@ -95,6 +226,7 @@ subroutine m(a, rho, fill, masses, Nr, Nm)
   end do
 
 end subroutine m
+
 
 subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
   ! Subroutine calculates the fragmentation probability.
@@ -132,6 +264,7 @@ subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
   end do
 
 end subroutine pfrag
+
 
 subroutine vrel_brownian_motion(cs, m, T, vrel, Nr, Nm)
   ! Subroutine calculates the relative particle velocities due to Brownian motion.
@@ -183,6 +316,7 @@ subroutine vrel_brownian_motion(cs, m, T, vrel, Nr, Nm)
 
 end subroutine vrel_brownian_motion
 
+
 subroutine xicalc(Sigma, amax, aint, xi, Nr, Nm)
   ! Subroutine calculates the particle size distribution exponent.
   !
@@ -214,6 +348,7 @@ subroutine xicalc(Sigma, amax, aint, xi, Nr, Nm)
   end do
 
 end subroutine xicalc
+
 
 subroutine aint(amin, amax, intsize, Nr)
   ! Subroutine calculates the intermediate particle size.
