@@ -31,9 +31,22 @@ class Simulation(dp.Simulation):
         self.dust.s.amax = None
         self.dust.s.aint = None
         self.dust.s.updater = ["aint"]
-        # TODO: take update order from dustpy and add new quatities in the right places
-        self.dust.updater = ["delta", "rhos", "fill", "s", "xi", "a", "m", "St", "H",
-                             "rho", "backreaction", "v", "D", "eps", "p", "S"]
+
+        # Adding new elements to update order in a relative way
+        def addelemtafter(lst, elem, after):
+            idx = lst.index(after)
+            lst.insert(idx+1, elem)
+        updtordr = self.dust.updateorder
+        # Add "s" after "fill"
+        addelemtafter(updtordr, "s", "fill")
+        # Add "xi" after "s"
+        addelemtafter(updtordr, "xi", "s")
+        # Add "m" after "a"
+        addelemtafter(updtordr, "m", "a")
+        # Assign updateorder
+        self.dust.updater = updtordr
+
+        # TODO: Managing the self.ini object
 
         # Deleting Fields that are not needed
         del(self.dust.coagulation)
