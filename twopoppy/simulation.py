@@ -3,6 +3,7 @@ import dustpy.constants as c
 import numpy as np
 from simframe import Instruction
 from simframe import Integrator
+from simframe import schemes
 from simframe.frame import Field
 from . import std
 
@@ -169,18 +170,26 @@ class Simulation(dp.Simulation):
         if self.integrator is None:
             # TODO: Add instructions for dust quantities
             instructions = [
-                # Instruction(std.dust.impl_1_direct,
-                #            self.dust.Sigma,
-                #            controller={"rhs": self.dust._rhs
-                #                        },
-                #            description="Dust: implicit 1st-order direct solver"
-                #            ),
-                Instruction(dp.std.gas.impl_1_direct,
-                            self.gas.Sigma,
-                            controller={"rhs": self.gas._rhs
-                                        },
-                            description="Gas: implicit 1st-order direct solver"
-                            ),
+                Instruction(
+                    schemes.expl_1_euler,
+                    self.dust.s.max,
+                    description="smax: explicit 1st-order Euler"
+                ),
+                # If we need to use the new smax for the dust integration
+                # uncomment the following instruction
+                # Instruction(self.dust.s.max),
+                # Instruction(
+                #    std.dust.impl_1_direct,
+                #    self.dust.Sigma,
+                #    controller={"rhs": self.dust._rhs},
+                #    description="Dust: implicit 1st-order direct solver"
+                # ),
+                Instruction(
+                    dp.std.gas.impl_1_direct,
+                    self.gas.Sigma,
+                    controller={"rhs": self.gas._rhs},
+                    description="Gas: implicit 1st-order direct solver"
+                ),
             ]
             self.integrator = Integrator(
                 self.t, description="Default integrator")
@@ -365,6 +374,7 @@ class Simulation(dp.Simulation):
             smax = self.ini.dust.aIniMax * np.ones(shape1)
             self.dust.s.addfield(
                 "max", smax, description="Maximum particle size")
+        self.dust.s.max.differentiator = std.dust.smax_deriv
         if self.dust.s.int is None:
             sint = np.sqrt(0.1) * self.ini.dust.aIniMax * np.ones(shape1)
             self.dust.s.addfield(
@@ -417,5 +427,3 @@ class Simulation(dp.Simulation):
                 condition="val",
                 value=0.1 * self.dust.SigmaFloor[-1]
             )
-
-        self.dust.update()

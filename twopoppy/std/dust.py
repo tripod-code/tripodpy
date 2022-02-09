@@ -192,6 +192,35 @@ def Sigma_initial(sim):
     return Sigma
 
 
+def smax_deriv(sim, t, smax):
+    """Function calculates the derivative of smax.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    t : IntVar
+        Current time
+    smax : Field
+        Current smax
+
+    Returns
+    -------
+    smax_dot: Field
+        Derivative of smax"""
+    vfrag = sim.dust.v.frag
+    dv = sim.dust.v.rel.tot[:, 2, 3]
+    A = (vfrag / dv)**8.
+    B = (1.-A) / (1.+A)
+
+    rho = sim.dust.rho[:, :2]
+    rhos = sim.dust.rhos[:, :2]
+    rhod = rho.sum(-1)
+    rhos_mean = (rho*rhos).sum(-1) / rhod
+
+    return rhod/rhos_mean*dv*B
+
+
 def S_tot(sim, Sigma=None):
     """Function calculates the total source terms.
 
