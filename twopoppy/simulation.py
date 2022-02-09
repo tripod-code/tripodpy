@@ -264,7 +264,7 @@ class Simulation(dp.Simulation):
         if self.dust.rho is None:
             self.dust.addfield(
                 "rho", np.zeros(shape2), description="Midplane mass density per mass bin [g/cm³]")
-            self.dust.rho.updater = dp.std.dust.rho_midplane
+            self.dust.rho.updater = std.dust.rho_midplane
         # Solid state density
         if self.dust.rhos is None:
             rhos = self.ini.dust.rhoMonomer * np.ones(shape2)

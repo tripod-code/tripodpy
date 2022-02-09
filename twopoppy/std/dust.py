@@ -77,6 +77,22 @@ def p_stick(sim):
     return p
 
 
+def rho_midplane(sim):
+    """Function calculates the midplane mass density.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    rho : Field
+        Midplane mass density"""
+    # The scale height H has a longer shape than Sigma and has to be adjusted
+    return sim.dust.Sigma / (np.sqrt(2 * c.pi) * sim.dust.H[:, :2])
+
+
 def Sigma_initial(sim):
     """Function calculates the initial condition fo the dust surface densities
 
