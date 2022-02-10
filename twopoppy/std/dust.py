@@ -69,7 +69,8 @@ def dt(sim):
 
 
 def dt_smax(sim):
-    """Function calculates the time step from the partile growth.
+    """Function calculates the time step from the particle growth.
+    Growth of maximum particle size during one integration step bound by smin and maximum growth factor.
 
     Parameters
     ----------
@@ -84,7 +85,7 @@ def dt_smax(sim):
     max_growth_fact = 10.
     smax_dot = std.dust.smax_deriv(sim, sim.t, sim.s.max)
     mask1 = np.where(smax_dot < 0.)
-    rate1 = sim.dust.s.max[mask1] / smax_dot[mask1]
+    rate1 = (sim.dust.s.min[mask1] - sim.dust.max[mask1]) / smax_dot[mask1]
     mask2 = np.where(smax_dot > 0.)
     rate2 = (max_growth_fact - 1.) * sim.dust.s.max[mask2] / smax_dot[mask2]
     try:

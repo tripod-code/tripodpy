@@ -160,8 +160,7 @@ class Simulation(dp.Simulation):
             self.addintegrationvariable("t", 0., description="Time [s]")
             self.t.cfl = 0.1
 
-            # TODO: Placeholder! This needs to be replaced with a TwoPopPy specific time step function
-            self.t.updater = dp.std.sim.dt
+            self.t.updater = std.sim.dt
 
             self.t.snapshots = np.logspace(3., 5., num=21, base=10.) * c.year
 
