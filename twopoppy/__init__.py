@@ -2,7 +2,7 @@ from dustpy import constants
 from twopoppy.simulation import Simulation
 
 __name__ = "twopoppy"
-__version__ = "0.0.0"
+__version__ = "3.0.0"
 
 Simulation.__version__ = __version__
 
