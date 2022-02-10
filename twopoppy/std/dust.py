@@ -2,9 +2,12 @@
 
 
 import dustpy.constants as c
+from dustpy.std import dust_f as dp_dust_f
 from twopoppy.std import dust_f
 
 import numpy as np
+
+import scipy.sparse as sp
 
 
 def a(sim):
@@ -290,3 +293,220 @@ def sint(sim):
     sint : Field
         Intermediate particle size"""
     return dust_f.calculate_sint(sim.dust.s.min, sim.dust.s.max)
+
+
+def S_coag(sim):
+    '''Function calculates the source terms from dust growth
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    Scoag : Field
+        Source terms from dust growth'''
+    # Helper variables
+    sigma = np.pi * (sim.dust.a[:, :, None]**2 + sim.dust.a[:, None, :]**2)
+    Sigma = sim.dust.Sigma
+    H = sim.dust.H
+    dv = sim.dust.v.rel.tot
+    m = sim.dust.m
+    smax = sim.dust.s.max
+    sint = sim.dust.s.int
+    xifrag = sim.dust.xi.frag
+    xistick = sim.dust.xi.stick
+    pfrag = sim.dust.p.frag
+    pstick = sim.dust.p.stick
+
+    xiprime = pfrag*xifrag[:, None, None] + pstick*xistick[:, None, None]
+    F = np.sqrt(2.*H[:, 1]**2 / (H[:, 0]**2 + H[:, 1]**2)) \
+        * sigma[:, 0, 1]/sigma[:, 1, 1] * dv[:, 0, 1]/dv[:, 1, 1] \
+        * (smax/sint)**(-xiprime[:, 0, 1]-4.)
+
+    dot01 = Sigma[:, 0] * Sigma[:, 1] * sigma[:, 0, 1] * dv[:, 0, 1] \
+        / (sim.dust.m[:, 1] * np.sqrt(2 * np.pi * (H[:, 0]**2 + H[:, 1]**2)))
+    dot10 = Sigma[:, 1]**2 * sigma[:, 1, 1] * dv[:, 1, 1] * F \
+        / (2. * np.sqrt(np.pi) * m[:, 1] * H[:, 1])
+
+    Scoag = np.empty_like(sim.dust.Sigma)
+    Scoag[:, 0] = dot10 - dot01
+    Scoag[:, 1] = - Scoag[:, 0]
+
+    return Scoag
+
+
+def jacobian(sim, x, dx=None, *args, **kwargs):
+    """Function calculates the Jacobian for implicit dust integration.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    x : IntVar
+        Integration variable
+    dx : float, optional, default : None
+        stepsize
+    args : additional positional arguments
+    kwargs : additional keyworda arguments
+
+    Returns
+    -------
+    jac : Sparse matrix
+        Dust Jacobian
+
+    Notes
+    -----
+    Function returns the Jacobian for ``Simulation.dust.Sigma.ravel()``
+    instead of ``Simulation.dust.Sigma``. The Jacobian is stored as
+    sparse matrix."""
+
+    # Helper variables for convenience
+    if dx is None:
+        dt = x.stepsize
+    else:
+        dt = dx
+    r = sim.grid.r
+    ri = sim.grid.ri
+    area = sim.grid.A
+    Nr = int(sim.grid.Nr)
+    Nm_s = int(sim.grid._Nm_short)
+
+    # Building coagulation Jacobian
+
+    # Total problem size
+    Ntot = int((Nr*Nm_s))
+
+    # Building the hydrodynamic Jacobian
+    # TODO: Check this call
+    A, B, C = dp_dust_f.jacobian_hydrodynamic_generator(
+        area,
+        sim.dust.D[:, :2],
+        r,
+        ri,
+        sim.gas.Sigma,
+        sim.dust.v.rad[:, :2]
+    )
+    J_hyd = sp.diags(
+        (A.ravel()[Nm_s:], B.ravel(), C.ravel()[:-Nm_s]),
+        offsets=(-Nm_s, 0, Nm_s),
+        shape=(Ntot, Ntot),
+        format="csc"
+    )
+
+    # Right-hand side
+    sim.dust._rhs[Nm_s:-Nm_s] = sim.dust.Sigma.ravel()[Nm_s:-Nm_s]
+
+    # BOUNDARIES
+
+    # Inner boundary
+
+    # Initializing data and coordinate vectors for sparse matrix
+    dat = np.zeros(int(3.*Nm_s))
+    row0 = np.arange(int(Nm_s))
+    col0 = np.arange(int(Nm_s))
+    col1 = np.arange(int(Nm_s)) + Nm_s
+    col2 = np.arange(int(Nm_s)) + 2.*Nm_s
+    row = np.concatenate((row0, row0, row0))
+    col = np.concatenate((col0, col1, col2))
+
+    # Filling data vector depending on boundary condition
+    if sim.dust.boundary.inner is not None:
+        # Given value
+        if sim.dust.boundary.inner.condition == "val":
+            sim.dust._rhs[:Nm_s] = sim.dust.boundary.inner.value
+        # Constant value
+        elif sim.dust.boundary.inner.condition == "const_val":
+            dat[Nm_s:2*Nm_s] = 1./dt
+            sim.dust._rhs[:Nm_s] = 0.
+        # Given gradient
+        elif sim.dust.boundary.inner.condition == "grad":
+            K1 = - r[1]/r[0]
+            dat[Nm_s:2*Nm_s] = -K1/dt
+            sim.dust._rhs[:Nm_s] = - ri[1]/r[0] * \
+                (r[1]-r[0])*sim.dust.boundary.inner.value
+        # Constant gradient
+        elif sim.dust.boundary.inner.condition == "const_grad":
+            Di = ri[1]/ri[2] * (r[1]-r[0]) / (r[2]-r[0])
+            K1 = - r[1]/r[0] * (1. + Di)
+            K2 = r[2]/r[0] * Di
+            dat[:Nm_s] = 0.
+            dat[Nm_s:2*Nm_s] = -K1/dt
+            dat[2*Nm_s:] = -K2/dt
+            sim.dust._rhs[:Nm_s] = 0.
+        # Given power law
+        elif sim.dust.boundary.inner.condition == "pow":
+            p = sim.dust.boundary.inner.value
+            sim.dust._rhs[:Nm_s] = sim.dust.Sigma[1] * (r[0]/r[1])**p
+        # Constant power law
+        elif sim.dust.boundary.inner.condition == "const_pow":
+            p = np.log(sim.dust.Sigma[2] /
+                       sim.dust.Sigma[1]) / np.log(r[2]/r[1])
+            K1 = - (r[0]/r[1])**p
+            dat[Nm_s:2*Nm_s] = -K1/dt
+            sim.dust._rhs[:Nm_s] = 0.
+
+    # Creating sparce matrix for inner boundary
+    gen = (dat, (row, col))
+    J_in = sp.csc_matrix(
+        gen,
+        shape=(Ntot, Ntot)
+    )
+
+    # Outer boundary
+
+    # Initializing data and coordinate vectors for sparse matrix
+    dat = np.zeros(int(3.*Nm_s))
+    row0 = np.arange(int(Nm_s))
+    col0 = np.arange(int(Nm_s))
+    col1 = np.arange(int(Nm_s)) - Nm_s
+    col2 = np.arange(int(Nm_s)) - 2.*Nm_s
+    offset = (Nr-1)*Nm_s
+    row = np.concatenate((row0, row0, row0)) + offset
+    col = np.concatenate((col0, col1, col2)) + offset
+
+    # Filling data vector depending on boundary condition
+    if sim.dust.boundary.outer is not None:
+        # Given value
+        if sim.dust.boundary.outer.condition == "val":
+            sim.dust._rhs[-Nm_s:] = sim.dust.boundary.outer.value
+        # Constant value
+        elif sim.dust.boundary.outer.condition == "const_val":
+            dat[-2*Nm_s:-Nm_s] = 1./dt
+            sim.dust._rhs[-Nm_s:] = 0.
+        # Given gradient
+        elif sim.dust.boundary.outer.condition == "grad":
+            KNrm2 = -r[-2]/r[-1]
+            dat[-2*Nm_s:-Nm_s] = -KNrm2/dt
+            sim.dust._rhs[-Nm_s:] = ri[-2]/r[-1] * \
+                (r[-1]-r[-2])*sim.dust.boundary.outer.value
+        # Constant gradient
+        elif sim.dust.boundary.outer.condition == "const_grad":
+            Do = ri[-2]/ri[-3] * (r[-1]-r[-2]) / (r[-2]-r[-3])
+            KNrm2 = - r[-2]/r[-1] * (1. + Do)
+            KNrm3 = r[-3]/r[-1] * Do
+            dat[-2*Nm_s:-Nm_s] = -KNrm2/dt
+            dat[-3*Nm_s:-2*Nm_s] = -KNrm3/dt
+            sim.dust._rhs[-Nm_s:] = 0.
+        # Given power law
+        elif sim.dust.boundary.outer.condition == "pow":
+            p = sim.dust.boundary.outer.value
+            sim.dust._rhs[-Nm_s:] = sim.dust.Sigma[-2] * (r[-1]/r[-2])**p
+        # Constant power law
+        elif sim.dust.boundary.outer.condition == "const_pow":
+            p = np.log(sim.dust.Sigma[-2] /
+                       sim.dust.Sigma[-3]) / np.log(r[-2]/r[-3])
+            KNrm2 = - (r[-1]/r[-2])**p
+            dat[-2*Nm_s:-Nm_s] = -KNrm2/dt
+            sim.dust._rhs[-Nm_s:] = 0.
+
+    # Creating sparce matrix for outer boundary
+    gen = (dat, (row, col))
+    J_out = sp.csc_matrix(
+        gen,
+        shape=(Ntot, Ntot)
+    )
+
+    # Adding and returning all matrix components
+    return J_in + J_hyd + J_out

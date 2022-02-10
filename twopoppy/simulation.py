@@ -58,12 +58,10 @@ class Simulation(dp.Simulation):
         # Deleting Fields that are not needed
         del(self.dust.coagulation)
         del(self.dust.kernel)
-        del(self.dust.S.coag)
         del(self.grid.m)
         del(self.grid.Nm)
 
     # Note: the next two functions are to hide methods from DustPy that are not used in TwoPopPy
-    # I have to check if there is a cleaner way of doing this.
     def __dir__(self):
         '''This function hides all attributes in _excludefromparten from inherited DustPy object. It is only hiding them. They can still be accessed.'''
         exclude = set(self._excludefromdustpy) - set(self.__dict__.keys())
@@ -168,7 +166,6 @@ class Simulation(dp.Simulation):
 
         # Set integrator
         if self.integrator is None:
-            # TODO: Add instructions for dust quantities
             instructions = [
                 Instruction(
                     schemes.expl_1_euler,
@@ -177,9 +174,9 @@ class Simulation(dp.Simulation):
                 ),
                 # If we need to use the new smax for the dust integration
                 # uncomment the following instruction
-                # Instruction(self.dust.s.max),
+                # Instruction(schemes.update, self.dust.s.max),
                 # Instruction(
-                #    std.dust.impl_1_direct,
+                #    dp.std.dust.impl_1_direct,
                 #    self.dust.Sigma,
                 #    controller={"rhs": self.dust._rhs},
                 #    description="Dust: implicit 1st-order direct solver"
@@ -214,8 +211,6 @@ class Simulation(dp.Simulation):
         shape2Sigma = (int(self.grid.Nr), int(self.grid._Nm_short))
         # Length of vector of implicit integration
         shape2Sigmaravel = (int(self.grid.Nr * self.grid._Nm_short))
-        # Radial grid interfaces and long particle grid
-        shape2p1 = (int(self.grid.Nr) + 1, int(self.grid._Nm_long))
         # Radial grid interfaces and short particle grid
         shape2p1Sigma = (int(self.grid.Nr) + 1, int(self.grid._Nm_short))
         # Radial grid and twice long mass grid for relative velocities etc.
@@ -225,160 +220,200 @@ class Simulation(dp.Simulation):
         # Particle size
         if self.dust.a is None:
             self.dust.addfield(
-                "a", np.ones(shape2), description="Particle size [cm]")
+                "a", np.ones(shape2), description="Particle size [cm]"
+            )
             self.dust.a.updater = std.dust.a
         # Particle mass
         if self.dust.m is None:
             self.dust.addfield(
-                "m", np.ones(shape2), description="Particle mass [g]")
+                "m", np.ones(shape2), description="Particle mass [g]"
+            )
             self.dust.m.updater = std.dust.m
         # Diffusivity
         if self.dust.D is None:
             self.dust.addfield(
-                "D", np.zeros(shape2), description="Diffusivity [cm²/s]")
+                "D", np.zeros(shape2), description="Diffusivity [cm²/s]"
+            )
             self.dust.D.updater = dp.std.dust.D
         # Deltas
         if self.dust.delta.rad is None:
             delta = self.ini.gas.alpha * np.ones(shape1)
             self.dust.delta.addfield(
-                "rad", delta, description="Radial mixing parameter")
+                "rad", delta, description="Radial mixing parameter"
+            )
         if self.dust.delta.turb is None:
             delta = self.ini.gas.alpha * np.ones(shape1)
             self.dust.delta.addfield(
-                "turb", delta, description="Turbulent mixing parameter")
+                "turb", delta, description="Turbulent mixing parameter"
+            )
         if self.dust.delta.vert is None:
             delta = self.ini.gas.alpha * np.ones(shape1)
             self.dust.delta.addfield(
-                "vert", delta, description="Vertical mixing parameter")
+                "vert", delta, description="Vertical mixing parameter"
+            )
         # Vertically integrated dust to gas ratio
         if self.dust.eps is None:
             self.dust.addfield(
-                "eps", np.zeros(shape1), description="Dust-to-gas ratio")
+                "eps", np.zeros(shape1), description="Dust-to-gas ratio"
+            )
             self.dust.eps.updater = dp.std.dust.eps
         # Fluxes
         if self.dust.Fi.adv is None:
             self.dust.Fi.addfield(
-                "adv", np.zeros(shape2p1Sigma), description="Advective flux [g/cm/s]")
+                "adv", np.zeros(shape2p1Sigma), description="Advective flux [g/cm/s]"
+            )
             self.dust.Fi.adv.updater = std.dust.F_adv
         if self.dust.Fi.diff is None:
             self.dust.Fi.addfield(
-                "diff", np.zeros(shape2p1Sigma), description="Diffusive flux [g/cm/s]")
+                "diff", np.zeros(shape2p1Sigma), description="Diffusive flux [g/cm/s]"
+            )
             self.dust.Fi.diff.updater = std.dust.F_diff
         if self.dust.Fi.tot is None:
             self.dust.Fi.addfield(
-                "tot", np.zeros(shape2p1Sigma), description="Total flux [g/cm/s]")
+                "tot", np.zeros(shape2p1Sigma), description="Total flux [g/cm/s]"
+            )
             # TODO: Use DustPy updater after DustPy update
             self.dust.Fi.tot.updater = std.dust.F_tot
         # Filling factor
         if self.dust.fill is None:
             self.dust.addfield(
-                "fill", np.ones(shape2), description="Filling factor")
+                "fill", np.ones(shape2), description="Filling factor"
+            )
         # Scale height
         if self.dust.H is None:
             self.dust.addfield(
-                "H", np.zeros(shape2), description="Scale heights [cm]")
+                "H", np.zeros(shape2), description="Scale heights [cm]"
+            )
             self.dust.H.updater = dp.std.dust.H
         # Midplane mass density
         if self.dust.rho is None:
             self.dust.addfield(
-                "rho", np.zeros(shape2Sigma), description="Midplane mass density per mass bin [g/cm³]")
+                "rho", np.zeros(shape2Sigma), description="Midplane mass density per mass bin [g/cm³]"
+            )
             self.dust.rho.updater = std.dust.rho_midplane
         # Solid state density
         if self.dust.rhos is None:
             rhos = self.ini.dust.rhoMonomer * np.ones(shape2)
             self.dust.addfield(
-                "rhos", rhos, description="Solid state density [g/cm³]")
+                "rhos", rhos, description="Solid state density [g/cm³]"
+            )
         # Probabilities
         if self.dust.p.frag is None:
             self.dust.p.frag = Field(self, np.zeros(
-                shape3), description="Fragmentation probability")
+                shape3), description="Fragmentation probability"
+            )
             self.dust.p.frag.updater = std.dust.p_frag
         if self.dust.p.stick is None:
             self.dust.p.stick = Field(self, np.zeros(
-                shape3), description="Sticking probability")
+                shape3), description="Sticking probability"
+            )
             self.dust.p.stick.updater = std.dust.p_stick
         # Source terms
         if self.dust.S.ext is None:
             self.dust.S.addfield(
-                "ext", np.zeros(shape2), description="External sources [g/cm²/s]")
+                "ext", np.zeros(shape2Sigma), description="External sources [g/cm²/s]"
+            )
         if self.dust.S.hyd is None:
             self.dust.S.addfield(
-                "hyd", np.zeros(shape2), description="Hydrodynamic sources [g/cm²/s]")
+                "hyd", np.zeros(shape2Sigma), description="Hydrodynamic sources [g/cm²/s]"
+            )
             self.dust.S.hyd.updater = dp.std.dust.S_hyd
+        if self.dust.S.coag is None:
+            self.dust.S.addfield(
+                "coag", np.zeros(shape2Sigma), description="Coagulation sources [g/cm²/s]"
+            )
+            self.dust.S.coag.updater = std.dust.S_coag
         if self.dust.S.tot is None:
             self.dust.S.addfield(
-                "tot", np.zeros(shape2), description="Tot sources [g/cm²/s]")
+                "tot", np.zeros(shape2Sigma), description="Tot sources [g/cm²/s]"
+            )
             self.dust.S.tot.updater = std.dust.S_tot
         # Stokes number
         if self.dust.St is None:
             self.dust.addfield(
-                "St", np.zeros(shape2), description="Stokes number")
+                "St", np.zeros(shape2), description="Stokes number"
+            )
             self.dust.St.updater = dp.std.dust.St_Epstein_StokesI
         # Velocities
         if self.dust.v.frag is None:
             vfrag = self.ini.dust.vfrag * np.ones(shape1)
             self.dust.v.addfield(
-                "frag", vfrag, description="Fragmentation velocity [cm/s]")
+                "frag", vfrag, description="Fragmentation velocity [cm/s]"
+            )
         if self.dust.v.rel.azi is None:
             self.dust.v.rel.addfield(
-                "azi", np.zeros(shape3), description="Relative azimuthal velocity [cm/s]")
+                "azi", np.zeros(shape3), description="Relative azimuthal velocity [cm/s]"
+            )
             self.dust.v.rel.azi.updater = dp.std.dust.vrel_azimuthal_drift
         if self.dust.v.rel.brown is None:
             self.dust.v.rel.addfield(
-                "brown", np.zeros(shape3), description="Relative Brownian motion velocity [cm/s]")
+                "brown", np.zeros(shape3), description="Relative Brownian motion velocity [cm/s]"
+            )
             self.dust.v.rel.brown.updater = std.dust.vrel_brownian_motion
         if self.dust.v.rel.rad is None:
             self.dust.v.rel.addfield(
-                "rad", np.zeros(shape3), description="Relative radial velocity [cm/s]")
+                "rad", np.zeros(shape3), description="Relative radial velocity [cm/s]"
+            )
             self.dust.v.rel.rad.updater = dp.std.dust.vrel_radial_drift
         if self.dust.v.rel.turb is None:
             self.dust.v.rel.addfield(
-                "turb", np.zeros(shape3), description="Relative turbulent velocity [cm/s]")
+                "turb", np.zeros(shape3), description="Relative turbulent velocity [cm/s]"
+            )
             self.dust.v.rel.turb.updater = dp.std.dust.vrel_turbulent_motion
         if self.dust.v.rel.vert is None:
             self.dust.v.rel.addfield(
-                "vert", np.zeros(shape3), description="Relative vertical settling velocity [cm/s]")
+                "vert", np.zeros(shape3), description="Relative vertical settling velocity [cm/s]"
+            )
             self.dust.v.rel.vert.updater = dp.std.dust.vrel_vertical_settling
         if self.dust.v.rel.tot is None:
             self.dust.v.rel.addfield(
-                "tot", np.zeros(shape3), description="Total relative velocity [cm/s]")
+                "tot", np.zeros(shape3), description="Total relative velocity [cm/s]"
+            )
             self.dust.v.rel.tot.updater = dp.std.dust.vrel_tot
         if self.dust.v.driftmax is None:
             self.dust.v.addfield(
-                "driftmax", np.zeros(shape1), description="Maximum drift velocity [cm/s]")
+                "driftmax", np.zeros(shape1), description="Maximum drift velocity [cm/s]"
+            )
             self.dust.v.driftmax.updater = dp.std.dust.vdriftmax
         if self.dust.v.rad is None:
             self.dust.v.addfield(
-                "rad", np.zeros(shape2), description="Radial velocity [cm/s]")
+                "rad", np.zeros(shape2), description="Radial velocity [cm/s]"
+            )
             self.dust.v.rad.updater = dp.std.dust.vrad
         # Distribution exponents
         if self.dust.xi.calc is None:
             xi = self.ini.dust.distExp * np.ones(shape1)
             self.dust.xi.addfield(
-                "calc", xi, description="Calculated distribution exponent")
+                "calc", xi, description="Calculated distribution exponent"
+            )
             self.dust.xi.calc.updater = std.dust.xicalc
         if self.dust.xi.frag is None:
             xifrag = self.ini.dust.distExp * np.ones(shape1)
             self.dust.xi.addfield(
-                "frag", xifrag, description="Fragmentation distribution exponent")
+                "frag", xifrag, description="Fragmentation distribution exponent"
+            )
         if self.dust.xi.stick is None:
             xistick = (self.ini.dust.distExp + 1.) * np.ones(shape1)
             self.dust.xi.addfield(
-                "stick", xistick, description="Drift distribution exponent")
+                "stick", xistick, description="Drift distribution exponent"
+            )
         # Specific particle sizes
         if self.dust.s.min is None:
             smin = 0.1 * self.ini.dust.aIniMax * np.ones(shape1)
             self.dust.s.addfield(
-                "min", smin, description="Minimum particle size")
+                "min", smin, description="Minimum particle size"
+            )
         if self.dust.s.max is None:
             smax = self.ini.dust.aIniMax * np.ones(shape1)
             self.dust.s.addfield(
-                "max", smax, description="Maximum particle size")
+                "max", smax, description="Maximum particle size"
+            )
         self.dust.s.max.differentiator = std.dust.smax_deriv
         if self.dust.s.int is None:
             sint = np.sqrt(0.1) * self.ini.dust.aIniMax * np.ones(shape1)
             self.dust.s.addfield(
-                "int", sint, description="Intermediate particle size")
+                "int", sint, description="Intermediate particle size"
+            )
             self.dust.s.int.updater = std.dust.sint
 
         # Floor value
@@ -386,19 +421,18 @@ class Simulation(dp.Simulation):
             # TODO: What is a reasonable value for this in TwoPopPy
             SigmaFloor = 1.e-100 * np.ones(shape2Sigma)
             self.dust.addfield(
-                "SigmaFloor", SigmaFloor, description="Floor value of surface density [g/cm²]")
+                "SigmaFloor", SigmaFloor, description="Floor value of surface density [g/cm²]"
+            )
         # Surface density, if not set
         if self.dust.Sigma is None:
-            # TODO: This needs to be replaced with TwoPopPy specific functions
             Sigma = std.dust.Sigma_initial(self)
             Sigma = np.where(Sigma <= self.dust.SigmaFloor,
                              0.1 * self.dust.SigmaFloor,
                              Sigma)
             self.dust.addfield(
-                "Sigma", Sigma, description="Surface density per mass bin [g/cm²]")
-        # TODO: Differentiator and Jacobinator need to be modified for TwoPopPy
-        self.dust.Sigma.differentiator = dp.std.dust.Sigma_deriv
-        self.dust.Sigma.jacobinator = dp.std.dust.jacobian
+                "Sigma", Sigma, description="Surface density per mass bin [g/cm²]"
+            )
+        self.dust.Sigma.jacobinator = std.dust.jacobian
 
         # Fully initialize dust quantities
         self.dust.update()
@@ -407,10 +441,12 @@ class Simulation(dp.Simulation):
         # We store the old values of the surface density in a hidden field
         # to calculate the fluxes through the boundaries in case of implicit integration.
         self.dust._SigmaOld = Field(
-            self, self.dust.Sigma, description="Previous value of surface density [g/cm²]")
+            self, self.dust.Sigma, description="Previous value of surface density [g/cm²]"
+        )
         # The right-hand side of the matrix equation is stored in a hidden field
         self.dust._rhs = Field(self, np.zeros(
-            shape2Sigmaravel), description="Right-hand side of matrix equation [g/cm²]")
+            shape2Sigmaravel), description="Right-hand side of matrix equation [g/cm²]"
+        )
         # Boundary conditions
         if self.dust.boundary.inner is None:
             self.dust.boundary.inner = dp.utils.Boundary(
