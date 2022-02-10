@@ -299,12 +299,16 @@ def S_tot(sim, Sigma=None):
     Sext = sim.dust.S.ext
     if Sigma is None:
         Sigma = sim.dust.Sigma
+        Scoag = sim.dust.S.coag
         Shyd = sim.dust.S.hyd
     else:
+         Scoag = sim.dust.S.coag.updater.beat(sim, Sigma=Sigma)
+        if Scoag is None:
+            Scoag = sim.dust.S.coag
         Shyd = sim.dust.S.hyd.updater.beat(sim, Sigma=Sigma)
         if Shyd is None:
             Shyd = sim.dust.S.hyd
-    return Shyd + Sext
+    return Scoag + Shyd + Sext
 
 
 def vrel_brownian_motion(sim):
@@ -385,7 +389,7 @@ def S_coag(sim, Sigma=None):
     xiprime = pfrag*xifrag[:, None, None] + pstick*xistick[:, None, None]
     F = np.sqrt(2.*H[:, 1]**2 / (H[:, 0]**2 + H[:, 1]**2)) \
         * sigma[:, 0, 1]/sigma[:, 1, 1] * dv[:, 0, 1]/dv[:, 1, 1] \
-        * (smax/sint)**(-xiprime[:, 0, 1]-4.)
+        * (smax/sint)**(-xiprime[:, 1, 1]-4.)
 
     dot01 = Sigma[:, 0] * Sigma[:, 1] * sigma[:, 0, 1] * dv[:, 0, 1] \
         / (sim.dust.m[:, 1] * np.sqrt(2 * np.pi * (H[:, 0]**2 + H[:, 1]**2)))
@@ -442,7 +446,7 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
 
     # Building the hydrodynamic Jacobian
     # TODO: Check this call
-    A, B, C = dp_dust_f.jacobian_hydrodynamic_generator(
+    A, B, C = dp.std.dust_f.jacobian_hydrodynamic_generator(
         area,
         sim.dust.D[:, :2],
         r,
