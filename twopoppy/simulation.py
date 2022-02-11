@@ -16,7 +16,7 @@ class Simulation(dp.Simulation):
     For making the simulation grids use ``Simulation.makegrids()``,
     For initialization use ``Simulation.initialize()``,
     For running simulations use ``Simulation.run()``.
-    Please have a look at the documentation of ``simframe`` for further details.""
+    Please have a look at the documentation of ``simframe`` for further details."""
     
     __name__ = "TwoPopPy"
 
