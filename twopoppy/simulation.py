@@ -9,6 +9,16 @@ from . import std
 
 
 class Simulation(dp.Simulation):
+    """The main simulation class for running dust evolution simulations.
+    `twopoppy.Simulation`` is a child of ``dustpy.Simulation``, 
+    which is in turn a child of ``simframe.Frame``.
+    For setting simple initial conditions use ``Simulation.ini``,
+    For making the simulation grids use ``Simulation.makegrids()``,
+    For initialization use ``Simulation.initialize()``,
+    For running simulations use ``Simulation.run()``.
+    Please have a look at the documentation of ``simframe`` for further details."""
+    
+    __name__ = "TwoPopPy"
 
     # Exclude the following functions from the from DustPy inherited object
     _excludefromdustpy = [
