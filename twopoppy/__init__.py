@@ -11,17 +11,20 @@ that contains pre-defined standard functions ``twopoppy.std`` that can be used i
 
 ``TwoPopPy`` is using the ``simframe`` package for setting up scientific simulations.'''
 
-from dustpy import constants
-from simframe.io.dump import readdump
+from twopoppy import plot
 from twopoppy.simulation import Simulation
+from twopoppy import constants
+from twopoppy import utils
 from twopoppy.utils import hdf5writer
+
+from simframe.io.dump import readdump
+from simframe.io.writers import hdf5writer
 
 __name__ = "twopoppy"
 __version__ = "3.0.0"
 
 Simulation.__version__ = __version__
+plot.__version__ = __version__
+utils.__version__ = __version__
 
-__all__ = ["constants",
-           "hdf5writer",
-           "readdump",
-           "Simulation"]
+__all__ = ["constants", "hdf5writer", "plot", "readdump", "Simulation"]
