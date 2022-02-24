@@ -50,7 +50,8 @@ def panel(data, filename="data", extension="hdf5", im=0, ir=0, it=0, show_limits
     sd_max = np.ceil(np.log10(data.SigmaDusti.max()))
     sg_max = np.ceil(np.log10(data.SigmaGas.max()))
     Mmax = np.ceil(np.log10(data.Mgas.max()/c.M_sun)) + 1
-    levels = np.linspace(sd_max-6, sd_max, 7)
+    levels = np.linspace(sd_max-(data.Nmi-2), sd_max, data.Nmi-1)
+    # default for data.Nmi is 8 in accordance with default sim.ini.grid.Nmbpd in dustpy
 
     width = 3.5
     fig = plt.figure(figsize=(3.*width, 2.*width/1.618), dpi=150)
@@ -529,7 +530,7 @@ def _readdata(data, filename="data", extension="hdf5"):
 
     # Interpolation of the density distribution over mass grid
     # via distribution exponent
-    Nmi = 21
+    Nmi = 8 # default for data.Nmi is 8 in accordance with default sim.ini.grid.Nmbpd in dustpy
     mi = np.ones(int(Nt)) * np.logspace(smin.min(), smax.max(), Nmi)
     mi0 = mi[..., :-1]
     mi1 = mi[..., 1:]

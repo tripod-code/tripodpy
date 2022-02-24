@@ -10,7 +10,7 @@ from . import std
 
 class Simulation(dp.Simulation):
     """The main simulation class for running dust evolution simulations.
-    `twopoppy.Simulation`` is a child of ``dustpy.Simulation``, 
+    `twopoppy.Simulation`` is a child of ``dustpy.Simulation``,
     which is in turn a child of ``simframe.Frame``.
     For setting simple initial conditions use ``Simulation.ini``,
     For making the simulation grids use ``Simulation.makegrids()``,
@@ -73,6 +73,13 @@ class Simulation(dp.Simulation):
         self.dust.S.updater = updtordr
 
         # Deleting Fields that are not needed
+        del(self.ini.grid.Nmbpd)
+        del(self.ini.grid.mmin)
+        del(self.ini.grid.mmax)
+        del(self.ini.dust.allowDriftingParticles)
+        del(self.ini.dust.erosionMassRatio)
+        del(self.ini.dust.excavatedMass)
+        del(self.ini.dust.fragmentDistribution)
         del(self.dust.coagulation)
         del(self.dust.kernel)
         del(self.grid.m)
