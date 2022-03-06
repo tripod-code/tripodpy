@@ -272,7 +272,7 @@ subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
   do i=1, Nm
     do j=1, i
       do ir=2, Nr-1
-        dum = (vfrag(ir)/vrel(ir, j, i))**2
+        dum = vfrag(ir)/vrel(ir, j, i)
         pf(ir, j, i) = fac * (2.d0/3.d0*dum**3 + 4.d0/3.d0*dum**2 + 16.d0/9.d0*dum + 32.d0/27.d0) * exp(-1.5d0*dum)
         pf(ir, i, j) = pf(ir, j, i)
       end do
