@@ -67,14 +67,13 @@ def dt_smax(sim):
     # TODO: Which factor for maximum growth makes sense here?
     max_growth_fact = 2.
     smax_dot = sim.dust.s.max.derivative()[1:-1]  # Ignoring boundaries
+    smax = sim.dust.s.max[1:-1]  # Ignoring boundaries
+    smin = sim.dust.s.min[1:-1]  # Ignoring boundaries
     # Time step if smax is shrinking.
     # Value must not drop below smin
     if np.any(smax_dot < 0.):
-        mask1 = np.logical_and(
-            sim.dust.s.max > sim.dust.s.min,
-            smax_dot < 0.)
-        rate1 = (sim.dust.s.min[mask1] \
-                - sim.dust.s.max[mask1]) / smax_dot[mask1]
+        mask1 = np.logical_and(smax > smin, smax_dot < 0.)
+        rate1 = (smin[mask1] - smax[mask1]) / smax_dot[mask1]
         dt1 = np.min(np.abs(rate1))
     else:
         dt1 = 1.e100
@@ -82,8 +81,7 @@ def dt_smax(sim):
     # Value must not grow by more than the maximum growth factor
     if np.any(smax_dot > 0.):
         mask2 = np.where(smax_dot > 0.)
-        rate2 = (max_growth_fact - 1.) \
-                * sim.dust.s.max[mask2] / smax_dot[mask2]
+        rate2 = (max_growth_fact - 1.) * smax[mask2] / smax_dot[mask2]
         dt2 = np.min(np.abs(rate2))
     else:
         dt2 = 1.e100
