@@ -268,12 +268,12 @@ subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
   integer :: i
   integer :: j
 
-  fac = sqrt(108.d0 / (8.d0 * pi**2))
+  fac = sqrt(108.d0 / 8.d0) / (18.d0 * pi)
   do i=1, Nm
     do j=1, i
       do ir=2, Nr-1
-        dum = vfrag(ir)/vrel(ir, j, i)
-        pf(ir, j, i) = fac * (2.d0/3.d0*dum**3 + 4.d0/3.d0*dum**2 + 16.d0/9.d0*dum + 32.d0/27.d0) * exp(-1.5d0*dum)
+        dum = (vfrag(ir)/vrel(ir, j, i))**2
+        pf(ir, j, i) = fac * (1.5d0*dum + 1.d0) * exp(-1.5d0*dum)
         pf(ir, i, j) = pf(ir, j, i)
       end do
     end do
