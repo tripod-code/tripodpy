@@ -566,7 +566,7 @@ def smax_deriv(sim, t, smax):
     minimum = 2. * smin
     threshold = 1.35 * minimum
     factor = np.where(smax <= threshold, np.exp(-100. * (smax/threshold-1.)**2.), 1.)
-    factor = np.where(smax <= minimum, 0. factor)
+    factor = np.where(smax <= minimum, 0., factor)
 
     # apply transition factor only to reduce decline if growth is negative
     smax_dot = rhod / rhos_mean * dv * B
