@@ -74,7 +74,6 @@ class Simulation(dp.Simulation):
         del(self.ini.grid.Nmbpd)
         del(self.ini.grid.mmin)
         del(self.ini.grid.mmax)
-        del(self.ini.dust.allowDriftingParticles)
         del(self.ini.dust.erosionMassRatio)
         del(self.ini.dust.excavatedMass)
         del(self.ini.dust.fragmentDistribution)

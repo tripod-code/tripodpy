@@ -185,6 +185,24 @@ def Sigma_initial(sim):
     Sigma = sim.ini.dust.d2gRatio * sim.gas.Sigma[:, None] \
             * np.where(xi[:, None] == -4., S_4, S)
 
+    # Routine for excluding initially drifting particles
+    if not sim.ini.dust.allowDriftingParticles:
+        # Calculating pressure gradient
+        P = sim.gas.P
+        Pi = dust_f.interp1d(sim.grid.ri, sim.grid.r, P)
+        gamma = (Pi[1:] - Pi[:-1]) / (sim.grid.ri[1:] - sim.grid.ri[:-1])
+        gamma = np.abs(gamma)
+        # Exponent of pressure gradient
+        gamma *= sim.grid.r / P
+        gamma = 1. / gamma
+        # Maximum drift limited particle size with safety margin
+        ad = 1.e-4 * 2./np.pi * sim.ini.dust.d2gRatio * sim.gas.Sigma \
+            / sim.dust.fill[:, 0] * sim.dust.rhos[:, 0] * (sim.grid.OmegaK * sim.grid.r)**2. \
+            / sim.gas.cs**2. / gamma
+        aIni = np.minimum(sim.ini.dust.aIniMax, ad)[:, None]
+        # Set surface densities of initially drifting particles to floor value
+        Sigma = np.where(sim.dust.a[:, :2] > aIni, 0.1 * sim.dust.SigmaFloor, Sigma)
+
     return Sigma
 
 
@@ -533,8 +551,8 @@ def smax_deriv(sim, t, smax):
         Derivative of smax"""
     vfrag = sim.dust.v.frag
     dv = sim.dust.v.rel.tot[:, 2, 3]
-    factor = 8.
-    A = (dv / vfrag)**factor
+    exponent = 8.
+    A = (dv / vfrag)**exponent
     B = (1. - A) / (1. + A)
 
     rho = sim.dust.rho[:, :2]
@@ -542,7 +560,19 @@ def smax_deriv(sim, t, smax):
     rhod = rho.sum(-1)
     rhos_mean = (rho * rhos).sum(-1) / rhod
 
-    return rhod / rhos_mean * dv * B
+    # additional modification of growth to ensure minimal distribution width is not surpassed
+    smin = sim.dust.s.min
+    smax = sim.dust.s.max
+    minimum = 2. * smin
+    threshold = 1.35 * minimum
+    factor = np.where(smax <= threshold, np.exp(-100. * (smax/threshold-1.)**2.), 1.)
+    factor = np.where(smax <= minimum, 0. factor)
+
+    # apply transition factor only to reduce decline if growth is negative
+    smax_dot = rhod / rhos_mean * dv * B
+    smax_dot = np.where(smax_dot < 0., smax_dot * factor, smax_dot)
+
+    return smax_dot
 
 
 def S_coag(sim, Sigma=None):
