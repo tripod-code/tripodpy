@@ -431,6 +431,15 @@ class Simulation(dp.Simulation):
             )
         self.dust.s.max.differentiator = std.dust.smax_deriv
 
+        # Initialize dust quantities partly to calculate Sigma
+        try:
+            self.dust.update()
+        except:
+            pass
+        # Calculate particle sizes and masses which could not be initialized at this point of the simulation
+        self.dust.a = std.dust_f.calculate_a(self.dust.s.min, self.dust.s.max, self.dust.xi.calc, self.grid._Nm_long)
+        self.dust.m = std.dust_f.calculate_m(self.dust.a, self.dust.rhos, self.dust.fill)
+        
         # Floor value
         if self.dust.SigmaFloor is None:
             # TODO: What is a reasonable value for this in TwoPopPy
