@@ -196,7 +196,7 @@ def Sigma_initial(sim):
 
     # Values for xi != -4
     for i in range(int(sim.grid.Nr)):
-        if smax[i] = smin[i]:
+        if smax[i] == smin[i]:
             S0[i] = SigmaFloor[i, 0]
             S1[i] = SigmaFloor[i, 1]
         else:
@@ -206,7 +206,7 @@ def Sigma_initial(sim):
 
     # Values for xi == -4
     for i in range(int(sim.grid.Nr)):
-        if smax[i] = smin[i]:
+        if smax[i] == smin[i]:
             S0_4[i] = SigmaFloor[i, 0]
             S1_4[i] = SigmaFloor[i, 1]
         else:
