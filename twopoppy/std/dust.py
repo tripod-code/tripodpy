@@ -169,6 +169,8 @@ def Sigma_initial(sim):
     xi = sim.dust.xi.calc
     xip4 = xi + 4.
     smin = sim.dust.s.min
+    smax = sim.dust.s.max
+    sint = np.sqrt(smin * smax)
 
     # Routine for excluding initially drifting particles
     if not sim.ini.dust.allowDriftingParticles:
