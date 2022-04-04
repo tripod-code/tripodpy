@@ -198,7 +198,7 @@ class Simulation(dp.Simulation):
                 # uncomment the following instruction
                 # Instruction(schemes.update, self.dust.s.max),
                 Instruction(
-                    dp.std.dust.impl_1_direct,
+                    std.dust.impl_1_direct,
                     self.dust.Sigma,
                     controller={"rhs": self.dust._rhs},
                     description="Dust: implicit 1st-order direct solver"

@@ -6,6 +6,8 @@ from dustpy.std import dust_f as dp_dust_f
 import dustpy.std.dust as dp_dust
 from twopoppy.std import dust_f
 
+from simframe.integration import Scheme
+
 import numpy as np
 
 import scipy.sparse as sp
@@ -702,3 +704,60 @@ def xicalc(sim):
     xicalc : Field
         Calculated exponent of distribution"""
     return dust_f.calculate_xi(sim.dust.s.min, sim.dust.s.max, sim.dust.Sigma)
+
+
+def _f_impl_1_direct(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
+    """Implicit 1st-order integration scheme with direct matrix inversion
+    Parameters
+    ----------
+    x0 : Intvar
+        Integration variable at beginning of scheme
+    Y0 : Field
+        Variable to be integrated at the beginning of scheme
+    dx : IntVar
+        Stepsize of integration variable
+    jac : Field, optional, defaul : None
+        Current Jacobian. Will be calculated, if not set
+    args : additional positional arguments
+    kwargs : additional keyworda arguments
+    Returns
+    -------
+    dY : Field
+        Delta of variable to be integrated
+    Butcher tableau
+    ---------------
+     1 | 1
+    ---|---
+       | 1
+    """
+    if jac is None:
+        jac = Y0.jacobian(x0, dx)
+    if rhs is None:
+        rhs = np.array(Y0.ravel())
+
+    Nm = Y0._owner.dust.Sigma.shape[1]
+
+    # Add external source terms to right-hand side
+    rhs[Nm:-Nm] += dx*(Y0._owner.dust.S.ext[1:-1, ...] + Y0._owner.dust.S.coag[1:-1, ...]).ravel()
+
+    N = jac.shape[0]
+    eye = sp.identity(N, format="csc")
+
+    A = eye - dx[0] * jac
+
+    A_LU = sp.linalg.splu(A,
+                          permc_spec="MMD_AT_PLUS_A",
+                          diag_pivot_thresh=0.0,
+                          options=dict(SymmetricMode=True))
+    Y1_ravel = A_LU.solve(rhs)
+
+    Y1 = Y1_ravel.reshape(Y0.shape)
+
+    return Y1 - Y0
+
+
+class impl_1_direct(Scheme):
+    """Modified class for implicit dust integration."""
+
+    def __init__(self):
+        super().__init__(_f_impl_1_direct, description="Implicit 1st-order direct solver")
