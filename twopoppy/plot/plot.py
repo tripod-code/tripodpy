@@ -536,7 +536,7 @@ def _readdata(data, filename="data", extension="hdf5"):
     mi1 = mi[..., 1:]
     mic = 0.5 * (mi0[...] + mi1[...])
     SigmaDustTot = SigmaDust[...].sum(-1)
-    SigmaDustint = np.ones(int(Nt), int(Nr), int(Nmi-1)) * 1e-100
+    SigmaDustint = np.ones((int(Nt), int(Nr), int(Nmi-1))) * 1e-100
     for i in range(Nt):
         i = int(i)
         for j in range(Nr):
