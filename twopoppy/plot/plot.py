@@ -41,7 +41,7 @@ def panel(data, filename="data", extension="hdf5", im=0, ir=0, it=0, show_limits
     it = np.minimum(it, data.Nt-1)
     it = int(it)
     im = np.maximum(0, im)
-    im = np.minimum(im, data.Nm[it, ...]-1)
+    im = np.minimum(im, data.Nmi[it, ...]-1)
     im = int(im)
     ir = np.maximum(0, ir)
     ir = np.minimum(ir, data.Nr[it, ...]-1)
@@ -191,7 +191,7 @@ def ipanel(data, filename="data", extension="hdf5", im=0, ir=0, it=0, show_limit
     it = np.minimum(it, data.Nt-1)
     it = int(it)
     im = np.maximum(0, im)
-    im = np.minimum(im, data.Nm[it, ...]-1)
+    im = np.minimum(im, data.Nmi[it, ...]-1)
     im = int(im)
     ir = np.maximum(0, ir)
     ir = np.minimum(ir, data.Nr[it, ...]-1)
@@ -462,7 +462,6 @@ def _readdata(data, filename="data", extension="hdf5"):
     if isinstance(data, Simulation):
 
         m = data.dust.m[None, ...]
-        Nm = data.grid._Nm_long[None, ...]
         r = data.grid.r[None, ...]
         ri = data.grid.ri[None, ...]
         Nr = data.grid.Nr[None, ...]
@@ -496,7 +495,6 @@ def _readdata(data, filename="data", extension="hdf5"):
         writer.filename = filename
 
         m = writer.read.sequence("dust.m")
-        Nm = writer.read.sequence("grid._Nm_long")
         r = writer.read.sequence("grid.r")
         ri = writer.read.sequence("grid.ri")
         Nr = writer.read.sequence("grid.Nr")
@@ -595,8 +593,8 @@ def _readdata(data, filename="data", extension="hdf5"):
                        np.diff(pi) / np.diff(ri[i, ...]))
         StDr[i, ...] = eps[i, ...] / gamma * (vK[i, ...] / cs[i, ...])**2
 
-    ret["m"] = m
-    ret["Nm"] = Nm
+    ret["mic"] = mic
+    ret["Nmi"] = Nmi
     ret["r"] = r
     ret["ri"] = ri
     ret["Nr"] = Nr
@@ -604,6 +602,9 @@ def _readdata(data, filename="data", extension="hdf5"):
     ret["Nt"] = Nt
 
     ret["SigmaDust"] = SigmaDust
+    ret["SigmaDusti"] = SigmaDusti
+    ret["SigmaDustint"] = SigmaDustint
+    ret["SigmaDustTot"] = SigmaDustTot
     ret["SigmaGas"] = SigmaGas
     ret["eps"] = eps
 
@@ -613,7 +614,7 @@ def _readdata(data, filename="data", extension="hdf5"):
     ret["cs"] = cs
     ret["delta"] = delta
     ret["OmegaK"] = OmegaK
-    ret["St"] = St
+    ret["Sti"] = Sti
     ret["StDr"] = StDr
     ret["StFr"] = StFr
     ret["vK"] = vK
@@ -621,12 +622,5 @@ def _readdata(data, filename="data", extension="hdf5"):
     ret["smin"] = smin
     ret["smax"] = smax
     ret["xicalc"] = xicalc
-
-    ret["SigmaDustTot"] = SigmaDustTot
-    ret["SigmaDustint"] = SigmaDustint
-    ret["SigmaDusti"] = SigmaDusti
-    ret["mic"] = mic
-    ret["Nmi"] = Nmi
-    ret["Sti"] = Sti
 
     return SimpleNamespace(**ret)
