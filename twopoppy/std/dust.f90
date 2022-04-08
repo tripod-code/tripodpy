@@ -376,3 +376,68 @@ do i=1, Nr
 end do
 
 end subroutine calculate_xi
+
+
+subroutine jacobian_coagulation_generator(M0, M1, dat, row, col, Nr, Nm)
+  ! Subroutine calculates the coagulation Jacobian at every radial grid cell except for the boundaries.
+  !
+  ! Parameters
+  ! ----------
+  ! M0(Nr) : First diagonal element of grid cell Jacobain
+  ! M1(Nr) : Second diagonal element of grid cell Jacobian
+  ! Nr : Number of radial grid cells
+  ! Nm : Number of mass bins
+  !
+  ! Returns
+  ! -------
+  ! dat((Nr-2)*Nm*Nm) : Non-zero elements of Jacobian
+  ! row((Nr-2)*Nm*Nm) : row location of non-zero elements
+  ! col((Nr-2)*Nm*Nm) : column location of non-zero elements
+  
+  implicit none
+
+  double precision, intent(in)  :: M0(Nr)
+  double precision, intent(in)  :: M1(Nr)
+  double precision, intent(out) :: dat((Nr-2)*Nm*Nm)
+  integer,          intent(out) :: row((Nr-2)*Nm*Nm)
+  integer,          intent(out) :: col((Nr-2)*Nm*Nm)
+  integer,          intent(in)  :: Nr
+  integer,          intent(in)  :: Nm
+
+  double precision :: jac(Nr, Nm, Nm)
+
+  integer :: ir
+  integer :: i
+  integer :: j
+  integer :: k
+  integer :: start
+
+  ! Initialization
+  jac(:, :, :) = 0.d0
+  dat(:) = 0.d0
+  row(:) = 0
+  col(:) = 0
+
+  ! Filling the grid cell Jacobian
+  do ir=2, Nr-1
+    jac(ir, 1, 1) =  M0(ir)
+    jac(ir, 1, 2) = -M1(ir)
+    jac(ir, 2, 1) = -M0(ir)
+    jac(ir, 2, 2) =  M1(ir)
+  end do
+
+  ! Filling the data array
+  k = 1
+  do ir=2, Nr-1
+    start = (ir-1)*Nm - 1
+    do i=1, Nm
+      do j=1, Nm
+        dat(k) = jac(ir, i, j)
+        row(k) = start + i
+        col(k) = start + j
+        k = k + 1
+      end do
+    end do
+  end do
+
+end subroutine jacobian_coagulation_generator

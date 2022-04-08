@@ -63,13 +63,6 @@ class Simulation(dp.Simulation):
         # Assign updateorder
         self.dust.updater = updtordr
 
-        # Adjusting the updater of dust sources
-        updtordr = self.dust.S.updateorder
-        # Add "coag" after "ext"
-        addelemtafter(updtordr, "coag", "ext")
-        # Assign updateorder
-        self.dust.S.updater = updtordr
-
         # Deleting Fields that are not needed
         del(self.ini.grid.Nmbpd)
         del(self.ini.grid.mmin)
@@ -437,17 +430,18 @@ class Simulation(dp.Simulation):
         except:
             pass
         # Calculate particle sizes and masses which could not be initialized at this point of the simulation
-        self.dust.a = std.dust_f.calculate_a(self.dust.s.min, self.dust.s.max, self.dust.xi.calc, self.grid._Nm_long)
-        self.dust.m = std.dust_f.calculate_m(self.dust.a, self.dust.rhos, self.dust.fill)
+        self.dust.a = std.dust_f.calculate_a(
+            self.dust.s.min, self.dust.s.max, self.dust.xi.calc, self.grid._Nm_long)
+        self.dust.m = std.dust_f.calculate_m(
+            self.dust.a, self.dust.rhos, self.dust.fill)
 
         # Floor value
         if self.dust.SigmaFloor is None:
             # TODO: What is a reasonable value for this in TwoPopPy
-            SigmaFloor = 0.1 * std.dust.SigmaFloor(self)
+            SigmaFloor = 1.e-50 * np.ones(shape2Sigma)
             self.dust.addfield(
                 "SigmaFloor", SigmaFloor, description="Floor value of surface density [g/cm²]"
             )
-            self.dust.SigmaFloor.updater = std.dust.SigmaFloor
         # Surface density, if not set
         if self.dust.Sigma is None:
             Sigma = std.dust.Sigma_initial(self)
@@ -486,6 +480,5 @@ class Simulation(dp.Simulation):
                 self.grid.ri[::-1],
                 self.dust.Sigma[::-1],
                 condition="val",
-                #condition="const_grad",
                 value=0.1 * self.dust.SigmaFloor[-1]
             )

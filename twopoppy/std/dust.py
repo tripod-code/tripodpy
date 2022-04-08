@@ -118,6 +118,7 @@ def finalize(sim):
     dp_dust.enforce_floor_value(sim)
     sim.dust.v.rad.update()
     sim.dust.Fi.update()
+    sim.dust.S.coag.update()
     sim.dust.S.hyd.update()
     dp_dust.set_implicit_boundaries(sim)
     # TODO: Doing this here for testing for now
@@ -190,7 +191,8 @@ def Sigma_initial(sim):
             / sim.gas.cs**2. / gamma
         aIni = np.minimum(sim.ini.dust.aIniMax, ad)
         # Enforce initial drift limit
-        sim.dust.xi.calc = np.where(aIni < sim.ini.dust.aIniMax, sim.dust.xi.stick, sim.dust.xi.calc)
+        sim.dust.xi.calc = np.where(
+            aIni < sim.ini.dust.aIniMax, sim.dust.xi.stick, sim.dust.xi.calc)
         sim.dust.s.max = np.maximum(smin, aIni)
         smax = sim.dust.s.max
         sint = np.sqrt(smin * smax)
@@ -207,7 +209,8 @@ def Sigma_initial(sim):
             S0[i] = SigmaFloor[i, 0]
             S1[i] = SigmaFloor[i, 1]
         else:
-            S0[i] = (sint[i]**xip4[i] - smin[i]**xip4[i]) / (smax[i]**xip4[i] - smin[i]**xip4[i])
+            S0[i] = (sint[i]**xip4[i] - smin[i]**xip4[i]) / \
+                (smax[i]**xip4[i] - smin[i]**xip4[i])
             S1[i] = 1. - S0[i]
     S = np.array([S0, S1]).T
 
@@ -224,7 +227,7 @@ def Sigma_initial(sim):
     S_4 = np.array([S0_4, S1_4]).T
 
     Sigma = sim.ini.dust.d2gRatio * sim.gas.Sigma[:, None] \
-            * np.where(xi[:, None] == -4., S_4, S)
+        * np.where(xi[:, None] == -4., S_4, S)
 
     return Sigma
 
@@ -269,6 +272,44 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
 
     # Total problem size
     Ntot = int((Nr*Nm_s))
+
+    # Building the coagulation Jacobian
+    # Helper variables
+    sigma = np.pi * (sim.dust.a[:, :, None]**2 + sim.dust.a[:, None, :]**2)
+    dv = sim.dust.v.rel.tot
+    H2 = sim.dust.H**2
+    m = sim.dust.m
+    sint = np.sqrt(sim.dust.s.min * sim.dust.s.max)
+    smax = sim.dust.s.max
+    xifrag = sim.dust.xi.frag
+    xistick = sim.dust.xi.stick
+    pfrag = sim.dust.p.frag
+    pstick = sim.dust.p.stick
+
+    # Building the Jacobian within grid cells
+    # J_grid = (M0, -M1 // -M0 M1)
+    xiprime = pfrag * xifrag[:, None, None] + pstick * xistick[:, None, None]
+    F = np.sqrt(2.*H2[:, 1]/H2[:, :2].sum(-1)) * sigma[:, 0, 1] / \
+        sigma[:, 1, 1] * dv[:, 0, 1]/dv[:, 1, 1] * \
+        (smax/sint)**(-xiprime[:, 1, 1]-4)
+    C0 = sigma[:, 0, 1] * dv[:, 0, 1] / \
+        (m[:, 1] * np.sqrt(2.*np.pi*H2[:, :2].sum(-1)))
+    C1 = sigma[:, 1, 1] * dv[:, 1, 1] * F / \
+        (2.*m[:, 1]*np.sqrt(np.pi*H2[:, 1]))
+    # The first diagonal entry of the grid cell Jacobian
+    M0 = -C0*sim.dust.Sigma[:, 1]
+    # The second diagonal entry of the grid cell Jacobian
+    M1 = C0*sim.dust.Sigma[:, 0] - 2.*C1*sim.dust.Sigma[:, 1]
+
+    # Stitching the grid cell Jacobians together to get the full coagulation Jacobian
+    # Getting data vector and coordinates in sparse matrix
+    dat, row, col = dust_f.jacobian_coagulation_generator(M0, M1, Nm_s)
+    gen = (dat, (row, col))
+    # Building sparse matrix of coagulation Jacobian
+    J_coag = sp.csc_matrix(
+        gen,
+        shape=(Ntot, Ntot)
+    )
 
     # Building the hydrodynamic Jacobian
     # TODO: Check this call
@@ -401,7 +442,7 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
     )
 
     # Adding and returning all matrix components
-    return J_in + J_hyd + J_out
+    return J_in + J_coag + J_hyd + J_out
 
 
 def a(sim):
@@ -588,7 +629,8 @@ def smax_deriv(sim, t, smax):
     smax = sim.dust.s.max
     minimum = 2. * smin
     threshold = 1.35 * minimum
-    factor = np.where(smax <= threshold, np.exp(-100. * (smax/threshold-1.)**2.), 1.)
+    factor = np.where(smax <= threshold,
+                      np.exp(-100. * (smax/threshold-1.)**2.), 1.)
     factor = np.where(smax <= minimum, 0., factor)
 
     # apply transition factor only to reduce decline if growth is negative
@@ -634,10 +676,10 @@ def S_coag(sim, Sigma=None):
         * (smax / sint)**(-xiprime[:, 1, 1] - 4.)
 
     dot01 = Sigma[:, 0] * Sigma[:, 1] * sigma[:, 0, 1] * dv[:, 0, 1] \
-            / (m[:, 1] * np.sqrt(2. * np.pi * (H[:, 0]**2 + H[:, 1]**2)))
+        / (m[:, 1] * np.sqrt(2. * np.pi * (H[:, 0]**2 + H[:, 1]**2)))
 
     dot10 = Sigma[:, 1]**2 * sigma[:, 1, 1] * dv[:, 1, 1] * F \
-            / (2. * np.sqrt(np.pi) * m[:, 1] * H[:, 1])
+        / (2. * np.sqrt(np.pi) * m[:, 1] * H[:, 1])
 
     Scoag = np.empty_like(sim.dust.Sigma)
     Scoag[:, 0] = dot10 - dot01
@@ -738,7 +780,7 @@ def _f_impl_1_direct(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     Nm = Y0._owner.dust.Sigma.shape[1]
 
     # Add external source terms to right-hand side
-    rhs[Nm:-Nm] += dx*(Y0._owner.dust.S.ext[1:-1, ...] + Y0._owner.dust.S.coag[1:-1, ...]).ravel()
+    rhs[Nm:-Nm] += dx*Y0._owner.dust.S.ext[1:-1, ...].ravel()
 
     N = jac.shape[0]
     eye = sp.identity(N, format="csc")
