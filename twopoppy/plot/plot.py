@@ -531,9 +531,10 @@ def _readdata(data, filename="data", extension="hdf5"):
     # via distribution exponent
     Nmi = 8 # default for data.Nmi is 8 in accordance with default sim.ini.grid.Nmbpd in dustpy
     Nmi = np.array([1])[None, ...] * Nmi
+    Nr_len = Nr[0]
     rho = rhos * fill
     # Assumption: Particles of all sizes have same mass density
-    rho = np.full((int(Nt), int(Nr), int(Nmi - 1)), rho[0, 0, 0])
+    rho = np.full((int(Nt), int(Nr_len), int(Nmi - 1)), rho[0, 0, 0])
     mmin = 4./3. * np.pi * rho[:, :, 0] * smin**3
     mmax = 4./3. * np.pi * rho[:, :, 0] * smax**3
     mi = np.full(int(Nmi), np.logspace(np.log10(mmin.min()), np.log10(mmax.max()), int(Nmi)))
@@ -542,9 +543,9 @@ def _readdata(data, filename="data", extension="hdf5"):
     mi1 = mi[..., 1:]
     mic = 0.5 * (mi0[...] + mi1[...])
     SigmaDustTot = SigmaDust[...].sum(-1)
-    SigmaDustint = np.ones((int(Nt), int(Nr), int(Nmi-1))) * 1e-100
+    SigmaDustint = np.ones((int(Nt), int(Nr_len), int(Nmi-1))) * 1e-100
     for i in range(int(Nt)):
-        for j in range(int(Nr)):
+        for j in range(int(Nr_len)):
             for k in range(int(Nmi-1)):
                 if mi1[i, k] <= mmax[i, j]:
                     if xicalc[i, j] != -4.:
@@ -567,10 +568,10 @@ def _readdata(data, filename="data", extension="hdf5"):
     SigmaDusti = SigmaDustint[...] / dm[..., None, None]
 
     # Calculation of Stokes Number over mass grid
-    ai = np.zeros((int(Nt), int(Nr), int(Nmi-1)))
+    ai = np.zeros((int(Nt), int(Nr_len), int(Nmi-1)))
     for i in range(int(Nt)):
-        ai[i] = np.full((int(Nr), int(Nmi-1)), 3 / (4 * np.pi * rho[i, 0, 0]) * mic[i, :]**(1/3))
-    Sti = np.zeros((int(Nt), int(Nr), int(Nmi-1)))
+        ai[i] = np.full((int(Nr_len), int(Nmi-1)), 3 / (4 * np.pi * rho[i, 0, 0]) * mic[i, :]**(1/3))
+    Sti = np.zeros((int(Nt), int(Nr_len), int(Nmi-1)))
     for i in range(int(Nt)):
         Sti[i] = dp_dust_f.st_epstein_stokes1(ai[i], mfp[i], rho[i], SigmaGas[i])
 
