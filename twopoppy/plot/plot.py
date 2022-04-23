@@ -720,11 +720,11 @@ def ipanel_new(data, filename="data", extension="hdf5", im=0, ir=0, it=0, show_l
 
     play = widgets.Play(value=0, min=0, max=int(data.Nt-1), step=1, interval=2000, \
                         description="Press play", disabled=False)
-    ui_temp = widgets.IntSlider(description='Temporal index', value=0, min=0, max=int(data.Nt-1));
+    ui_temp = widgets.IntSlider(description='Temporal index', value=0, min=0, max=int(data.Nt-1), continuous_update=False);
     widgets.jslink((play, 'value'), (ui_temp, 'value'))
     display(widgets.HBox([play, ui_temp], layout=widgets.Layout(width='100%')))
-    ui_rad = widgets.IntSlider(description='Radial index', value=0, min=0, max=int(data.Nr[0, ...]-1));
-    ui_mass = widgets.IntSlider(description='Mass index', value=0, min=0, max=int(data.Nmi[0, ...]-2));
+    ui_rad = widgets.IntSlider(description='Radial index', value=0, min=0, max=int(data.Nr[0, ...]-1), continuous_update=False);
+    ui_mass = widgets.IntSlider(description='Mass index', value=0, min=0, max=int(data.Nmi[0, ...]-2), continuous_update=False);
     display(widgets.HBox([ui_rad, ui_mass], layout=widgets.Layout(width='100%')))
 
     with out1:
