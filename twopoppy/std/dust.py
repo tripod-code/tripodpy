@@ -955,10 +955,11 @@ def _f_impl_1_direct_Y(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     # Sigma
     S_Sigma_ext = np.zeros_like(Y0._owner.dust.Sigma)
     S_Sigma_ext[1:-1, ...] = Y0._owner.dust.S.ext[1:-1, ...]
-    # smax*Sigma
+    # smax*Sigma (product rule)
     S_smax_expl = np.zeros_like(Y0._owner.dust.s.max)
     S_smax_expl[1:-1] = Y0._owner.dust.s.max.derivative()[1:-1] * \
-        Y0._owner.dust.Sigma[1:-1, 1]
+        Y0._owner.dust.Sigma[1:-1, 1] + \
+        S_Sigma_ext[1:-1, 1]*Y0._owner.dust.s.max[1:-1]
     # Stitching both parts together
     S = np.hstack((S_Sigma_ext.ravel(), S_smax_expl))
 
