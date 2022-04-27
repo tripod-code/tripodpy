@@ -441,3 +441,145 @@ subroutine jacobian_coagulation_generator(M0, M1, dat, row, col, Nr, Nm)
   end do
 
 end subroutine jacobian_coagulation_generator
+
+subroutine s_coag(a, dv, H, m, pfrag, pstick, Sigma, smin, smax, xifrag, xistick, S, Nr, Nm)
+  ! Subroutine calculates the coagulation source terms.
+  !
+  ! Parameters
+  ! ----------
+  ! a(Nr, Nm) : Particle sizes of a0 and a1
+  ! dv(Nr, Nm, Nm) : Relative velocities of a0 and a1
+  ! H(Nr, Nm) : Dust scale heights
+  ! m(Nr, Nm) : Particle masses
+  ! pfrag(Nr, Nm, Nm) : Fragmentation probability
+  ! pstick(Nr, Nm, Nm) : Sticking probability
+  ! Sigma(Nr, Nm) : Dust surface densities
+  ! smin(Nr) : Minimum particle size
+  ! smax(Nr) : Maximum particle size
+  ! xifrag(Nr) : Fragmentation exponent
+  ! xistick(Nr) : Sticking exponent
+  ! Nr : Number of radial grid cells
+  ! Nm : Number of mass bins (only a0 and a1)
+  !
+  ! Returns
+  ! -------
+  ! S(Nr, Nm) : Coagulation source terms
+
+  use constants, only: pi
+
+  implicit none
+
+  double precision, intent(in)  :: a(Nr, Nm)
+  double precision, intent(in)  :: dv(Nr, Nm, Nm)
+  double precision, intent(in)  :: H(Nr, Nm)
+  double precision, intent(in)  :: m(Nr, Nm)
+  double precision, intent(in)  :: pfrag(Nr, Nm, Nm)
+  double precision, intent(in)  :: pstick(Nr, Nm, Nm)
+  double precision, intent(in)  :: Sigma(Nr, Nm)
+  double precision, intent(in)  :: smin(Nr)
+  double precision, intent(in)  :: smax(Nr)
+  double precision, intent(in)  :: xifrag(Nr)
+  double precision, intent(in)  :: xistick(Nr)
+  double precision, intent(out) :: S(Nr, Nm)
+  integer,          intent(in)  :: Nr
+  integer,          intent(in)  :: Nm
+
+  integer :: i
+  integer :: j
+  double precision :: sig(Nr, Nm, Nm)
+  double precision :: dot01(Nr)
+  double precision :: dot10(Nr)
+  double precision :: F(Nr)
+  double precision :: sint(Nr)
+  double precision :: xiprime(Nr)
+
+  ! Initialization
+  sig(:, :, :) = 0.d0
+  S(:, :) = 0.d0
+
+  do i=1, Nm
+    do j=1, Nm
+      sig(:, j, i) = pi*(a(:, j)**2 + a(:, i)**2)
+    end do
+  end do
+
+  sint(:) = sqrt(smin(:)*smax(:))
+
+  xiprime(:) = pfrag(:, 2, 2)*xifrag(:) + pstick(:, 2, 2)*xistick(:)
+
+  F(:) = H(:, 2) * sqrt(2.d0 / (H(:, 1)**2 + H(:, 2)**2)) &
+    & * sig(:, 1, 2) / sig(:, 2, 2) * dv(:, 1, 2) / dv(:, 2, 2) &
+    & * (smax(:)/sint(:))**(-xiprime(:) - 4.d0)
+
+  dot01(:) = Sigma(:, 1) * Sigma(:, 2) * sig(:, 1, 2) * dv(:, 1, 2) / (m(:, 2) * sqrt(2.d0 * pi * (H(:, 1)**2 + H(:, 2)**2)))
+  dot10(:) = Sigma(:, 2)**2 * sig(:, 2, 2) * dv(:, 2, 2) * F(:) / (2.d0 * sqrt(pi) * m(:, 2) * H(:, 2))
+
+  S(:, 1) = dot10(:) - dot01(:)
+  S(:, 2) = -S(:, 1)
+
+end subroutine s_coag
+
+
+subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, dsmax, Nr, Nm)
+  ! Subroutine calculates the derivative of the maximum particle size
+  !
+  ! Parameters
+  ! ----------
+  ! dv(Nr) : Relative velocities of 1/2*<a> and <a>
+  ! rhod(Nr, Nm) : Dust midplane volume densities
+  ! rhos(Nr, Nm) : Particle bulk densities
+  ! smin(Nr) : Minimum particle size
+  ! smax(Nr) : Maximum particle size
+  ! vfrag(Nr) : Fragmentation velocity
+  ! Nr : Number of radial grid cells
+  ! Nm : Number of mass bins (only a0 and a1)
+  !
+  ! Returns
+  ! -------
+  ! dsmax(Nr) : derivative of smax
+
+  implicit none
+
+  double precision, intent(in)  :: dv(Nr)
+  double precision, intent(in)  :: rhod(Nr, Nm)
+  double precision, intent(in)  :: rhos(Nr, Nm)
+  double precision, intent(in)  :: smin(Nr)
+  double precision, intent(in)  :: smax(Nr)
+  double precision, intent(in)  :: vfrag(Nr)
+  double precision, intent(out) :: dsmax(Nr)
+  integer,          intent(in)  :: Nr
+  integer,          intent(in)  :: Nm
+
+  integer :: ir
+
+  double precision :: A
+  double precision :: B
+  double precision :: f
+  double precision :: rhod_sum
+  double precision :: rhos_mean
+  double precision :: thr
+
+  ! Initialization
+  dsmax(:) = 0.d0
+
+  do ir=2, Nr-1
+
+    A = (dv(ir) / vfrag(ir))**8
+    B = (1.d0 - A) / (1.d0 + A)
+
+    rhod_sum = SUM(rhod(ir, :))
+    rhos_mean = SUM(rhod(ir, :)*rhos(ir, :)) / rhod_sum
+    dsmax(ir) = rhod_sum / rhos_mean * dv(ir) * B
+
+    if (dsmax(ir) .LT. 0.d0) then
+
+      thr = 0.3d0 * smin(ir)
+      f = 0.5d0 * (1.d0 + TANH(LOG10(smax(ir)/thr)/3.d-2))
+      if( smax(ir) .LE. smin(ir) ) f = 0.d0
+      dsmax(ir) = f * dsmax(ir)
+
+    end if
+
+  end do
+
+end subroutine smax_deriv

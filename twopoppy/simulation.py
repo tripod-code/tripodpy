@@ -183,7 +183,7 @@ class Simulation(dp.Simulation):
         if self.integrator is None:
             instructions = [
                 Instruction(
-                    std.dust.impl_1_direct_Y,
+                    std.dust.impl_1_direct,
                     self.dust._Y,
                     controller={"rhs": self.dust._Y_rhs},
                     description="Dust (state vector): implicit 1st-order direct solver"

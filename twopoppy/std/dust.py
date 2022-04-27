@@ -160,23 +160,6 @@ def finalize(sim):
     # print(repr(sim.dust.Sigma))
 
 
-def SigmaFloor(sim):
-    """Function calculates the floor value for the dust distribution. Floor value means that there is less than
-    one particle in an annulus.
-
-    Parameters
-    ----------
-    sim : Frame
-        Parent simulation frame
-
-    Returns
-    -------
-    Sigma_floor : Field
-        Floor value of surface density"""
-    area = c.pi * (sim.grid.ri[1:]**2. - sim.grid.ri[:-1]**2.)
-    return sim.dust.m[:, :2] / area[..., None]
-
-
 def smax_initial(sim):
     """Function calculates the initial maximum particle sizes
 
@@ -540,6 +523,7 @@ def F_diff(sim, Sigma=None):
 
 
 # TODO: This function is not needed after a DustPy update.
+
 def F_tot(sim, Sigma=None):
     """Function calculates the total mass fluxes through grid cell interfaces.
 
@@ -656,40 +640,15 @@ def smax_deriv(sim, t, smax):
 
     if smax is None:
         smax = sim.dust.s.max
-    smin = sim.dust.s.min
 
-    vfrag = sim.dust.v.frag
-    dv = sim.dust.v.rel.tot[:, 2, 3]
-    exponent = 8.
-    A = (dv / vfrag)**exponent
-    B = (1. - A) / (1. + A)
-
-    rho = sim.dust.rho[:, :2]
-    rhos = sim.dust.rhos[:, :2]
-    rhod = rho.sum(-1)
-    rhos_mean = (rho * rhos).sum(-1) / rhod
-
-    smax_dot = rhod / rhos_mean * dv * B
-
-    # Apply modification factor to source term.
-    # If source term is positive, no modification is applied.
-    # If source term is negative, it is attenuated below threshold value
-    sg = np.sign(smax_dot)
-    # 1 if smax_dot < 0
-    V = 0.5*(1.-sg)
-    # 1 if smax_dot > 0
-    W = 0.5*(1.+sg)
-    # Attenuation factor
-    threshold = 3. * smin
-    f = 0.5*(1+np.tanh(np.log10(smax/threshold)/0.03))
-    smax_dot *= V*f + W
-
-    # Making sure that smax is not shrinking below smin
-    # But still allow smax to grow from smin
-    smax_pos = np.maximum(smax_dot, 0.)
-    smax_dot = np.where(smax == smin, smax_pos, smax_dot)
-
-    return smax_dot
+    return dust_f.smax_deriv(
+        sim.dust.v.rel.tot[:, 2, 3],
+        sim.dust.rho[:, :2],
+        sim.dust.rhos[:, :2],
+        sim.dust.s.min,
+        smax,
+        sim.dust.v.frag
+    )
 
 
 def S_coag(sim, Sigma=None):
@@ -709,35 +668,19 @@ def S_coag(sim, Sigma=None):
     if Sigma is None:
         Sigma = sim.dust.Sigma
 
-    # Helper variables
-    sigma = np.pi * (sim.dust.a[:, :, None]**2 + sim.dust.a[:, None, :]**2)
-    H = sim.dust.H
-    dv = sim.dust.v.rel.tot
-    m = sim.dust.m
-    smax = sim.dust.s.max
-    sint = np.sqrt(sim.dust.s.min * sim.dust.s.max)
-    xifrag = sim.dust.xi.frag
-    xistick = sim.dust.xi.stick
-    pfrag = sim.dust.p.frag
-    pstick = sim.dust.p.stick
-
-    xiprime = pfrag * xifrag[:, None, None] + pstick * xistick[:, None, None]
-
-    F = H[:, 1] * np.sqrt(2. / (H[:, 0]**2 + H[:, 1]**2)) \
-        * sigma[:, 0, 1] / sigma[:, 1, 1] * dv[:, 0, 1] / dv[:, 1, 1] \
-        * (smax / sint)**(-xiprime[:, 1, 1] - 4.)
-
-    dot01 = Sigma[:, 0] * Sigma[:, 1] * sigma[:, 0, 1] * dv[:, 0, 1] \
-        / (m[:, 1] * np.sqrt(2. * np.pi * (H[:, 0]**2 + H[:, 1]**2)))
-
-    dot10 = Sigma[:, 1]**2 * sigma[:, 1, 1] * dv[:, 1, 1] * F \
-        / (2. * np.sqrt(np.pi) * m[:, 1] * H[:, 1])
-
-    Scoag = np.empty_like(sim.dust.Sigma)
-    Scoag[:, 0] = dot10 - dot01
-    Scoag[:, 1] = - Scoag[:, 0]
-
-    return Scoag
+    return dust_f.s_coag(
+        sim.dust.a[:, :2],
+        sim.dust.v.rel.tot[:, :2, :2],
+        sim.dust.H[:, :2],
+        sim.dust.m[:, :2],
+        sim.dust.p.frag[:, :2, :2],
+        sim.dust.p.stick[:, :2, :2],
+        Sigma,
+        sim.dust.s.min,
+        sim.dust.s.max,
+        sim.dust.xi.frag,
+        sim.dust.xi.stick
+    )
 
 
 def S_tot(sim, Sigma=None):
@@ -894,63 +837,6 @@ def _f_impl_1_direct(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     if rhs is None:
         rhs = np.array(Y0.ravel())
 
-    Nm = Y0._owner.dust.Sigma.shape[1]
-
-    # Add external source terms to right-hand side
-    rhs[Nm:-Nm] += dx*Y0._owner.dust.S.ext[1:-1, ...].ravel()
-
-    N = jac.shape[0]
-    eye = sp.identity(N, format="csc")
-
-    A = eye - dx[0] * jac
-
-    A_LU = sp.linalg.splu(A,
-                          permc_spec="MMD_AT_PLUS_A",
-                          diag_pivot_thresh=0.0,
-                          options=dict(SymmetricMode=True))
-    Y1_ravel = A_LU.solve(rhs)
-
-    Y1 = Y1_ravel.reshape(Y0.shape)
-
-    return Y1 - Y0
-
-
-class impl_1_direct(Scheme):
-    """Modified class for implicit dust integration."""
-
-    def __init__(self):
-        super().__init__(_f_impl_1_direct, description="Implicit 1st-order direct solver")
-
-
-def _f_impl_1_direct_Y(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
-    """Implicit 1st-order integration scheme with direct matrix inversion
-    Parameters
-    ----------
-    x0 : Intvar
-        Integration variable at beginning of scheme
-    Y0 : Field
-        Variable to be integrated at the beginning of scheme
-    dx : IntVar
-        Stepsize of integration variable
-    jac : Field, optional, defaul : None
-        Current Jacobian. Will be calculated, if not set
-    args : additional positional arguments
-    kwargs : additional keyworda arguments
-    Returns
-    -------
-    dY : Field
-        Delta of variable to be integrated
-    Butcher tableau
-    ---------------
-     1 | 1
-    ---|---
-       | 1
-    """
-    if jac is None:
-        jac = Y0.jacobian(x0, dx)
-    if rhs is None:
-        rhs = np.array(Y0.ravel())
-
     # Add external/explicit source terms to right-hand side
     # Sigma
     S_Sigma_ext = np.zeros_like(Y0._owner.dust.Sigma)
@@ -982,8 +868,8 @@ def _f_impl_1_direct_Y(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     return Y1 - Y0
 
 
-class impl_1_direct_Y(Scheme):
+class impl_1_direct(Scheme):
     """Modified class for implicit dust integration."""
 
     def __init__(self):
-        super().__init__(_f_impl_1_direct_Y, description="Implicit 1st-order direct solver")
+        super().__init__(_f_impl_1_direct, description="Implicit 1st-order direct solver")
