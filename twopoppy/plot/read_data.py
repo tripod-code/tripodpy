@@ -1,5 +1,4 @@
 from twopoppy.simulation import Simulation
-
 from types import SimpleNamespace
 import numpy as np
 from dustpy.std import dust_f as dp_dust_f
