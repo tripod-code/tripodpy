@@ -225,7 +225,7 @@ def ipanel_comp(tpp_data, dp_data, filename="data", extension="hdf5", im=0, ir=0
 
     out1, out2, out3, out4 = widgets.Output(), widgets.Output(), widgets.Output(), widgets.Output()
 
-    play = widgets.Play(value=0, min=0, max=int(data_dp.Nt - 1), step=1, interval=500, description="Press play",
+    play = widgets.Play(value=0, min=0, max=int(data_dp.Nt - 1), step=1, interval=2000, description="Press play",
                         disabled=False)
     ui_temp = widgets.IntSlider(description='Temporal index', value=0, min=0, max=int(data_dp.Nt - 1),
                                 continuous_update=False)
