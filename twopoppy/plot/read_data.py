@@ -125,7 +125,7 @@ def _readdata_tpp(data, filename="data", extension="hdf5"):
     for i in range(int(Nt)):
         for j in range(int(Nr_len)):
             for k in range(int(Nmi)):
-                if mi1[k] <= mmax[i, j]:
+                if mi_int1[k] <= mmax[i, j]:
                     if xi[i, j] != -4.:
                         expo = (xi[i, j] + 4.) / 3.
                         SigmaDusti[i, j, k] = SigmaDustTot[i, j] * \
