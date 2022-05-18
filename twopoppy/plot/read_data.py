@@ -100,8 +100,8 @@ def _readdata_tpp(data, filename="data", extension="hdf5"):
     Nmi = np.array([1])[None, ...] * Nm
     Nr_len = Nr[0]
 
-    rho = rhos * fill
     # Assumption: Particles of all sizes have same mass density
+    rho = rhos * fill
     rho = np.full((int(Nt), int(Nr_len), int(Nmi)), rho[0, 0, 0])
     mmin = 4. / 3. * np.pi * rho[:, :, 0] * smin ** 3
     mmax = 4. / 3. * np.pi * rho[:, :, 0] * smax ** 3
