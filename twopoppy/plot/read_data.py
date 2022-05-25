@@ -108,7 +108,7 @@ def _readdata_tpp(data, filename="data", extension="hdf5"):
     mmax = 4. / 3. * np.pi * rho[:, :, 0] * smax ** 3
 
     # Fill distribution
-    m_exp = np.where(mi <= mmax[..., None], mi ** (xi[..., None] + 4.) / 3., 1.e-100)
+    m_exp = np.where(mi <= mmax[..., None], mi ** ((xi[..., None] + 4.) / 3.), 1.e-100)
     s = np.sum(m_exp, axis=2)[..., None]
     s = np.where(s > 0., s, 1.)
     # Normalize to mass
