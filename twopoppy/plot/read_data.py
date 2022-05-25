@@ -105,7 +105,7 @@ def _readdata_tpp(data, filename="data", extension="hdf5"):
     # Assumption: Particles of all sizes have same mass density
     rho = rhos * fill
     rho = np.full((int(Nt), int(Nr_len), int(Nmi_len)), rho[0, 0, 0])
-    mmax = 4. / 3. * np.pi * rho[:, :, 0] * smax ** 3
+    mmax = 4. / 3. * np.pi * rho[:, :, 0] * smax ** 3.
 
     # Fill distribution
     m_exp = np.where(mi <= mmax[..., None], mi ** ((xi[..., None] + 4.) / 3.), 1.e-100)
@@ -115,10 +115,9 @@ def _readdata_tpp(data, filename="data", extension="hdf5"):
     SigmaDusti = m_exp / s * SigmaDust.sum(-1)[..., None]
 
     # Transformation of the density distribution
-
     a = np.array(np.mean(mi[..., 1:] / mi[..., :-1], axis=-1))
     dm = np.array(2. * (a - 1.) / (a + 1.))
-    sigmaDusti = SigmaDusti[...] / dm[..., None]
+    sigmaDusti = SigmaDusti / dm[..., None]
 
     # Calculation of Stokes Number over mass grid
     ai = (3 / (4 * np.pi * rho) * mi) ** (1 / 3)
