@@ -194,31 +194,11 @@ def smax_initial(sim):
         # Enforce initial drift limit
         sim.dust.xi.calc = np.where(
             aIni < sim.ini.dust.aIniMax, sim.dust.xi.stick, sim.dust.xi.calc)
+
         return np.maximum(smin, aIni)
 
-    else:
-        # Return the ini value if drifting particles are allowed
-        return np.ones_like(smin) * sim.ini.dust.aIniMax
-
-
-def SigmaFloor(sim):
-    """Function calculates the floor value for the dust distribution. Floor value means that there is less than
-    one particle in an annulus.
-
-    Parameters
-    ----------
-    sim : Frame
-        Parent simulation frame
-
-    Returns
-    -------
-    Sigma_floor : Field
-        Floor value of surface density"""
-    mmin = 1.e-12
-    shape2Sigma = (int(sim.grid.Nr), int(sim.grid._Nm_short))
-    m = np.ones(shape2Sigma) * mmin
-    area = c.pi * (sim.grid.ri[1:] ** 2. - sim.grid.ri[:-1] ** 2.)
-    return 1 / area[..., None] * m
+    # Return the ini value if drifting particles are allowed
+    return np.ones_like(smin) * sim.ini.dust.aIniMax
 
 
 def Sigma_initial(sim):
