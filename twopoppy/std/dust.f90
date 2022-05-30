@@ -50,9 +50,9 @@ subroutine calculate_a(smin, smax, xi, mfp, a, Nr, Nm)
     ! Flux-averaged particle sizes with lambda as threshold between Stokes and Epstein regime
     if(mode_fluxavg) then
         do i = 1, Nr
-            if(smin(i) == sint(i)) then
-                a(i, 1) = sint(i)
-                a(i, 2) = sint(i)
+            if(smin(i) == smax(i)) then
+                a(i, 1) = smin(i)
+                a(i, 2) = smin(i)
             else if(smin(i) > lambd(i)) then
                 a(i, 1) = R2(i) * (sint(i)**xip6(i) - smin(i)**xip6(i)) / (sint(i)**xip5(i) &
                         & - smin(i)**xip5(i))
@@ -84,7 +84,7 @@ subroutine calculate_a(smin, smax, xi, mfp, a, Nr, Nm)
     ! Mass-averaged particle sizes
     if(.not. mode_fluxavg) then
         do i = 1, Nr
-            if(smax(i) == smin(i)) then
+            if(smin(i) == smax(i)) then
                 a(i, 1) = smin(i)
                 a(i, 2) = smin(i)
             else if(xi(i) == -5.d0) then
