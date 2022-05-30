@@ -13,7 +13,6 @@ import numpy as np
 import scipy.sparse as sp
 
 
-
 def dt(sim):
     """Function calculates the time step from dust.
 
@@ -29,7 +28,6 @@ def dt(sim):
     dtSigma = dt_Sigma(sim)
     dtsmax = dt_smax(sim)
     return np.minimum(dtSigma, dtsmax)
-
 
 
 def dt_Sigma(sim):
@@ -53,7 +51,6 @@ def dt_Sigma(sim):
         dt = sim.dust.Sigma[mask] / sim.dust.S.tot[mask]
         return np.min(np.abs(dt))
     return 1.e100
-
 
 
 def dt_smax(sim):
@@ -97,7 +94,6 @@ def dt_smax(sim):
     return np.minimum(dt1, dt2)
 
 
-
 def prepare(sim):
     """Function prepares implicit dust integration step.
     It stores the current value of the surface density in a hidden field.
@@ -120,7 +116,6 @@ def prepare(sim):
     sim.dust.S.ext[-1] = 0.
     # Storing current surface density
     sim.dust._SigmaOld[...] = sim.dust.Sigma[...]
-
 
 
 def finalize(sim):
@@ -165,7 +160,6 @@ def finalize(sim):
     # print(repr(sim.dust.Sigma))
 
 
-
 def smax_initial(sim):
     """Function calculates the initial maximum particle sizes
 
@@ -207,7 +201,6 @@ def smax_initial(sim):
 
     # Return the ini value if drifting particles are allowed
     return np.ones_like(smin) * sim.ini.dust.aIniMax
-
 
 
 def Sigma_initial(sim):
@@ -260,7 +253,6 @@ def Sigma_initial(sim):
         * np.where(xi[:, None] == -4., S_4, S)
 
     return Sigma
-
 
 
 def jacobian(sim, x, dx=None, *args, **kwargs):
@@ -446,7 +438,6 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
     return J
 
 
-
 def a(sim):
     """Function calculates the particle sizes from the characteristic particle sizes and the distribution exponent.
 
@@ -460,7 +451,6 @@ def a(sim):
     a : Field
         Particle sizes"""
     return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.xi.calc, sim.grid._Nm_long)
-
 
 
 def F_adv(sim, Sigma=None):
@@ -482,7 +472,6 @@ def F_adv(sim, Sigma=None):
     if Sigma is None:
         Sigma = sim.dust.Sigma
     return dust_f.fi_adv(Sigma, sim.dust.v.rad, sim.grid.r, sim.grid.ri)
-
 
 
 def F_diff(sim, Sigma=None):
@@ -534,7 +523,6 @@ def F_tot(sim, Sigma=None):
     return Fi
 
 
-
 def m(sim):
     """Function calculates the particle mass from the particle sizes.
 
@@ -548,7 +536,6 @@ def m(sim):
     m : Field
         Particle masses"""
     return dust_f.calculate_m(sim.dust.a, sim.dust.rhos, sim.dust.fill)
-
 
 
 def p_frag(sim):
@@ -566,7 +553,6 @@ def p_frag(sim):
     pf : Field
         Fragmentation propability."""
     return dust_f.pfrag(sim.dust.v.rel.tot, sim.dust.v.frag)
-
 
 
 def p_stick(sim):
@@ -589,7 +575,6 @@ def p_stick(sim):
     return p
 
 
-
 def rho_midplane(sim):
     """Function calculates the midplane mass density.
 
@@ -604,7 +589,6 @@ def rho_midplane(sim):
         Midplane mass density"""
     # The scale height H has a longer shape than Sigma and has to be adjusted
     return sim.dust.Sigma / (np.sqrt(2 * c.pi) * sim.dust.H[:, :2])
-
 
 
 def smax_deriv(sim, t, smax):
@@ -635,7 +619,6 @@ def smax_deriv(sim, t, smax):
         smax,
         sim.dust.v.frag
     )
-
 
 
 def S_coag(sim, Sigma=None):
@@ -670,7 +653,6 @@ def S_coag(sim, Sigma=None):
     )
 
 
-
 def S_tot(sim, Sigma=None):
     """Function calculates the total source terms.
 
@@ -700,7 +682,6 @@ def S_tot(sim, Sigma=None):
     return Scoag + Shyd + Sext
 
 
-
 def vrel_brownian_motion(sim):
     """Function calculates the relative particle velocities due to Brownian motion.
     The maximum value is set to the sound speed.
@@ -717,7 +698,6 @@ def vrel_brownian_motion(sim):
     return dust_f.vrel_brownian_motion(sim.gas.cs, sim.dust.m, sim.gas.T)
 
 
-
 def xicalc(sim):
     """Function calculates the exponent of the distribution.
 
@@ -731,7 +711,6 @@ def xicalc(sim):
     xicalc : Field
         Calculated exponent of distribution"""
     return dust_f.calculate_xi(sim.dust.s.min, sim.dust.s.max, sim.dust.Sigma)
-
 
 
 def Y_jacobian(sim, x, dx=None, *args, **kwargs):
@@ -797,7 +776,6 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
     sim.dust._Y_rhs[:] = np.hstack((Sigma_rhs, smaxSig_rhs))
 
     return J
-
 
 
 def _f_impl_1_direct(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
