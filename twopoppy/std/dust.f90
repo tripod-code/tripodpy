@@ -271,17 +271,15 @@ subroutine pfrag(vrel, vfrag, pf, Nr, Nm)
    integer,          intent(in)  :: Nm
 
    double precision :: dum
-   double precision :: fac
    integer :: ir
    integer :: i
    integer :: j
 
-   fac = sqrt(108.d0 / 8.d0) * 2.d0 / (9.d0 * pi)
    do i=1, Nm
       do j=1, i
          do ir=2, Nr-1
-            dum = (vfrag(ir)/vrel(ir, j, i))**2
-            pf(ir, j, i) = fac * (1.5d0*dum + 1.d0) * exp(-1.5d0*dum)
+            dum = 5.d0 * (vrel(ir, j, i) / vfrag(ir)) - 4.d0
+            pf(ir, j, i) = max(0.d0, min(1.d0, dum))
             pf(ir, i, j) = pf(ir, j, i)
          end do
       end do
@@ -456,7 +454,7 @@ subroutine jacobian_coagulation_generator(a, dv, H, m, pfrag, pstick, Sigma, smi
    end do
 
    sint(:) = SQRT(smin(:)*smax(:))
-   xiprime(:) = pfrag(:, 2, 2)*xifrag(:) + pstick(:, 2, 2)*xistick(:)
+   xiprime(:) = pfrag(:, 1, 2)*xifrag(:) + pstick(:, 1, 2)*xistick(:)
 
    F(:) = H(:, 2) * SQRT(2.d0 / (H(:, 1)**2 + H(:, 2)**2)) &
    & * sig(:, 1, 2) / sig(:, 2, 2) * dv(:, 1, 2) / dv(:, 2, 2) &
@@ -552,7 +550,7 @@ subroutine s_coag(a, dv, H, m, pfrag, pstick, Sigma, smin, smax, xifrag, xistick
 
    sint(:) = sqrt(smin(:)*smax(:))
 
-   xiprime(:) = pfrag(:, 2, 2)*xifrag(:) + pstick(:, 2, 2)*xistick(:)
+   xiprime(:) = pfrag(:, 1, 2)*xifrag(:) + pstick(:, 1, 2)*xistick(:)
 
    F(:) = H(:, 2) * sqrt(2.d0 / (H(:, 1)**2 + H(:, 2)**2)) &
    & * sig(:, 1, 2) / sig(:, 2, 2) * dv(:, 1, 2) / dv(:, 2, 2) &
