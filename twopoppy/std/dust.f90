@@ -451,7 +451,7 @@ subroutine jacobian_coagulation_generator(a, dv, H, m, pfrag, pstick, Sigma, smi
 
    do i=1, Nm
       do j=1, Nm
-         sig(:, j, i) = pi*(a(:, j)**2 + a(:, i)**2)
+         sig(:, j, i) = pi*(a(:, j) + a(:, i))**2
       end do
    end do
 
