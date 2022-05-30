@@ -407,7 +407,7 @@ class Simulation(dp.Simulation):
         # Specific particle sizes
         if self.dust.s.min is None:
             rho = self.dust.rhos[:, 0] * self.dust.fill[:, 0]
-            smin = (3. * self.ini.grid.mmin / (4. * np.pi * rho))
+            smin = (3. * self.ini.grid.mmin / (4. * np.pi * rho)) ** (1. / 3.)
             self.dust.s.addfield(
                 "min", smin, description="Minimum particle size"
             )
