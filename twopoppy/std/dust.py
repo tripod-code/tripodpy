@@ -445,7 +445,8 @@ def a(sim):
     -------
     a : Field
         Particle sizes"""
-    return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.xi.calc, sim.gas.mfp, sim.dust.sizeavg, sim.grid._Nm_long)
+    return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.xi.calc, sim.gas.mfp, sim.dust.fluxavg,
+                              sim.grid._Nm_long)
 
 
 def F_adv(sim, Sigma=None):

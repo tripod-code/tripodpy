@@ -40,7 +40,7 @@ class Simulation(dp.Simulation):
         self.dust.addgroup("s", description="Characteristic particle sizes")
         self.dust.s.min = None
         self.dust.s.max = None
-        self.dust.sizeavg = None
+        self.dust.fluxavg = None
 
         # Adjusting update orders
 
@@ -413,10 +413,10 @@ class Simulation(dp.Simulation):
                 "min", smin, description="Minimum particle size"
             )
         # Averaging mode for size calculations
-        if self.dust.sizeavg is None:
-            sizeavg = "flux" # "mass" as other option
+        if self.dust.fluxavg is None:
+            fluxavg = True  # True / false for flux / mass averaging in particle size calculation
             self.dust.addfield(
-                "sizeavg", sizeavg, description="Averaging mode for size calculation"
+                "fluxavg", fluxavg, description="Averaging mode for size calculation"
             )
 
         # Initialize dust quantities partly to calculate Sigma

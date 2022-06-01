@@ -1,4 +1,4 @@
-subroutine calculate_a(smin, smax, xi, mfp, avg, a, Nr, Nm)
+subroutine calculate_a(smin, smax, xi, mfp, fluxavg, a, Nr, Nm)
     ! Subroutine calculates the particle sizes.
     ! a = [a0, a1, 0.5*amax, amax]
     !
@@ -8,7 +8,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avg, a, Nr, Nm)
     ! smax(Nr) : Maximum particle size
     ! xi(Nr) : Calculated distribution exponent
     ! mfp(Nr) : Mean free path
-    ! avg : Averaging mode for size calculation
+    ! fluxavg : Flag whether or not to use flux averaging in particle size calculation
     ! Nr : Number of radial grid cells
     ! Nm : Number of mass bins
     !
@@ -22,7 +22,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avg, a, Nr, Nm)
     double precision, intent(in) :: smax(Nr)
     double precision, intent(in) :: xi(Nr)
     double precision, intent(in) :: mfp(Nr)
-    character(4), intent(in) :: avg
+    logical, intent(in) :: fluxavg
     double precision, intent(out) :: a(Nr, Nm)
     integer, intent(in) :: Nr
     integer, intent(in) :: Nm
@@ -46,7 +46,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avg, a, Nr, Nm)
     lambd(:) = 2.25d0 * mfp(:)
 
     ! Flux-averaged particle sizes with lambda as threshold between Stokes and Epstein regime
-    if(avg == "flux") then
+    if(fluxavg) then
         do i = 1, Nr
             if(smin(i) == smax(i)) then
                 a(i, 1) = smin(i)
@@ -79,7 +79,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avg, a, Nr, Nm)
         end do
 
     ! Mass-averaged particle sizes
-    else if(avg == "mass") then
+    else
         do i = 1, Nr
             if(smin(i) == smax(i)) then
                 a(i, 1) = smin(i)
