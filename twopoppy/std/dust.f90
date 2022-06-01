@@ -1,4 +1,4 @@
-subroutine calculate_a(smin, smax, xi, mfp, a, Nr, Nm)
+subroutine calculate_a(smin, smax, xi, mfp, avg, a, Nr, Nm)
     ! Subroutine calculates the particle sizes.
     ! a = [a0, a1, 0.5*amax, amax]
     !
@@ -8,6 +8,7 @@ subroutine calculate_a(smin, smax, xi, mfp, a, Nr, Nm)
     ! smax(Nr) : Maximum particle size
     ! xi(Nr) : Calculated distribution exponent
     ! mfp(Nr) : Mean free path
+    ! avg : Averaging mode for size calculation
     ! Nr : Number of radial grid cells
     ! Nm : Number of mass bins
     !
@@ -21,6 +22,7 @@ subroutine calculate_a(smin, smax, xi, mfp, a, Nr, Nm)
     double precision, intent(in) :: smax(Nr)
     double precision, intent(in) :: xi(Nr)
     double precision, intent(in) :: mfp(Nr)
+    character(4), intent(in) :: avg
     double precision, intent(out) :: a(Nr, Nm)
     integer, intent(in) :: Nr
     integer, intent(in) :: Nm
@@ -34,8 +36,6 @@ subroutine calculate_a(smin, smax, xi, mfp, a, Nr, Nm)
     double precision :: R2(Nr)
     double precision :: lambd(Nr)
     double precision :: dum
-    logical :: mode_fluxavg
-    logical :: mode_massavg
 
     sint(:) = sqrt(smin(:) * smax(:))
     xip4(:) = xi(:) + 4.d0
@@ -44,11 +44,9 @@ subroutine calculate_a(smin, smax, xi, mfp, a, Nr, Nm)
     R1(:) = xip4(:) / xip5(:)
     R2(:) = xip5(:) / xip6(:)
     lambd(:) = 2.25d0 * mfp(:)
-    ! True for flux-averaged particle sizes / False for mass-averaged particle sizes
-    mode_fluxavg = .TRUE.
 
     ! Flux-averaged particle sizes with lambda as threshold between Stokes and Epstein regime
-    if(mode_fluxavg) then
+    if(avg == "flux") then
         do i = 1, Nr
             if(smin(i) == smax(i)) then
                 a(i, 1) = smin(i)
@@ -79,10 +77,9 @@ subroutine calculate_a(smin, smax, xi, mfp, a, Nr, Nm)
             a(i, 4) = smax(i)
             a(i, 3) = 0.5d0 * a(i, 4)
         end do
-    end if
 
     ! Mass-averaged particle sizes
-    if(.not. mode_fluxavg) then
+    else if(avg == "mass") then
         do i = 1, Nr
             if(smin(i) == smax(i)) then
                 a(i, 1) = smin(i)
