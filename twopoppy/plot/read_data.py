@@ -86,44 +86,15 @@ def _readdata_tpp(data, filename="data", extension="hdf5"):
     except:
         pass
 
-    # Interpolation of the density distribution over mass grid
-    # via distribution exponent
-    Nmbpd = 7
-    mmin_ini = 1.e-12
-    mmax_ini = 1.e8
-    logmmin = np.log10(mmin_ini)
-    logmmax = np.log10(mmax_ini)
-    decades = np.ceil(logmmax - logmmin)
-    Nmi = int(decades * Nmbpd) + 1
-    Nmi = np.ones_like(Nr) * Nmi
-    Nmi_len = Nmi[0]
-    Nr_len = Nr[0]
-
-    mi = np.logspace(np.log10(mmin_ini), np.log10(mmax_ini), num=int(Nmi_len), base=10.)
-    mi = np.full((int(Nt), int(Nr_len), int(Nmi_len)), mi)
-
-    # Assumption: Particles of all sizes have same mass density
-    rho = rhos * fill
-    rho = np.full((int(Nt), int(Nr_len), int(Nmi_len)), rho[0, 0, 0])
-    mmax = 4. / 3. * np.pi * rho[:, :, 0] * smax ** 3.
-
-    # Fill distribution
-    m_exp = np.where(mi <= mmax[..., None], mi ** ((xi[..., None] + 4.) / 3.), 1.e-100)
-    s = np.sum(m_exp, axis=2)[..., None]
-    s = np.where(s > 0., s, 1.)
-    # Normalize to mass
-    SigmaDusti = m_exp / s * SigmaDust.sum(-1)[..., None]
+    mi, SigmaDusti, Sti = powerlaw_extrapolation(SigmaDust, smax, xi, rhos, fill, SigmaGas, mfp,
+                                                 nmbpd=7, mmin=1.e-12, mmax=1.e8)
 
     # Transformation of the density distribution
     a = np.array(np.mean(mi[..., 1:] / mi[..., :-1], axis=-1))
     dm = np.array(2. * (a - 1.) / (a + 1.))
     sigmaDusti = SigmaDusti / dm[..., None]
 
-    # Calculation of Stokes Number over mass grid
-    ai = (3 / (4 * np.pi * rho) * mi) ** (1 / 3)
-    Sti = np.zeros((int(Nt), int(Nr_len), int(Nmi_len)))
-    for i in range(int(Nt)):
-        Sti[i] = dp_dust_f.st_epstein_stokes1(ai[i], mfp[i], rho[i], SigmaGas[i])
+    Nmi = np.ones_like(Nr) * len(mi.sum(-1)[0])
 
     # Fragmentation limit
     b = vFrag ** 2 / (delta * cs ** 2)
@@ -309,3 +280,52 @@ def _readdata_dp(data, filename="data", extension="hdf5"):
         pass
 
     return SimpleNamespace(**ret)
+
+
+def powerlaw_extrapolation(sigma_d, s_max, xi, rhos, fill, sigma_g, mfp, nmbpd=7, mmin=1.e-12, mmax=1.e8):
+    nt = len(s_max.sum(-1))
+    nr = len(sigma_d.sum(-1)[0])
+    logmmin = np.log10(mmin)
+    logmmax = np.log10(mmax)
+    decades = np.ceil(logmmax - logmmin)
+    nm = int(decades * nmbpd) + 1
+
+    sigma_d = sigma_d.sum(-1)
+    sig_dm = np.zeros([nt, nr, nm]) + 1.e-100
+
+    m_i = np.logspace(logmmin, logmmax, nm, base=10.)
+    m_i = np.full((nt, nr, nm), m_i)
+
+    rho = rhos * fill
+    rho_i = np.full((nt, nr, nm), rho[0, 0, 0])
+
+    m_max = 4. / 3. * np.pi * rho_i * s_max ** 3.
+
+    for it in range(nt):
+        for ir in range(nr):
+            if m_max[it, ir] <= mmin:
+                sig_dm[it, ir, 0] = 1.
+            else:
+                i_up = np.where(m_i[it] < m_max[it, ir])[0][-1]
+                # filling all bins that are strictly below m_max
+                if xi[it, ir] == 4.0:
+                    for im in range(i_up):
+                        sig_dm[it, ir, im] = np.log(m_i[it, ir, im + 1] / m_i[it, ir, im])
+                    # filling the bin that contains m_max
+                    sig_dm[it, ir, i_up] = np.log(m_max[it, ir] / m_i[it, ir, i_up])
+                else:
+                    for im in range(i_up):
+                        sig_dm[it, ir, im] = m_i[it, ir, im + 1] ** ((4. + xi[it, ir]) / 3.) - \
+                                             m_i[it, ir, im] ** ((4. + xi[it, ir]) / 3.)
+                    # filling the bin that contains m_max
+                    sig_dm[it, ir, i_up] = m_max[it, ir] ** ((4. + xi[it, ir]) / 3.) - \
+                                           m_i[it, ir, i_up] ** ((4. + xi[it, ir]) / 3.)
+            # normalize
+            sig_dm[it, ir, :] = sig_dm[it, ir, :] / sig_dm[it, ir, :].sum() * sigma_d[it, ir]
+
+    a_i = (3. / (4. * np.pi * rho_i) * m_i) ** (1. / 3.)
+    st_i = np.zeros((nt, nr, nm))
+    for i in range(nt):
+        st_i[i] = dp_dust_f.st_epstein_stokes1(a_i[i], mfp[i], rho_i[i], sigma_g[i])
+
+    return m_i, sig_dm, st_i
