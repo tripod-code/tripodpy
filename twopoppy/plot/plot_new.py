@@ -336,7 +336,7 @@ def ipanel_new(data, filename="data", extension="hdf5", im=0, ir=0, it=0, show_l
                              data.mi[it, ir, ...],
                              (data.Sti - data.StDf[..., None])[it, ...].T,
                              levels=[0.],
-                             colors="cyan",
+                             colors="gray",
                              linewidths=1
                              )
                 ax00.contour(data.r[it, ...] / c.au,
