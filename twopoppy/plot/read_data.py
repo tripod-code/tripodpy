@@ -123,7 +123,7 @@ def _readdata_tpp(data, filename="data", extension="hdf5"):
     StMax = np.zeros_like(StFr)
     rho = rhos * fill
     for i in range(int(Nt)):
-        StMax[i] = dp_dust_f.st_epstein_stokes1(smax[i], mfp[i], rho[i, :, 0], SigmaGas[i])
+        StMax[i] = np.squeeze(dp_dust_f.st_epstein_stokes1(smax[i], mfp[i], rho[i, :, 0], SigmaGas[i]))
 
     ret["mi"] = mi
     ret["Nmi"] = Nmi
