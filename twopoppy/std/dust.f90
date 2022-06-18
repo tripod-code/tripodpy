@@ -456,25 +456,39 @@ subroutine vrel_cuzzi_ormel_2007(alpha, cs, mump, OmegaK, SigmaGas, St, Stvar, v
             do ir = 1, Nr
                 StL(ir, j, i) = max(St(ir, j), St(ir, i))
                 StS(ir, j, i) = min(St(ir, j), St(ir, i))
+                !eps(ir, j, i) = StS(ir, j, i) / StL(ir, j, i)
                 StLvar(ir, j, i) = max(Stvar(ir, j), Stvar(ir, i))
                 StSvar(ir, j, i) = min(Stvar(ir, j), Stvar(ir, i))
-                eps(ir, j, i) = StS(ir, j, i) / StL(ir, j, i)
+                epsvar(ir, j, i) = StSvar(ir, j, i) / StLvar(ir, j, i)
 
                 tauL(ir, j, i) = StL(ir, j, i) * OmKinv(ir)
                 tauS(ir, j, i) = StS(ir, j, i) * OmKinv(ir)
+                tauLvar(ir, j, i) = StLvar(ir, j, i) * OmKinv(ir)
+                tauSvar(ir, j, i) = StSvar(ir, j, i) * OmKinv(ir)
 
-                ys(ir, j, i) = c0 + c1 * StL(ir, j, i) + c2 * StL(ir, j, i)**2 &
-                        & + c3 * StL(ir, j, i)**3
+                !ys(ir, j, i) = c0 + c1 * StL(ir, j, i) + c2 * StL(ir, j, i)**2 &
+                !        & + c3 * StL(ir, j, i)**3
+                ysvar(ir, j, i) = c0 + c1 * StLvar(ir, j, i) + c2 * StLvar(ir, j, i)**2 &
+                        & + c3 * StLvar(ir, j, i)**3
 
-                h1(ir, j, i) = (StL(ir, j, i) - StS(ir, j, i))                 &
-                        & / (StL(ir, j, i) + StS(ir, j, i))                          &
-                        & * (StL(ir, j, i) * yap1inv                                 &
-                                & - StS(ir, j, i)**2 / (StS(ir, j, i) + ya * StL(ir, j, i)))
-                h2(ir, j, i) = 2.d0 * (ya * StL(ir, j, i) - ReInvSqrt(ir))     &
-                        & + StL(ir, j, i) * yap1inv                                     &
-                        & - StL(ir, j, i)**2 / (StL(ir, j, i) + ReInvSqrt(ir))       &
-                        & + StS(ir, j, i)**2 / (ya * StL(ir, j, i) + StS(ir, j, i))  &
-                        & - StS(ir, j, i)**2 / (StS(ir, j, i) + ReInvSqrt(ir))
+                !h1(ir, j, i) = (StL(ir, j, i) - StS(ir, j, i)) &
+                !        & / (StL(ir, j, i) + StS(ir, j, i))    &
+                !        & * (StL(ir, j, i) * yap1inv &
+                !        & - StS(ir, j, i)**2 / (StS(ir, j, i) + ya * StL(ir, j, i)))
+                h1var(ir, j, i) = (StLvar(ir, j, i) - StSvar(ir, j, i)) &
+                        & / (StLvar(ir, j, i) + StSvar(ir, j, i))    &
+                        & * (StLvar(ir, j, i) * yap1inv &
+                                & - StSvar(ir, j, i)**2 / (StSvar(ir, j, i) + ya * StLvar(ir, j, i)))
+                !h2(ir, j, i) = 2.d0 * (ya * StL(ir, j, i) - ReInvSqrt(ir))     &
+                !        & + StL(ir, j, i) * yap1inv                                     &
+                !        & - StL(ir, j, i)**2 / (StL(ir, j, i) + ReInvSqrt(ir))       &
+                !        & + StS(ir, j, i)**2 / (ya * StL(ir, j, i) + StS(ir, j, i))  &
+                !        & - StS(ir, j, i)**2 / (StS(ir, j, i) + ReInvSqrt(ir))
+                h2var(ir, j, i) = 2.d0 * (ya * StLvar(ir, j, i) - ReInvSqrt(ir))     &
+                        & + StLvar(ir, j, i) * yap1inv                                     &
+                        & - StLvar(ir, j, i)**2 / (StLvar(ir, j, i) + ReInvSqrt(ir))       &
+                        & + StSvar(ir, j, i)**2 / (ya * StLvar(ir, j, i) + StSvar(ir, j, i))  &
+                        & - StSvar(ir, j, i)**2 / (StSvar(ir, j, i) + ReInvSqrt(ir))
             end do
         end do
     end do
@@ -482,40 +496,41 @@ subroutine vrel_cuzzi_ormel_2007(alpha, cs, mump, OmegaK, SigmaGas, St, Stvar, v
     do i = 1, Nm
         do j = 1, i
 
+            ! Turbulence regime I
             where(tauL(:, j, i) < 0.2d0 * ts(:))
 
                 vRel(:, j, i) = 1.5d0 * (vs(:) / ts(:) &
-                        & * (tauL(:, j, i) - tauS(:, j, i)))**2
+                        & * (tauLvar(:, j, i) - tauSvar(:, j, i)))**2
 
             elsewhere(tauL(:, j, i) * ya < ts(:))
 
-                vRel(:, j, i) = vg2(:) * (StL(:, j, i) - StS(:, j, i)) &
-                        & / (StL(:, j, i) + StS(:, j, i)) * (StL(:, j, i)**2 &
-                        & / (StL(:, j, i) + ReInvSqrt(:))                    &
-                        & - StS(:, j, i)**2 / (StS(:, j, i) + ReInvSqrt(:)))
+                vRel(:, j, i) = vg2(:) * (StLvar(:, j, i) - StSvar(:, j, i)) &
+                        & / (StLvar(:, j, i) + StSvar(:, j, i)) * (StLvar(:, j, i)**2 &
+                        & / (StLvar(:, j, i) + ReInvSqrt(:))                    &
+                        & - StSvar(:, j, i)**2 / (StSvar(:, j, i) + ReInvSqrt(:)))
 
             elsewhere(tauL(:, j, i) < 5.d0 * ts(:))
 
-                vRel(:, j, i) = vg2(:) * (h1(:, j, i) + h2(:, j, i))
+                vRel(:, j, i) = vg2(:) * (h1var(:, j, i) + h2var(:, j, i))
 
             elsewhere(tauL(:, j, i) < 0.2d0 * OmKinv(:))
 
-                vRel(:, j, i) = vg2(:) * StL(:, j, i)                             &
-                        & * (2.d0 * ya - 1.d0 - eps(:, j, i) + 2.d0 / (1.d0 + eps(:, j, i)) &
-                                & * (yap1inv + eps(:, j, i)**3 / (ya + eps(:, j, i))))
+                vRel(:, j, i) = vg2(:) * StLvar(:, j, i)                             &
+                        & * (2.d0 * ya - 1.d0 - epsvar(:, j, i) + 2.d0 / (1.d0 + epsvar(:, j, i)) &
+                                & * (yap1inv + epsvar(:, j, i)**3 / (ya + epsvar(:, j, i))))
 
             elsewhere(tauL(:, j, i) < OmKinv(:))
 
-                vRel(:, j, i) = vg2(:) * StL(:, j, i)                  &
-                        & * (2.d0 * ys(:, j, i) - 1.d0 - eps(:, j, i)           &
-                                & + 2.d0 / (1.d0 + eps(:, j, i)) * (1.d0 / (1.d0 + ys(:, j, i)) &
-                                        & + eps(:, j, i)**3 / (ys(:, j, i) + eps(:, j, i))))
+                vRel(:, j, i) = vg2(:) * StLvar(:, j, i)                  &
+                        & * (2.d0 * ys(:, j, i) - 1.d0 - epsvar(:, j, i)           &
+                                & + 2.d0 / (1.d0 + epsvar(:, j, i)) * (1.d0 / (1.d0 + ys(:, j, i)) &
+                                        & + epsvar(:, j, i)**3 / (ys(:, j, i) + epsvar(:, j, i))))
 
                 ! Turbulence regime II
             elsewhere(tauL(:, j, i) >= OmKinv(:))
                 vRel(:, j, i) = vg2(:) &
-                        & * (2.d0 + StLvar(:, j, i) + StSvar(:, j, i)) &
-                        & / (1.d0 + StLvar(:, j, i) + StSvar(:, j, i) + StLvar(:, j, i) * StSvar(:, j, i))
+                        & * (2.d0 + StL(:, j, i) + StS(:, j, i)) &
+                        & / (1.d0 + StL(:, j, i) + StS(:, j, i) + StL(:, j, i) * StS(:, j, i))
 
             end where
 
