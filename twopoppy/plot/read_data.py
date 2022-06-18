@@ -320,7 +320,7 @@ def powerlaw_extrapolation(sigma_d, s_max, xi, rhos, fill, sigma_g, mfp, nmbpd=7
             else:
                 i_up = np.where(m_i[it, ir] < m_max[it, ir])[0][-1]
                 # filling all bins that are strictly below m_max
-                if xi[it, ir] == 4.0:
+                if xi[it, ir] == -4.0:
                     for im in range(i_up):
                         sig_dm[it, ir, im] = np.log(m_i[it, ir, im + 1] / m_i[it, ir, im])
                     # filling the bin that contains m_max
