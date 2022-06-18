@@ -585,7 +585,7 @@ subroutine calculate_xi(smin, smax, Sigma, xicalc, Nr, Nm)
         if(smax(i) == sint(i)) then
             xicalc(i) = -2.5d0
         else
-            xicalc(i) = max(-4.d0 + 1.d-100, min(15.d0, log(Sigma(i, 2) / Sigma(i, 1)) / log(smax(i) / sint(i)) - 4.d0))
+            xicalc(i) = max(-20.d0, min(15.d0, log(Sigma(i, 2) / Sigma(i, 1)) / log(smax(i) / sint(i)) - 4.d0))
         end if
     end do
 

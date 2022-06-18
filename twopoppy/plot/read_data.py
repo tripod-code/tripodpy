@@ -332,6 +332,8 @@ def powerlaw_extrapolation(sigma_d, s_max, xi, rhos, fill, sigma_g, mfp, nmbpd=7
                     # filling the bin that contains m_max
                     sig_dm[it, ir, i_up] = m_max[it, ir] ** ((4. + xi[it, ir]) / 3.) - \
                                            m_i[it, ir, i_up] ** ((4. + xi[it, ir]) / 3.)
+            # absolute values (in case xi < -4)
+            sig_dm[it, ir, :] = np.abs(sig_dm[it, ir, :])
             # normalize
             sig_dm[it, ir, :] = sig_dm[it, ir, :] / sig_dm[it, ir, :].sum() * sigma_d[it, ir]
 
