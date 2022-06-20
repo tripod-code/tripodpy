@@ -418,13 +418,13 @@ class Simulation(dp.Simulation):
             )
         # Averaging mode for size calculations
         if self.dust.avgmode is None:
-            avgmode = "flux"  # Options: flux, mass
+            avgmode = 1  # Options: 1 (flux), 2 (mass)
             self.dust.addfield(
                 "avgmode", avgmode, description="Averaging mode for size calculation"
             )
         # Transition function between sticking and fragmentation
         if self.dust.tranf is None:
-            tranf = "lin"  # Options: lin, sgm, pow, bel, exp, cos
+            tranf = 1  # Options: 1 (linear), 2 (std sigmoid), 3 (power law), 4 (bell), 5 (exponential), 6 (cosine)
             self.dust.addfield(
                 "tranf", tranf, description="Transition function between sticking and fragmentation"
             )

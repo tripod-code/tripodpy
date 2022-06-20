@@ -22,7 +22,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avgmode, a, Nr, Nm)
     double precision, intent(in) :: smax(Nr)
     double precision, intent(in) :: xi(Nr)
     double precision, intent(in) :: mfp(Nr)
-    character*4, intent(in) :: avgmode
+    integer, intent(in) :: avgmode
     double precision, intent(out) :: a(Nr, Nm)
     integer, intent(in) :: Nr
     integer, intent(in) :: Nm
@@ -46,7 +46,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avgmode, a, Nr, Nm)
     lambd(:) = 2.25d0 * mfp(:)
 
     ! Flux-averaged particle sizes with lambda as threshold between Stokes and Epstein regime
-    if(avgmode == 'flux') then
+    if(avgmode == 1) then
         do i = 1, Nr
             if(smin(i) == smax(i)) then
                 a(i, 1) = smin(i)
@@ -79,7 +79,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avgmode, a, Nr, Nm)
         end do
 
         ! Mass-averaged particle sizes
-    else if(avgmode == 'mass') then
+    else if(avgmode == 2) then
         do i = 1, Nr
             if(smin(i) == smax(i)) then
                 a(i, 1) = smin(i)
@@ -304,7 +304,7 @@ subroutine pfrag(vrel, vfrag, tranf, pf, Nr, Nm)
 
     double precision, intent(in) :: vrel(Nr, Nm, Nm)
     double precision, intent(in) :: vfrag(Nr)
-    character*3, intent(in) :: tranf
+    integer, intent(in) :: tranf
     double precision, intent(out) :: pf(Nr, Nm, Nm)
     integer, intent(in) :: Nr
     integer, intent(in) :: Nm
@@ -315,7 +315,7 @@ subroutine pfrag(vrel, vfrag, tranf, pf, Nr, Nm)
     integer :: j
 
     ! Linear
-    if(tranf == 'lin') then
+    if(tranf == 1) then
         do i = 1, Nm
             do j = 1, i
                 do ir = 2, Nr - 1
@@ -326,7 +326,7 @@ subroutine pfrag(vrel, vfrag, tranf, pf, Nr, Nm)
             end do
         end do
         ! Standard sigmoid
-    else if(tranf == 'sgm') then
+    else if(tranf == 2) then
         do i = 1, Nm
             do j = 1, i
                 do ir = 2, Nr - 1
@@ -337,7 +337,7 @@ subroutine pfrag(vrel, vfrag, tranf, pf, Nr, Nm)
             end do
         end do
         ! Power law
-    else if(tranf == 'pow') then
+    else if(tranf == 3) then
         do i = 1, Nm
             do j = 1, i
                 do ir = 2, Nr - 1
@@ -348,7 +348,7 @@ subroutine pfrag(vrel, vfrag, tranf, pf, Nr, Nm)
             end do
         end do
         ! Bell
-    else if(tranf == 'bel') then
+    else if(tranf == 4) then
         do i = 1, Nm
             do j = 1, i
                 do ir = 2, Nr - 1
@@ -359,7 +359,7 @@ subroutine pfrag(vrel, vfrag, tranf, pf, Nr, Nm)
             end do
         end do
         ! Exponential
-    else if(tranf == 'exp') then
+    else if(tranf == 5) then
         do i = 1, Nm
             do j = 1, i
                 do ir = 2, Nr - 1
@@ -370,7 +370,7 @@ subroutine pfrag(vrel, vfrag, tranf, pf, Nr, Nm)
             end do
         end do
         ! Cosine
-    else if(tranf == 'cos') then
+    else if(tranf == 6) then
         do i = 1, Nm
             do j = 1, i
                 do ir = 2, Nr - 1
