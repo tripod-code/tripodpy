@@ -471,7 +471,7 @@ subroutine vrel_cuzzi_ormel_2007(alpha, cs, mump, OmegaK, SigmaGas, St, Stvar, v
     integer, intent(in) :: Nr
     integer, intent(in) :: Nm
 
-    double precision :: epsvar(Nr, Nm, Nm)
+    double precision :: eps(Nr, Nm, Nm)
     double precision :: OmKinv(Nr)
     double precision :: Re
     double precision :: ReInvSqrt(Nr)
@@ -489,9 +489,9 @@ subroutine vrel_cuzzi_ormel_2007(alpha, cs, mump, OmegaK, SigmaGas, St, Stvar, v
     double precision :: vs(Nr)
 
     double precision :: c0, c1, c2, c3, ya, yap1inv
-    double precision :: h1var(Nr, Nm, Nm)
-    double precision :: h2var(Nr, Nm, Nm)
-    double precision :: ysvar(Nr, Nm, Nm)
+    double precision :: h1(Nr, Nm, Nm)
+    double precision :: h2(Nr, Nm, Nm)
+    double precision :: ys(Nr, Nm, Nm)
 
     integer :: ir, i, j
     double precision :: dum
