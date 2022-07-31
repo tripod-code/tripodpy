@@ -45,6 +45,7 @@ class Simulation(dp.Simulation):
         self.dust.addgroup("vega", description="Particle size variation factors for relative velocities")
         self.dust.vega.brown = None
         self.dust.vega.turb = None
+        self.dust.sderivexp = None
 
         # Adjusting update orders
 
@@ -436,6 +437,12 @@ class Simulation(dp.Simulation):
             vegatu = np.ones(shape2)
             self.dust.vega.addfield(
                 "turb", vegatu, description="Variation factor turbulent motion"
+            )
+        # Exponent in smax deriv
+        if self.dust.sderivexp is None:
+            derivexp = 8.  # Options: 1 (linear), 2 (std sigmoid), 3 (power law), 4 (bell), 5 (exponential), 6 (cosine)
+            self.dust.addfield(
+                "sderivexp", derivexp, description="Exponent in smax deriv"
             )
 
         # Initialize dust quantities partly to calculate Sigma

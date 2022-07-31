@@ -614,7 +614,8 @@ def smax_deriv(sim, t, smax):
         smax,
         sim.dust.v.frag,
         sim.dust.Sigma,
-        sim.dust.SigmaFloor
+        sim.dust.SigmaFloor,
+        sim.dust.sderivexp
     )
 
 
