@@ -40,13 +40,14 @@ class Simulation(dp.Simulation):
         self.dust.addgroup("s", description="Characteristic particle sizes")
         self.dust.s.min = None
         self.dust.s.max = None
-        self.dust.avgmode = None
-        self.dust.tranf = None
         self.dust.addgroup(
-            "vega", description="Particle size variation factors for relative velocities")
-        self.dust.vega.brown = None
-        self.dust.vega.turb = None
-        self.dust.sderivexp = None
+            "fudge", description="Fudge factors")
+        self.dust.fudge.tot = None
+        self.dust.fudge.brown = None
+        self.dust.fudge.turb = None
+        self.dust.fudge.exp = None
+        self.dust.fudge.tranf = None
+        self.dust.fudge.avgmode = None
 
         # Adjusting update orders
 
@@ -416,36 +417,41 @@ class Simulation(dp.Simulation):
             self.dust.s.addfield(
                 "min", smin, description="Minimum particle size"
             )
-        # Averaging mode for size calculations
-        if self.dust.avgmode is None:
-            avgmode = 1  # Options: 1 (flux), 2 (mass)
-            self.dust.addfield(
-                "avgmode", avgmode, description="Averaging mode for size calculation"
-            )
-        # Transition function between sticking and fragmentation
-        if self.dust.tranf is None:
-            # Options: 1 (linear), 2 (std sigmoid), 3 (power law), 4 (bell), 5 (exponential), 6 (cosine)
-            tranf = 1
-            self.dust.addfield(
-                "tranf", tranf, description="Transition function between sticking and fragmentation"
-            )
         # Particle size variation factors
-        if self.dust.vega.brown is None:
-            vegabr = np.ones(shape2)
-            self.dust.vega.addfield(
-                "brown", vegabr, description="Variation factor brownian motion"
+        if self.dust.fudge.tot is None:
+            fudgetot = 1.
+            self.dust.fudge.addfield(
+                "tot", fudgetot, description="Variation factor total relative velocity"
             )
-        if self.dust.vega.turb is None:
-            vegatu = np.ones(shape2)
-            self.dust.vega.addfield(
-                "turb", vegatu, description="Variation factor turbulent motion"
+        if self.dust.fudge.brown is None:
+            fudgebr = 1.
+            self.dust.fudge.addfield(
+                "brown", fudgebr, description="Variation factor brownian motion"
+            )
+        if self.dust.fudge.turb is None:
+            fudgetu = 1.
+            self.dust.fudge.addfield(
+                "turb", fudgetu, description="Variation factor turbulent motion"
             )
         # Exponent in smax deriv
-        if self.dust.sderivexp is None:
+        if self.dust.fudge.exp is None:
+            fudgeexp = 8.
+            self.dust.fudge.addfield(
+                "exp", fudgeexp, description="Smax growth fudging exponent"
+            )
+        # Transition function between sticking and fragmentation
+        if self.dust.fudge.tranf is None:
             # Options: 1 (linear), 2 (std sigmoid), 3 (power law), 4 (bell), 5 (exponential), 6 (cosine)
-            derivexp = 8.
-            self.dust.addfield(
-                "sderivexp", derivexp, description="Exponent in smax deriv"
+            tranf = 1
+            self.dust.fudge.addfield(
+                "tranf", tranf, description="Transition function between sticking and fragmentation"
+            )
+        # Averaging mode for size calculations
+        if self.dust.fudge.avgmode is None:
+            # Options: 1 (flux), 2 (mass)
+            avgmode = 1
+            self.dust.fudge.addfield(
+                "avgmode", avgmode, description="Averaging mode for size calculation"
             )
 
         # Initialize dust quantities partly to calculate Sigma

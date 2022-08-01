@@ -445,8 +445,8 @@ def a(sim):
     -------
     a : Field
         Particle sizes"""
-    return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.xi.calc, sim.gas.mfp, sim.dust.avgmode,
-                              sim.grid._Nm_long)
+    return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.xi.calc, sim.gas.mfp,
+                              sim.dust.fudge.avgmode, sim.dust.fudge.tot, sim.grid._Nm_long)
 
 
 def F_adv(sim, Sigma=None):
@@ -547,7 +547,7 @@ def p_frag(sim):
     -------
     pf : Field
         Fragmentation probability."""
-    return dust_f.pfrag(sim.dust.v.rel.tot, sim.dust.v.frag, sim.dust.tranf)
+    return dust_f.pfrag(sim.dust.v.rel.tot, sim.dust.v.frag, sim.dust.fudge.tranf)
 
 
 def p_stick(sim):
@@ -692,7 +692,8 @@ def vrel_brownian_motion(sim):
     -------
     vrel : Field
         Relative velocities"""
-    m_var = sim.dust.m * sim.dust.vega.brown ** 3.
+    m_var = sim.dust.m
+    m_var[:, 2] *= sim.dust.fudge.brown ** 3.
     return dust_f.vrel_brownian_motion(sim.gas.cs, m_var, sim.gas.T)
 
 
@@ -711,7 +712,8 @@ def vrel_turbulent_motion(sim):
         Relative velocities"""
 
     rho = sim.dust.rhos * sim.dust.fill
-    a_var = sim.dust.a * sim.dust.vega.turb
+    a_var = sim.dust.a
+    a_var[:, 2] *= sim.dust.fudge.turb
     St_var = dp_dust_f.st_epstein_stokes1(a_var, sim.gas.mfp, rho, sim.gas.Sigma)
 
     return dust_f.vrel_cuzzi_ormel_2007(

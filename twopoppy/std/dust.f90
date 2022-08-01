@@ -1,4 +1,4 @@
-subroutine calculate_a(smin, smax, xi, mfp, avgmode, a, Nr, Nm)
+subroutine calculate_a(smin, smax, xi, mfp, avgmode, fudge, a, Nr, Nm)
     ! Subroutine calculates the particle sizes.
     ! a = [a0, a1, 0.5*amax, amax]
     !
@@ -9,6 +9,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avgmode, a, Nr, Nm)
     ! xi(Nr) : Calculated distribution exponent
     ! mfp(Nr) : Mean free path
     ! avgmode : Averaging mode for particle size calculation
+    ! fudge : Fudge factor for vrel underlying smax evolution / fragmentation probability
     ! Nr : Number of radial grid cells
     ! Nm : Number of mass bins
     !
@@ -23,6 +24,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avgmode, a, Nr, Nm)
     double precision, intent(in) :: xi(Nr)
     double precision, intent(in) :: mfp(Nr)
     integer, intent(in) :: avgmode
+    double precision, intent(in) :: fudge
     double precision, intent(out) :: a(Nr, Nm)
     integer, intent(in) :: Nr
     integer, intent(in) :: Nm
@@ -75,7 +77,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avgmode, a, Nr, Nm)
                         & - sint(i)**xip4(i))
             end if
             a(i, 4) = smax(i)
-            a(i, 3) = 0.5d0 * a(i, 4)
+            a(i, 3) = fudge * a(i, 4)
         end do
 
         ! Mass-averaged particle sizes
@@ -104,7 +106,7 @@ subroutine calculate_a(smin, smax, xi, mfp, avgmode, a, Nr, Nm)
                 ! a(i, 4) = R1(i) * (smax(i)**xip5(i) - smin(i)**xip5(i)) / (smax(i)**xip4(i) - smin(i)**xip4(i))
             end if
             a(i, 4) = smax(i)
-            a(i, 3) = 0.5d0 * a(i, 4)
+            a(i, 3) = fudge * a(i, 4)
         end do
     end if
 
@@ -728,8 +730,8 @@ subroutine jacobian_coagulation_generator(a, dv, H, m, pfrag, pstick, Sigma, smi
 
     sint(:) = SQRT(smin(:) * smax(:))
 
-    ! TODO: pfrag(:, 1, 2) or pfrag(:, 2, 2)?
-    xiprime(:) = pfrag(:, 2, 2) * xifrag(:) + pstick(:, 2, 2) * xistick(:)
+    ! TODO: pfrag(:, 1, 2) or pfrag(:, 2, 2)? Chose pfrag(:, 3, 4) in accordance with smax_deriv
+    xiprime(:) = pfrag(:, 3, 4) * xifrag(:) + pstick(:, 3, 4) * xistick(:)
 
     F(:) = H(:, 2) * SQRT(2.d0 / (H(:, 1)**2 + H(:, 2)**2)) &
             & * sig(:, 1, 2) / sig(:, 2, 2) * dv(:, 1, 2) / dv(:, 2, 2) &
@@ -825,8 +827,8 @@ subroutine s_coag(a, dv, H, m, pfrag, pstick, Sigma, smin, smax, xifrag, xistick
 
     sint(:) = sqrt(smin(:) * smax(:))
 
-    ! TODO: pfrag(:, 1, 2) or pfrag(:, 2, 2)?
-    xiprime(:) = pfrag(:, 2, 2) * xifrag(:) + pstick(:, 2, 2) * xistick(:)
+    ! TODO: pfrag(:, 1, 2) or pfrag(:, 2, 2)? Chose pfrag(:, 3, 4) in accordance with smax_deriv
+    xiprime(:) = pfrag(:, 3, 4) * xifrag(:) + pstick(:, 3, 4) * xistick(:)
 
     F(:) = H(:, 2) * sqrt(2.d0 / (H(:, 1)**2 + H(:, 2)**2)) &
             & * sig(:, 1, 2) / sig(:, 2, 2) * dv(:, 1, 2) / dv(:, 2, 2) &
