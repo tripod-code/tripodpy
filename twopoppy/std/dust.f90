@@ -895,7 +895,7 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, deri
 
         if (dsmax(ir) < 0.d0) then
 
-            thr = 0.3d0 * smin(ir)
+            thr = 1.3d0 * smin(ir)
             f = 0.5d0 * (1.d0 + TANH(LOG10(smax(ir) / thr) / 3.d-2))
             if(smax(ir) <= smin(ir)) f = 0.d0
             dsmax(ir) = f * dsmax(ir)
