@@ -893,22 +893,24 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, fudg
 
     do ir = 2, Nr - 1
 
-        A = (dv(ir) / vfrag(ir)) ** fudgeexp
-        B = (1.d0 - A) / (1.d0 + A)
+        if(SigmaFloor(ir, 1) + SigmaFloor(ir, 2) == Sigma(ir, 1) + Sigma(ir, 2)) then
+            dsmax(ir) = 0.d0
 
-        rhod_sum = SUM(rhod(ir, :))
-        rhos_mean = SUM(rhod(ir, :) * rhos(ir, :)) / rhod_sum
-        dsmax(ir) = rhod_sum / rhos_mean * dv(ir) * B
+        else
+            A = (dv(ir) / vfrag(ir)) ** fudgeexp
+            B = (1.d0 - A) / (1.d0 + A)
 
-        if (dsmax(ir) < 0.d0) then
+            rhod_sum = SUM(rhod(ir, :))
+            rhos_mean = SUM(rhod(ir, :) * rhos(ir, :)) / rhod_sum
+            dsmax(ir) = rhod_sum / rhos_mean * dv(ir) * B
 
-            thr = 1.3d0 * smin(ir)
-            f = 0.5d0 * (1.d0 + TANH(LOG10(smax(ir) / thr) / 3.d-2))
-            if(smax(ir) <= smin(ir)) f = 0.d0
-            dsmax(ir) = f * dsmax(ir)
+            if (dsmax(ir) < 0.d0) then
 
-        else if(SigmaFloor(ir, 1) + SigmaFloor(ir, 2) == Sigma(ir, 1) + Sigma(ir, 2)) then
-            dsmax(ir) = 0.d0 * dsmax(ir)
+                thr = 1.3d0 * smin(ir)
+                f = 0.5d0 * (1.d0 + TANH(LOG10(smax(ir) / thr) / 3.d-2))
+                if(smax(ir) <= smin(ir)) f = 0.d0
+                dsmax(ir) = f * dsmax(ir)
+            end if
 
         end if
 
