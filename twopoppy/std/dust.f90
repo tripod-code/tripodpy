@@ -881,6 +881,8 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, fudg
 
     double precision :: A
     double precision :: B
+    double precision :: C
+    double precision :: D
     double precision :: f
     double precision :: rhod_sum
     double precision :: rhos_mean
@@ -899,12 +901,19 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, fudg
             A = (dv(ir) / vfrag(ir)) ** fudgeexp
             B = (1.d0 - A) / (1.d0 + A)
 
+            C = dv(ir) / vfrag(ir)
+            D = 1. - exp(-14.d0 * (C - 1.25d0)**6.d0)
+
             rhod_sum = SUM(rhod(ir, :))
             rhos_mean = SUM(rhod(ir, :) * rhos(ir, :)) / rhod_sum
-            dsmax(ir) = rhod_sum / rhos_mean * dv(ir) * B
+            ! dsmax(ir) = rhod_sum / rhos_mean * dv(ir) * B
+            dsmax(ir) = rhod_sum / rhos_mean * dv(ir) * D
+
+            if(dsmax(ir) > 0.d0 .and. C > 1.d0) then
+                dsmax(ir) = -1.d0 * dsmax(ir)
+            end if
 
             if (dsmax(ir) < 0.d0) then
-
                 thr = 1.3d0 * smin(ir)
                 f = 0.5d0 * (1.d0 + TANH(LOG10(smax(ir) / thr) / 3.d-2))
                 if(smax(ir) <= smin(ir)) f = 0.d0
