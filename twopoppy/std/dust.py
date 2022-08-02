@@ -547,7 +547,7 @@ def p_frag(sim):
     -------
     pf : Field
         Fragmentation probability."""
-    return dust_f.pfrag(sim.dust.v.rel.tot, sim.dust.v.frag, sim.dust.fudge.tranf)
+    return dust_f.pfrag(sim.dust.v.rel.tot, sim.dust.v.frag, sim.dust.fudge.tranf, sim.dust.fudge.growth, sim.dust.fudge.bfrag)
 
 
 def p_stick(sim):
