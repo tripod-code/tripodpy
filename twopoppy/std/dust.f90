@@ -902,7 +902,7 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, fudg
             B = (1.d0 - A) / (1.d0 + A)
 
             C = dv(ir) / vfrag(ir)
-            D = 1. - exp(-20.d0 * (C - 1.15d0)**8.d0)
+            D = 1. - exp(-20.d0 * (C - 1.2d0)**8.d0)
 
             rhod_sum = SUM(rhod(ir, :))
             rhos_mean = SUM(rhod(ir, :) * rhos(ir, :)) / rhod_sum
