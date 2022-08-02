@@ -619,7 +619,8 @@ def smax_deriv(sim, t, smax):
         sim.dust.fudge.sexp,
         sim.dust.fudge.bexp,
         sim.dust.fudge.bslo,
-        sim.dust.fudge.bshi
+        sim.dust.fudge.bshi,
+        sim.dust.fudge.bfrag
     )
 
 

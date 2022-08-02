@@ -842,7 +842,7 @@ end subroutine s_coag
 
 
 subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, fudgegro, &
-        & fudgesexp, fudgebexp, fudgebslo, fudgebshi, dsmax, Nr, Nm)
+        & fudgesexp, fudgebexp, fudgebslo, fudgebshi, fudgebfrag, dsmax, Nr, Nm)
     ! Subroutine calculates the derivative of the maximum particle size
     !
     ! Parameters
@@ -860,6 +860,7 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, fudg
     ! fudgebexp: Fudging exponent bell
     ! fudgebslo: Fudging slope bell
     ! fudgebshi: Fudging shift bell
+    ! fudgebfrag: Fudging fragmentation limit bell
     ! Nr : Number of radial grid cells
     ! Nm : Number of mass bins (only a0 and a1)
     !
@@ -882,6 +883,7 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, fudg
     double precision, intent(in) :: fudgebexp
     double precision, intent(in) :: fudgebslo
     double precision, intent(in) :: fudgebshi
+    double precision, intent(in) :: fudgebfrag
     double precision, intent(out) :: dsmax(Nr)
     integer, intent(in) :: Nr
     integer, intent(in) :: Nm
@@ -923,7 +925,7 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, fudg
                 D = 1. - exp(-fudgebslo * (C - fudgebshi)**fudgebexp)
                 dsmax(ir) = rhod_sum / rhos_mean * dv(ir) * D
 
-                if(dsmax(ir) > 0.d0 .and. C > 1.d0) then
+                if(dsmax(ir) > 0.d0 .and. C > fudgebfrag) then
                     dsmax(ir) = -1.d0 * dsmax(ir)
                 end if
 

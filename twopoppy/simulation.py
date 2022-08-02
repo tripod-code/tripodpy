@@ -49,6 +49,7 @@ class Simulation(dp.Simulation):
         self.dust.fudge.bexp = None
         self.dust.fudge.bslo = None
         self.dust.fudge.bshi = None
+        self.dust.fudge.bfrag = None
         self.dust.fudge.tranf = None
         self.dust.fudge.growth = None
         self.dust.fudge.avgmode = None
@@ -457,6 +458,11 @@ class Simulation(dp.Simulation):
             fudgebshi = 1.2
             self.dust.fudge.addfield(
                 "bshi", fudgebshi, description="Smax growth fudging shift bell"
+            )
+        if self.dust.fudge.bfrag is None:
+            fudgebfra = 1.
+            self.dust.fudge.addfield(
+                "bfrag", fudgebfra, description="Fragmentation limit fudging bell"
             )
         # Transition function between sticking and fragmentation
         if self.dust.fudge.tranf is None:
