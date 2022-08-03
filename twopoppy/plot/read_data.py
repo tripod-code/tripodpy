@@ -182,6 +182,7 @@ def _readdata_dp(data, filename="data", extension="hdf5"):
         cs = data.gas.cs[None, ...]
         delta = data.dust.delta.turb[None, ...]
         OmegaK = data.grid.OmegaK[None, ...]
+        size = data.dust.a[None, ...]
         St = data.dust.St[None, ...]
         vK = OmegaK[None, ...] * r
         vFrag = data.dust.v.frag[None, ...]
@@ -215,6 +216,7 @@ def _readdata_dp(data, filename="data", extension="hdf5"):
         cs = writer.read.sequence("gas.cs")
         delta = writer.read.sequence("dust.delta.turb")
         OmegaK = writer.read.sequence("grid.OmegaK")
+        size = writer.read.sequence("dust.a")
         St = writer.read.sequence("dust.St")
         vK = OmegaK * r
         vFrag = writer.read.sequence("dust.v.frag")
@@ -280,6 +282,7 @@ def _readdata_dp(data, filename="data", extension="hdf5"):
     ret["cs"] = cs
     ret["delta"] = delta
     ret["OmegaK"] = OmegaK
+    ret["a"] = size
     ret["St"] = St
     ret["StDr"] = StDr
     ret["StFr"] = StFr
