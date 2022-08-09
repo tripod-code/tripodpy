@@ -312,14 +312,19 @@ subroutine pfrag(vrel, vfrag, fudgefrag, pf, Nr, Nm)
     integer, intent(in) :: Nm
 
     double precision :: dum
+    double precision :: val
     integer :: ir
     integer :: i
     integer :: j
 
+    val = sqrt(6.d0) / 3.d0
+
     do i = 1, Nm
         do j = 1, i
             do ir = 2, Nr - 1
-                dum = 0.2d0 * fudgefrag * (vrel(ir, j, i) / vfrag(ir)) + 1.d0 - 0.2d0 * fudgefrag**2.d0
+                ! dum = 0.2d0 * fudgefrag * (vrel(ir, j, i) / vfrag(ir)) + 1.d0 - 0.2d0 * fudgefrag**2.d0
+                ! Ramp-up start no longer variable but fixed to cratering specific value
+                dum = 1.d0 / (fudgefrag - val) * (vrel(ir, j, i) / vfrag(ir)) - val / (fudgefrag - val)
                 pf(ir, j, i) = max(0.d0, min(1.d0, dum))
                 pf(ir, i, j) = pf(ir, j, i)
             end do
