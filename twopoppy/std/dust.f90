@@ -280,7 +280,7 @@ subroutine calculate_m(a, rhos, fill, masses, Nr, Nm)
 end subroutine calculate_m
 
 
-subroutine pfrag(vrel, vfrag, fudgefrag, pf, Nr, Nm)
+subroutine pfrag(vrel, vfrag, fudgefrag, fudgeramp, pf, Nr, Nm)
     ! Subroutine calculates the fragmentation probability.
     ! It is assuming a Maxwell-Boltzmann velocity distribution.
     !
@@ -289,6 +289,7 @@ subroutine pfrag(vrel, vfrag, fudgefrag, pf, Nr, Nm)
     ! vrel(Nr, Nm, Nm) : Relative velocity
     ! vfrag(Nr) : Fragmentation velocity
     ! fudgefrag: Fragmentation limit fudge factor
+    ! fudgeramp: Ramp up transition function
     ! Nr : Number or radial grid cells
     ! Nm : Number of mass bins
     !
@@ -307,6 +308,7 @@ subroutine pfrag(vrel, vfrag, fudgefrag, pf, Nr, Nm)
     double precision, intent(in) :: vrel(Nr, Nm, Nm)
     double precision, intent(in) :: vfrag(Nr)
     double precision, intent(in) :: fudgefrag
+    double precision, intent(in) :: fudgeramp
     double precision, intent(out) :: pf(Nr, Nm, Nm)
     integer, intent(in) :: Nr
     integer, intent(in) :: Nm
@@ -316,10 +318,13 @@ subroutine pfrag(vrel, vfrag, fudgefrag, pf, Nr, Nm)
     integer :: i
     integer :: j
 
+    val = 0.8d0
+
     do i = 1, Nm
         do j = 1, i
             do ir = 2, Nr - 1
-                dum = 1.d0 / (0.2d0 * fudgefrag) * (vrel(ir, j, i) / vfrag(ir)) - 4.d0
+                dum = 1.d0 / ((1.d0 - fudgeramp) * fudgefrag) * (vrel(ir, j, i) / vfrag(ir)) - &
+                        & fudgeramp / (1.d0 - fudgeramp)
                 pf(ir, j, i) = max(0.d0, min(1.d0, dum))
                 pf(ir, i, j) = pf(ir, j, i)
             end do

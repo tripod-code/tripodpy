@@ -47,6 +47,7 @@ class Simulation(dp.Simulation):
         self.dust.fudge.turb = None
         self.dust.fudge.exp = None
         self.dust.fudge.frag = None
+        self.dust.fudge.ramp = None
         self.dust.fudge.avgmode = None
 
         # Adjusting update orders
@@ -443,6 +444,11 @@ class Simulation(dp.Simulation):
             fudgefra = 1.
             self.dust.fudge.addfield(
                 "frag", fudgefra, description="Fragmentation limit fudge factor"
+            )
+        if self.dust.fudge.ramp is None:
+            fudgeram = 0.8
+            self.dust.fudge.addfield(
+                "ramp", fudgeram, description="Ramp up transition function"
             )
         # Averaging mode for size calculations
         if self.dust.fudge.avgmode is None:
