@@ -321,8 +321,10 @@ subroutine pfrag(vrel, vfrag, fudgefrag, fudgeramp, pf, Nr, Nm)
     do i = 1, Nm
         do j = 1, i
             do ir = 2, Nr - 1
-                dum = 1.d0 / ((1.d0 - fudgeramp) * fudgefrag) * (vrel(ir, j, i) / vfrag(ir)) - &
-                        & fudgeramp / (1.d0 - fudgeramp)
+                dum = 0.58d0 * (1.d0 - ((((vrel(ir, j, i) / vfrag(ir)) / 0.75d0)**-10.d0 - 1.d0) / &
+                        & (((vrel(ir, j, i) / vfrag(ir)) / 0.75d0)**-10.d0 + 1.d0)))
+                !dum = 1.d0 / ((1.d0 - fudgeramp) * fudgefrag) * (vrel(ir, j, i) / vfrag(ir)) - &
+                !        & fudgeramp / (1.d0 - fudgeramp)
                 pf(ir, j, i) = max(0.d0, min(1.d0, dum))
                 pf(ir, i, j) = pf(ir, j, i)
             end do
