@@ -687,8 +687,11 @@ subroutine jacobian_coagulation_generator(a, dv, H, m, pfrag, pstick, Sigma, smi
 
     C1(:) = sig(:, 1, 2) * dv(:, 1, 2) / (m(:, 2) * SQRT(2.d0 * pi * (H(:, 1)**2 + H(:, 2)**2)))
     C2(:) = sig(:, 2, 2) * dv(:, 2, 2) * F(:) / (2.d0 * m(:, 2) * SQRT(pi) * H(:, 2))
+    !Jacobian of source term
+    !M1(:) = -C1(:) * Sigma(:, 2)
+    !M2(:) = C1(:) * Sigma(:, 1) - 2.d0 * C2(:) * Sigma(:, 2)
     M1(:) = -C1(:) * Sigma(:, 2)
-    M2(:) = C1(:) * Sigma(:, 1) - 2.d0 * C2(:) * Sigma(:, 2)
+    M2(:) = -C2(:) * Sigma(:, 2)
 
     ! Filling the grid cell Jacobian
     jac(:, 1, 1) = M1(:)
