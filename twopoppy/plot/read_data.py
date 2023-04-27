@@ -5,6 +5,7 @@ from dustpy.std import dust_f as dp_dust_f
 from scipy.interpolate import interp1d
 from simframe.io.writers import hdf5writer
 import os
+import warnings
 
 
 def _readdata_tpp(data, filename="data", extension="hdf5"):
@@ -98,8 +99,8 @@ def _readdata_tpp(data, filename="data", extension="hdf5"):
 
     # Fragmentation limit
     b = vFrag ** 2 / (delta * cs ** 2)
-    with np.warnings.catch_warnings():
-        np.warnings.filterwarnings(
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
             'ignore',
             r'invalid value encountered in sqrt')
         StFr = 1 / (2 * b) * (3 - np.sqrt(9 - 4 * b ** 2))
@@ -246,8 +247,8 @@ def _readdata_dp(data, filename="data", extension="hdf5"):
 
     # Fragmentation limit
     b = vFrag ** 2 / (delta * cs ** 2)
-    with np.warnings.catch_warnings():
-        np.warnings.filterwarnings(
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
             'ignore',
             r'invalid value encountered in sqrt')
         StFr = 1 / (2 * b) * (3 - np.sqrt(9 - 4 * b ** 2))
