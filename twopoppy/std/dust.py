@@ -189,7 +189,7 @@ def smax_initial(sim):
         gamma = 1. / gamma
         # Maximum drift limited particle size with safety margin
         ad = 1.e-4 * 2. / np.pi * sim.ini.dust.d2gRatio * sim.gas.Sigma / sim.dust.fill[:, 0] \
-             * sim.dust.rhos[:, 0] * (sim.grid.OmegaK * sim.grid.r) ** 2. / sim.gas.cs ** 2. / gamma
+            * sim.dust.rhos[:, 0] * (sim.grid.OmegaK * sim.grid.r) ** 2. / sim.gas.cs ** 2. / gamma
         aIni = np.minimum(sim.ini.dust.aIniMax, ad)
         # Enforce initial drift limit
         sim.dust.xi.calc = np.where(
@@ -247,7 +247,8 @@ def Sigma_initial(sim):
             S1_4[i] = 1. - S0_4[i]
     S_4 = np.array([S0_4, S1_4]).T
 
-    Sigma = sim.ini.dust.d2gRatio * sim.gas.Sigma[:, None] * np.where(xi[:, None] == -4., S_4, S)
+    Sigma = sim.ini.dust.d2gRatio * \
+        sim.gas.Sigma[:, None] * np.where(xi[:, None] == -4., S_4, S)
 
     return Sigma
 
@@ -350,7 +351,8 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
         elif sim.dust.boundary.inner.condition == "grad":
             K1 = - r[1] / r[0]
             dat_in[Nm_s:2 * Nm_s] = -K1 / dt
-            sim.dust._rhs[:Nm_s] = - ri[1] / r[0] * (r[1] - r[0]) * sim.dust.boundary.inner.value
+            sim.dust._rhs[:Nm_s] = - ri[1] / r[0] * \
+                (r[1] - r[0]) * sim.dust.boundary.inner.value
         # Constant gradient
         elif sim.dust.boundary.inner.condition == "const_grad":
             Di = ri[1] / ri[2] * (r[1] - r[0]) / (r[2] - r[0])
@@ -397,7 +399,8 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
         elif sim.dust.boundary.outer.condition == "grad":
             KNrm2 = -r[-2] / r[-1]
             dat_out[-2 * Nm_s:-Nm_s] = -KNrm2 / dt
-            sim.dust._rhs[-Nm_s:] = ri[-2] / r[-1] * (r[-1] - r[-2]) * sim.dust.boundary.outer.value
+            sim.dust._rhs[-Nm_s:] = ri[-2] / r[-1] * \
+                (r[-1] - r[-2]) * sim.dust.boundary.outer.value
         # Constant gradient
         elif sim.dust.boundary.outer.condition == "const_grad":
             Do = ri[-2] / ri[-3] * (r[-1] - r[-2]) / (r[-2] - r[-3])
@@ -547,8 +550,8 @@ def p_frag(sim):
     -------
     pf : Field
         Fragmentation probability."""
-    return dust_f.pfrag(sim.dust.v.rel.tot, sim.dust.v.frag, sim.dust.fudge.frag, sim.dust.fudge.ramp1,\
-           sim.dust.fudge.ramp2)
+    return dust_f.pfrag(sim.dust.v.rel.tot, sim.dust.v.frag, sim.dust.fudge.frag, sim.dust.fudge.ramp1,
+                        sim.dust.fudge.ramp2)
 
 
 def p_stick(sim):
@@ -719,7 +722,8 @@ def vrel_turbulent_motion(sim):
     rho = sim.dust.rhos * sim.dust.fill
     a_var = sim.dust.a
     a_var[:, 2] *= sim.dust.fudge.turb
-    St_var = dp_dust_f.st_epstein_stokes1(a_var, sim.gas.mfp, rho, sim.gas.Sigma)
+    St_var = dp_dust_f.st_epstein_stokes1(
+        a_var, sim.gas.mfp, rho, sim.gas.Sigma)
 
     return dust_f.vrel_cuzzi_ormel_2007(
         sim.dust.delta.turb,
@@ -846,7 +850,7 @@ def _f_impl_1_direct(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     # smax*Sigma (product rule)
     S_smax_expl = np.zeros_like(Y0._owner.dust.s.max)
     S_smax_expl[1:-1] = Y0._owner.dust.s.max.derivative()[1:-1] * Y0._owner.dust.Sigma[1:-1, 1] \
-                        + S_Sigma_ext[1:-1, 1] * Y0._owner.dust.s.max[1:-1]
+        + S_Sigma_ext[1:-1, 1] * Y0._owner.dust.s.max[1:-1]
     # Stitching both parts together
     S = np.hstack((S_Sigma_ext.ravel(), S_smax_expl))
 

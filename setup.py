@@ -66,7 +66,7 @@ def setup_package():
         classifiers=[],
 
         packages=setuptools.find_packages(),
-        install_requires=["dustpy", "numpy", "simframe"],
+        install_requires=["dustpy", "ipywidgets", "numpy", "simframe"],
         include_package_data=True,
         zip_safe=False,
     )

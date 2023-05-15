@@ -46,5 +46,5 @@ def finalize_implicit_dust(sim):
     ----------
     sim : Frame
         Parent simulation frame"""
-    dp_std.gas.finalize(sim)
+    std.gas.finalize(sim)
     std.dust.finalize(sim)
