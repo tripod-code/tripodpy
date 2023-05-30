@@ -102,10 +102,11 @@ def Sigma_tot(sim):
         Total gas surface density
     """
     ret = np.zeros_like(sim.gas.Sigma)
-    for key in sim.gas.components.__dict__:
+    for key, comp in sim.gas.components.__dict__.items():
         if key.startswith("_"):
             continue
-        ret += sim.gas.components.__dict__[key].Sigma
+        if not comp.tracer:
+            ret += comp.Sigma
     return ret
 
 
@@ -125,10 +126,10 @@ def mu(sim):
         Mean molecular weight
     """
     ret = np.zeros_like(sim.gas.mu)
-    for key in sim.gas.components.__dict__:
+    for key, comp in sim.gas.components.__dict__.items():
         if key.startswith("_"):
             continue
-        ret += sim.gas.components.__dict__[key].Sigma / \
-            sim.gas.components.__dict__[key].mu
+        if not comp.tracer:
+            ret += comp.Sigma / comp.mu
 
     return sim.gas.Sigma/ret

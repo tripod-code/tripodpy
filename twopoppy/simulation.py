@@ -218,12 +218,12 @@ class Simulation(dp.Simulation):
         Sigma = 0.75 * self.gas.Sigma[...]
         mu = 2.016 * c.m_p
         self.addgascomponent(
-            "H2", Sigma, mu, description="Molecular hydrogen")
+            "H2", Sigma, mu, tracer=False, description="Molecular hydrogen")
         # Add component for He
         Sigma = 0.25 * self.gas.Sigma[...]
         mu = 4.0026 * c.m_p
         self.addgascomponent(
-            "He", Sigma, mu, description="Atomic helium")
+            "He", Sigma, mu, tracer=False, description="Atomic helium")
 
         # Bring the entire object to initial state
         dp_std.gas.enforce_floor_value(self)
@@ -556,7 +556,7 @@ class Simulation(dp.Simulation):
                 value=0.1 * self.dust.SigmaFloor[-1]
             )
 
-    def addgascomponent(self, name, Sigma, mu, description=""):
+    def addgascomponent(self, name, Sigma, mu, tracer=False, description=""):
 
         if name in self.gas.components.__dict__:
             raise RuntimeError(
@@ -568,6 +568,8 @@ class Simulation(dp.Simulation):
 
         # Adding group and fields
         self.gas.components.addgroup(name, description=description)
+        self.gas.components.__dict__[name].addfield(
+            "tracer", tracer, description="Is this component tracer?")
         self.gas.components.__dict__[name].addfield(
             "mu", mu, description="Molecular weight [g]")
         self.gas.components.__dict__[name].addfield(
