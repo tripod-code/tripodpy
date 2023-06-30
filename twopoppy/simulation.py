@@ -193,9 +193,6 @@ class Simulation(dp.Simulation):
         self.gas.Sigma.updater = std.gas.Sigma_tot
         self.gas.mu.updater = std.gas.mu
 
-        # Adding dust surface density updater to gas updater
-        self.gas.updater = ["Sigma"] + self.gas.updateorder
-
         # Set integrator
         if self.integrator is None:
             instructions = [
@@ -214,6 +211,7 @@ class Simulation(dp.Simulation):
 
         # Adding gas components to gas group
         self.gas.addgroup("components", description="Gas components")
+        self.gas.components.updater = []
         # Add component for H2
         Sigma = 0.75 * self.gas.Sigma[...]
         mu = 2.016 * c.m_p
@@ -224,6 +222,9 @@ class Simulation(dp.Simulation):
         mu = 4.0026 * c.m_p
         self.addgascomponent(
             "He", Sigma, mu, tracer=False, description="Atomic helium")
+
+        # Adding dust surface density updater to gas updater
+        self.gas.updater = ["components", "Sigma"] + self.gas.updateorder
 
         # Bring the entire object to initial state
         dp_std.gas.enforce_floor_value(self)
@@ -574,9 +575,15 @@ class Simulation(dp.Simulation):
             "mu", mu, description="Molecular weight [g]")
         self.gas.components.__dict__[name].addfield(
             "Sigma", Sigma, description="Surface density [g/cm²]")
+        # Adding source terms
         self.gas.components.__dict__[name].addgroup("S", description="Sources")
         self.gas.components.__dict__[name].S.addfield(
             "ext", np.zeros_like(Sigma), description="External sources [g/cm²/s]")
+        self.gas.components.__dict__[name].updater = ["S"]
+        self.gas.components.__dict__[name].S.updater = ["ext"]
+
+        # Adding component to updater
+        self.gas.components.updater = self.gas.components.updateorder + [name]
 
         # Boundaries
         self.gas.components.__dict__[name].addgroup(
