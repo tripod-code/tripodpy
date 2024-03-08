@@ -33,12 +33,13 @@ class Simulation(dp.Simulation):
         # Add new fields
         self.dust.m = None
         self.dust.addgroup("q", description="Distribution exponents")
+        self.dust.q.drfrag = None
         self.dust.q.eff = None
+        self.dust.q.frag = None
+        self.dust.q.sweep = None
         self.dust.q.turb1 = None
         self.dust.q.turb2 = None
-        self.dust.q.drfrag = None
-        self.dust.q.sweep = None
-        self.dust.q.updater = ["eff"]  # TODO: update the updater
+        self.dust.q.updater = ["frag", "eff"]  # TODO: update the updater
         self.dust.addgroup("s", description="Characteristic particle sizes")
         self.dust.s.min = None
         self.dust.s.max = None
@@ -48,6 +49,10 @@ class Simulation(dp.Simulation):
         self.dust.f.drift = None
         self.dust.f.dvdrift = None
         self.dust.f.dvturb = None
+        self.dust.f.dv = None
+        self.dust.f.updater = ["dv"]
+        self.dust.p.drift = None
+        self.dust.p.updater = ["frag", "stick", "drift"]
 
         # Adjusting update orders
 
@@ -58,12 +63,17 @@ class Simulation(dp.Simulation):
 
         # Adjusting the updater of main simulation frame
         updtordr = self.dust.updateorder
-        # Add "q" after "fill"
-        addelemtafter(updtordr, "q", "fill")
+        # Add "f" after "p"
+        addelemtafter(updtordr, "f", "p")
+        # move "a" after "f"
+        updtordr.remove("a")
+        addelemtafter(updtordr, "a", "f")
         # Add "m" after "a"
         addelemtafter(updtordr, "m", "a")
+        # Add "q" after "m"
+        addelemtafter(updtordr, "q", "m")
         # Add "SigmaFloor" after "m"
-        # addelemtafter(updtordr, "SigmaFloor", "m")
+        addelemtafter(updtordr, "SigmaFloor", "m")
         # Removing elements that are not used
         updtordr.remove("kernel")
         # Assign updateorder
@@ -301,7 +311,7 @@ class Simulation(dp.Simulation):
         # Midplane mass density
         if self.dust.rho is None:
             self.dust.addfield(
-                "rho", np.zeros(shape2Sigma), description="Midplane mass density per mass bin [g/cm³]"
+                "rho", np.zeros(shape2), description="Midplane mass density per mass bin [g/cm³]"
             )
             self.dust.rho.updater = std.dust.rho_midplane
         # Solid state density
@@ -313,14 +323,17 @@ class Simulation(dp.Simulation):
         # Probabilities
         if self.dust.p.frag is None:
             self.dust.p.frag = Field(self, np.zeros(
-                shape1), description="Fragmentation probability"
-            )
+                shape1), description="Fragmentation probability")
             self.dust.p.frag.updater = std.dust.p_frag
         if self.dust.p.stick is None:
             self.dust.p.stick = Field(self, np.zeros(
-                shape1), description="Sticking probability"
-            )
+                shape1), description="Sticking probability")
             self.dust.p.stick.updater = std.dust.p_stick
+        if self.dust.p.drift is None:
+            self.dust.p.drift = Field(self, np.zeros(
+                shape1), description="Transition function from drift to turbulence")
+            self.dust.p.drift.updater = std.dust.p_drift
+
         # Source terms
         if self.dust.S.ext is None:
             self.dust.S.addfield(
@@ -362,7 +375,7 @@ class Simulation(dp.Simulation):
             self.dust.v.rel.addfield(
                 "brown", np.zeros(shape3), description="Relative Brownian motion velocity [cm/s]"
             )
-            self.dust.v.rel.brown.updater = dp.std.dust.vrel_brownian_motion
+            self.dust.v.rel.brown.updater = std.dust.vrel_brownian_motion
         if self.dust.v.rel.rad is None:
             self.dust.v.rel.addfield(
                 "rad", np.zeros(shape3), description="Relative radial velocity [cm/s]"
@@ -445,6 +458,11 @@ class Simulation(dp.Simulation):
             self.dust.f.addfield(
                 "dvdrift", 0.2, description="collision speed parameter in drift-dom. regime"
             )
+        if self.dust.f.dv is None:
+            self.dust.f.addfield(
+                "dv", 0.15 * np.ones(shape1), description="effective collision speed parameter"
+            )
+            self.dust.f.dv.updater = std.dust.f_dv
 
         # Initialize dust quantities partly to calculate Sigma
         try:

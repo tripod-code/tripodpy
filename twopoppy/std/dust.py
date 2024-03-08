@@ -73,7 +73,7 @@ def dt_smax(sim):
     smax_dot = sim.dust.s.max.derivative()[1:-1]
     dt = sim.dust.s.max[1:-1] / (np.abs(smax_dot) + 1e-100)
 
-    return dt
+    return dt.min()
 
 
 def prepare(sim):
@@ -270,8 +270,8 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
         np.pi * (sim.dust.a[:, [0, 2]]+sim.dust.a[:, [2, 1]])**2,
         # same for the relative velocities
         sim.dust.v.rel.tot[:, [0, 2], [2, 1]],
-        sim.dust.H,
-        sim.dust.m[[0, 2]],
+        sim.dust.H[:, [0, 2]],
+        sim.dust.m[:, [0, 2]],
         sim.dust.Sigma,
         sim.dust.s.min,
         sim.dust.s.max,
@@ -285,7 +285,7 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
         r,
         ri,
         sim.gas.Sigma,
-        sim.dust.v.rad[:, [0, 2]]
+        sim.dust.f.drift * sim.dust.v.rad[:, [0, 2]]
     )
     row_hyd = np.hstack(
         (np.arange(Ntot - Nm_s) + Nm_s, np.arange(Ntot), np.arange(Ntot - Nm_s)))
@@ -419,7 +419,10 @@ def a(sim):
     -------
     a : Field
         Particle sizes"""
-    return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.q.eff, sim.dust.f.dv, sim.grid._Nm_long)
+    # interpolate between drift and turbulence dominated pre-factor
+    fudge_dv = sim.dust.f.dvdrift * sim.dust.p.drift + \
+        sim.dust.f.dvturb * (1.0 - sim.dust.p.drift)
+    return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.q.eff, fudge_dv, sim.grid._Nm_long)
 
 
 def F_adv(sim, Sigma=None):
@@ -440,7 +443,7 @@ def F_adv(sim, Sigma=None):
         Advective mass fluxes through the grid cell interfaces"""
     if Sigma is None:
         Sigma = sim.dust.Sigma
-    return dust_f.fi_adv(Sigma, sim.dust.v.rad[:, [0, 2]], sim.grid.r, sim.grid.ri)
+    return dust_f.fi_adv(Sigma, sim.dust.f.drift * sim.dust.v.rad[:, [0, 2]], sim.grid.r, sim.grid.ri)
 
 
 def F_diff(sim, Sigma=None):
@@ -547,8 +550,7 @@ def p_stick(sim):
 
 def H(sim):
     """Computes the dust scale height by using the
-    dustpy function, but storing only the scale heights
-    of a0 and a1.
+    dustpy function, for all Nm_long dust sizes.
 
     Parameters
     ----------
@@ -556,12 +558,18 @@ def H(sim):
     """
     return dp_dust_f.h_dubrulle1995(
         sim.gas.Hp,
-        sim.dust.St[:, [0, 2]],
+        sim.dust.St,
         sim.dust.delta.vert)
 
 
 def rho_midplane(sim):
     """Function calculates the midplane mass density.
+
+    Note that we have more particle sizes than surface densities,
+    so we use the appropriate sigma for each size:
+    [a0, fudge * a1, a1, 0.5 * amax, amax]
+    ->
+    [Sig0, Sig1, Sig1, Sig1, Sig1]
 
     Parameters
     ----------
@@ -573,7 +581,7 @@ def rho_midplane(sim):
     rho : Field
         Midplane mass density"""
     # The scale height H has a longer shape than Sigma and has to be adjusted
-    return sim.dust.Sigma / (np.sqrt(2 * c.pi) * sim.dust.H)
+    return sim.dust.Sigma[:, [0, 1, 1, 1, 1]] / (np.sqrt(2 * c.pi) * sim.dust.H)
 
 
 def smax_deriv(sim, t, smax):
@@ -598,8 +606,8 @@ def smax_deriv(sim, t, smax):
 
     return dust_f.smax_deriv(
         sim.dust.v.rel.tot[:, -2, -1],
-        sim.dust.rho[:, 1],
-        sim.dust.rhos[:, 1],
+        sim.dust.rho[:, 2],
+        sim.dust.rhos[:, 2],
         sim.dust.s.min,
         sim.dust.s.max,
         sim.dust.v.frag,
@@ -630,7 +638,7 @@ def S_coag(sim, Sigma=None):
         np.pi * (sim.dust.a[:, [0, 2]]+sim.dust.a[:, [2, 1]])**2,
         # same for the relative velocities
         sim.dust.v.rel.tot[:, [0, 2], [2, 1]],
-        sim.dust.H,
+        sim.dust.H[:, [0, 2]],
         sim.dust.m[:, [0, 2]],
         Sigma,
         sim.dust.s.min,
@@ -672,6 +680,22 @@ def S_tot(sim, Sigma=None):
     return Scoag + Shyd + Sext
 
 
+def vrel_brownian_motion(sim):
+    """Function calculates the relative particle velocities due to Brownian motion.
+    The maximum value is set to the sound speed.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    vrel : Field
+        Relative velocities"""
+    return dust_f.vrel_brownian_motion(sim.gas.cs, sim.dust.m, sim.gas.T)
+
+
 def q_eff(sim):
     """Function calculates the equilibrium exponent of the distribution.
 
@@ -698,9 +722,7 @@ def q_frag(sim):
     float: The effective fragmentation power-law of the size distribution.
     """
     return dust_f.qfrag(
-        sim.dust.v.rel.turb[:, -1, -2],
-        np.sqrt(sim.dust.v.rel.rad[:, -1, -2]**2 +
-                sim.dust.v.rel.azi[:, -1, -2]**2),
+        sim.dust.p.drift,
         sim.dust.v.rel.tot[:, -1, -2],
         sim.dust.v.frag,
         sim.dust.St[:, -1],
@@ -710,6 +732,33 @@ def q_frag(sim):
         sim.gas.alpha,
         sim.gas.Sigma,
         sim.gas.mu)
+
+
+def p_drift(sim):
+    """Calculate the fudge factor for the relative velocities.
+
+    Parameters
+    ----------
+    sim : simulation frame
+    """
+
+    # Pfeil+2024, Eq. A.3
+    dv_drmax = np.sqrt(
+        sim.dust.v.rel.rad[:, -1, -2]**2 + sim.dust.v.rel.azi[:, -1, -2]**2)
+    f_dt = 0.3 * sim.dust.v.rel.turb[:, -2, -1] / (dv_drmax + 1e-10)
+
+    # Eq. A.4
+    return 0.5 * (1.0 - (f_dt**6 - 1.0) / (f_dt**6 + 1.0))
+
+
+def f_dv(sim):
+    """Calculate the fudge factor for the relative velocities.
+
+    Parameters
+    ----------
+    sim : simulation frame
+    """
+    return sim.dust.p.drift * sim.dust.f.dvdrift + (1.0 - sim.dust.p.drift) * sim.dust.f.dvturb
 
 
 def Y_jacobian(sim, x, dx=None, *args, **kwargs):
@@ -732,14 +781,15 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
     # We are advecting smax*Sigma[1], which is stored in Y
     smaxSig = sim.dust._Y[Nm_s * Nr:]
 
+    # TODO: double check if diffusion works as intended for amax.
     # Creating the sparse matrix
     A, B, C = dp_dust_f.jacobian_hydrodynamic_generator(
         area,
         sim.dust.D[:, 1],
         r,
         ri,
-        smaxSig,
-        sim.dust.v.rad[:, 1]
+        sim.gas.Sigma,
+        sim.dust.f.drift * sim.dust.v.rad[:, 1]
     )
     # Setting boundary conditions for the Jacobian of smax*Sigma
     # The boundary condition is constant value on both boundaries

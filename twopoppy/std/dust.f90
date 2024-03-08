@@ -65,50 +65,6 @@ subroutine calculate_a(smin, smax, q, fudge, a, Nr, Nm)
 end subroutine calculate_a
 
 
-subroutine fi_adv(Sigma, v, r, ri, Fi, Nr, Nm_s)
-    ! Function calculates the advective mass fluxes through the grid cell interfaces.
-    ! Velocity v is linearly interpolated on grid cell interfaces with
-    ! vi(1, :) = vi(2, :) and vi(Nr+1, :) = vi(Nr, :).
-    !
-    ! Parameters
-    ! ----------
-    ! Sigma(Nr, Nm) : Surface density
-    ! v(Nr, Nm) : Radial velocity at grid cell centers. this should be a0 and a1 (mass average)
-    ! r(Nr) : Radial grid cell centers
-    ! ri(Nr+1) : Radial grid cell interfaces
-    ! Nr : Number of radial grid cells
-    ! Nm_s : Short number of mass bins
-    !
-    ! Returns
-    ! -------
-    ! Fi(Nr+1, Nm) : Flux through grid cell interfaces.
-
-    implicit none
-
-    double precision, intent(in) :: Sigma(Nr, Nm_s)
-    double precision, intent(in) :: v(Nr, Nm_s)
-    double precision, intent(in) :: r(Nr)
-    double precision, intent(in) :: ri(Nr + 1)
-    double precision, intent(out) :: Fi(Nr + 1, Nm_s)
-    integer, intent(in) :: Nr
-    integer, intent(in) :: Nm_s
-
-    double precision :: vi(Nr + 1)
-    integer :: i
-    integer :: ir
-
-    do i = 1, Nm_s
-        call interp1d(ri, r, v(:, i), vi, Nr)
-        do ir = 2, Nr
-            Fi(ir, i) = Sigma(ir - 1, i) * max(0.d0, vi(ir)) + Sigma(ir, i) * min(vi(ir), 0.d0)
-        end do
-        Fi(1, i) = Sigma(1, i) * min(vi(2), 0.d0)
-        Fi(Nr + 1, i) = Sigma(Nr, i) * max(0.d0, vi(Nr))
-    end do
-
-end subroutine fi_adv
-
-
 subroutine fi_diff(D, SigmaD, SigmaG, St, u, r, ri, Fi, Nr, Nm_s)
     ! Subroutine calculates the diffusive dust fluxes at the grid cell interfaces.
     ! The flux at the boundaries is assumed to be constant.
@@ -198,6 +154,57 @@ subroutine fi_diff(D, SigmaD, SigmaG, St, u, r, ri, Fi, Nr, Nm_s)
 end subroutine fi_diff
 
 
+subroutine vrel_brownian_motion(cs, m, T, vrel, Nr, Nm)
+    ! Subroutine calculates the relative particle velocities due to Brownian motion.
+    ! Its maximum value is the sound speed.
+    !
+    ! Parameters
+    ! ----------
+    ! cs(Nr) : Sound speed
+    ! m(Nr, Nm) : Particle masses
+    ! T(Nr) : Temperature
+    ! Nr : Number of radial grid cells
+    ! Nm : Number of mass bins
+    !
+    ! Returns
+    ! -------
+    ! vrel(Nr, Nm, Nm) : Relative velocities
+
+    use constants, only : k_B, pi
+
+    implicit none
+
+    double precision, intent(in) :: cs(Nr)
+    double precision, intent(in) :: m(Nr, Nm)
+    double precision, intent(in) :: T(Nr)
+    double precision, intent(out) :: vrel(Nr, Nm, Nm)
+    integer, intent(in) :: Nr
+    integer, intent(in) :: Nm
+
+    integer :: ir, i, j
+    double precision :: fac1
+    double precision :: fac2(Nr)
+    double precision :: dum
+
+    fac1 = 8.d0 * k_B / pi
+
+    do ir = 1, Nr
+        fac2(ir) = fac1 * T(ir)
+    end do
+
+    do i = 1, Nm
+        do j = 1, i
+            do ir = 1, Nr
+                dum = min(sqrt(fac2(ir) * (m(ir, j) + m(ir, i)) / (m(ir, j) * m(ir, i))), cs(ir))
+                vrel(ir, j, i) = dum
+                vrel(ir, i, j) = dum
+            end do
+        end do
+    end do
+
+end subroutine vrel_brownian_motion
+
+
 subroutine calculate_m(a, rhos, fill, masses, Nr, Nm)
     ! Subroutine calculates the particle masses.
     !
@@ -266,7 +273,7 @@ subroutine pfrag(vrel, vfrag, pf, Nr)
 
 end subroutine pfrag
 
-subroutine qfrag(dv_turb, dv_drmax, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
+subroutine qfrag(p_dr, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
     & q_drfr, alpha, SigmaGas, mump, q_frag, Nr)
     ! Subroutine calculates the power-law in the fragmentation
     ! regime, interpolating between different cases.
@@ -278,8 +285,7 @@ subroutine qfrag(dv_turb, dv_drmax, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
     !
     ! Parameters
     ! ----------
-    ! dv_turb : the turbulent relative velocities
-    ! dv_drmax : the relative velocities due to the radial and azimuthal drift
+    ! p_dr : the transition function between turbulence and drift
     ! dv_tot : the total relative velocities
     ! vfrag : the fragmentation velocity
     ! St_max : the maximum Stokes number
@@ -298,9 +304,7 @@ subroutine qfrag(dv_turb, dv_drmax, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
     use constants, only : sigma_H2
     implicit none
 
-
-    double precision, intent(in) :: dv_turb(Nr)
-    double precision, intent(in) :: dv_drmax(Nr)
+    double precision, intent(in) :: p_dr(Nr)
     double precision, intent(in) :: dv_tot(Nr)
     double precision, intent(in) :: vfrag(Nr)
     double precision, intent(in) :: St_max(Nr)
@@ -311,7 +315,7 @@ subroutine qfrag(dv_turb, dv_drmax, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
     double precision, intent(out) :: q_frag(Nr)
     integer, intent(in) :: Nr
 
-    double precision :: Re, f_t1t2, p_t1, f_dt, p_dr, p_frag, q_turbfrag
+    double precision :: Re, f_t1t2, p_t1, p_frag, q_turbfrag
 
     integer :: ir
 
@@ -325,18 +329,12 @@ subroutine qfrag(dv_turb, dv_drmax, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
         ! Eq. A.2
         p_t1 = 0.5d0 * (1d0 - (f_t1t2**4 - 1d0) / (f_t1t2**4 + 1d0))
 
-        ! Eq. A.3
-        f_dt = 0.3d0 * dv_turb(ir) / dv_drmax(ir)
-
-        ! Eq. A.4
-        p_dr = 0.5d0 * (1d0 - (f_dt**6 - 1d0) / (f_dt**6 + 1d0))
-
         ! Eq. A.5
         p_frag = exp(-(5d0 * (min(dv_tot(ir) / vfrag(ir), 1d0) - 1d0))**2)
 
         q_turbfrag = p_t1 * q_turb1 + (1d0 - p_t1) * q_turb2
 
-        q_frag(ir) = p_dr * q_drfr + (1d0 - p_dr) * q_turbfrag
+        q_frag(ir) = p_dr(ir) * q_drfr + (1d0 - p_dr(ir)) * q_turbfrag
     end do
 
 end subroutine qfrag
