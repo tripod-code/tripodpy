@@ -417,7 +417,7 @@ class Simulation(dp.Simulation):
             self.dust.q.addfield(
                 "frag", np.ones(shape1), description="Fragmentation distribution exponent"
             )
-            self.dust.q.eff.updater = std.dust.q_frag
+            self.dust.q.frag.updater = std.dust.q_frag
         if self.dust.q.turb1 is None:
             self.dust.q.addfield(
                 "turb1", -3.75, description="Size distribution exponent in first turbulence regime"

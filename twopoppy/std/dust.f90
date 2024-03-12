@@ -34,7 +34,7 @@ subroutine calculate_a(smin, smax, q, fudge, a, Nr, Nm)
     double precision :: qp5(Nr)
     double precision :: qp6(Nr)
     double precision :: R1(Nr)
-    double precision :: dum1, dum2
+    double precision :: dum
 
     sint(:) = sqrt(smin(:) * smax(:))
     qp4(:) = q(:) + 4.d0
@@ -52,10 +52,9 @@ subroutine calculate_a(smin, smax, q, fudge, a, Nr, Nm)
             a(i, 1) = (sint(i) - smin(i)) / log(sint(i) / smin(i))
             a(i, 3) = (smax(i) - sint(i)) / log(smax(i) / sint(i))
         else
-            dum1 = sqrt(smin(i) / sint(i))
-            dum2 = sqrt(smax(i) / sint(i))
-            a(i, 1) = R1(i) * sint(i) * (1.d0 - dum1**qp5(i)) / (1.d0 - dum1**qp4(i))
-            a(i, 3) = R1(i) * sint(i) * (dum2**(-qp5(i)) - 1.d0) / (dum2**(-qp4(i)) - 1.d0)
+            dum = sqrt(smin(i) / smax(i))
+            a(i, 1) = R1(i) * sint(i) * (1.d0 - dum**qp5(i)) / (1.d0 - dum**qp4(i))
+            a(i, 3) = R1(i) * sint(i) * (dum**(-qp5(i)) - 1.d0) / (dum**(-qp4(i)) - 1.d0)
         end if
         a(i, 2) = fudge * a(i, 3)
         a(i, 4) = 0.5 * smax(i)
@@ -319,7 +318,7 @@ subroutine qfrag(p_dr, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
 
     integer :: ir
 
-    do ir = 2, Nr - 1
+    do ir = 1, Nr
 
         Re = 0.5d0 * alpha(ir) * SigmaGas(ir) * sigma_H2 / mump(ir)
 

@@ -113,8 +113,8 @@ def finalize(sim):
     # Copy values from state vector to fields
     sim.dust.Sigma[...] = sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)
     # Making sure smax is not smaller than 1.5 smin to ensure minimal distribution width
-    sim.dust.s.max[...] = np.maximum(
-        1.5 * sim.dust.s.min, sim.dust._Y[Nr * Nm_s:] / sim.dust.Sigma[:, 1])
+    sim.dust.s.max[1:-1] = np.maximum(
+        1.5 * sim.dust.s.min[1:-1], sim.dust._Y[Nr * Nm_s + 1:-1] / sim.dust.Sigma[1:-1, 1])
 
     dp_dust.boundary(sim)
     dp_dust.enforce_floor_value(sim)
@@ -166,7 +166,7 @@ def smax_initial(sim):
         # sim.dust.q.eff = np.where(
         #     aIni < sim.ini.dust.aIniMax, sim.dust.q.sweep, sim.dust.q.eff)
 
-        return np.maximum(smin, aIni)
+        return np.maximum(1.5 * smin, aIni)
 
     # Return the ini value if drifting particles are allowed
     return np.ones_like(smin) * sim.ini.dust.aIniMax
@@ -443,7 +443,7 @@ def F_adv(sim, Sigma=None):
         Advective mass fluxes through the grid cell interfaces"""
     if Sigma is None:
         Sigma = sim.dust.Sigma
-    return dust_f.fi_adv(Sigma, sim.dust.f.drift * sim.dust.v.rad[:, [0, 2]], sim.grid.r, sim.grid.ri)
+    return dp_dust_f.fi_adv(Sigma, sim.dust.f.drift * sim.dust.v.rad[:, [0, 2]], sim.grid.r, sim.grid.ri)
 
 
 def F_diff(sim, Sigma=None):
@@ -543,8 +543,6 @@ def p_stick(sim):
     ps : Field
         Sticking probability"""
     p = 1. - sim.dust.p.frag
-    p[0] = 0.
-    p[-1] = 0.
     return p
 
 
