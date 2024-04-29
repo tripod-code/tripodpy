@@ -119,6 +119,7 @@ def get_size_distribution(sigma_d, a_max, q=3.5, na=10, agrid_min=None, agrid_ma
 
         if a_max[ir] <= agrid_min:
             sig_da[ir, 0] = 1
+            i_up = 0
         else:
             i_up = np.where(a_i < a_max[ir])[0][-1]
 
@@ -140,6 +141,7 @@ def get_size_distribution(sigma_d, a_max, q=3.5, na=10, agrid_min=None, agrid_ma
                     a_i[i_up]**(4 - q[ir])
 
         # normalize
-        sig_da[ir, :] = sig_da[ir, :] / sig_da[ir, :].sum() * sigma_d[ir]
+        sig_da[ir, :i_up+1] = sig_da[ir, :i_up+1] / \
+            sig_da[ir, :i_up+1].sum() * sigma_d[ir]
 
     return a, a_i, sig_da
