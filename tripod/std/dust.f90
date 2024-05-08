@@ -578,7 +578,7 @@ subroutine smax_deriv_shrink(dt, slim, f_crit, smax, Sig, sdot, nr, nm)
     !
     ! Parameters
     ! ----------
-    ! dt : time scale of shinakge for each radius
+    ! dt : previous time step
     ! slim : limiting size for shrinkage
     ! f_crit : mass fraction below which Sig1 should not drop
     ! smax : Maximum particle size
@@ -591,7 +591,7 @@ subroutine smax_deriv_shrink(dt, slim, f_crit, smax, Sig, sdot, nr, nm)
 
     implicit none
 
-    double precision, intent(in) :: dt(Nr)
+    double precision, intent(in) :: dt
     double precision, intent(in) :: slim
     double precision, intent(in) :: f_crit
     double precision, intent(in) :: smax(Nr)

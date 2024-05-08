@@ -612,12 +612,8 @@ def smax_deriv(sim, t, smax):
         sim.dust.Sigma,
         sim.dust.SigmaFloor)
 
-    # TODO: here we compute a depletion time scale which sets
-    # the rate of shrinkage.
-    dt = np.diff(sim.grid.ri) / (1e-100 + np.abs(sim.dust.v.rad[:, 2]))
-
     ds_shrink = dust_f.smax_deriv_shrink(
-        dt,
+        sim.t.prevstepsize,
         sim.dust.s.lim,
         sim.dust.f.crit,
         smax,

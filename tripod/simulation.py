@@ -245,7 +245,7 @@ class Simulation(dp.Simulation):
         # Particle size
         if self.dust.a is None:
             self.dust.addfield(
-                "a", np.ones(shape2), description="Particle sizes in cm: [a0, fudge * a1, a1, 0.5 * amax, amax]"
+                "a", np.ones(shape2), description="Particle size [cm]"
             )
             self.dust.a.updater = std.dust.a
         # Particle mass
