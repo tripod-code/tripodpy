@@ -39,12 +39,11 @@ class Simulation(dp.Simulation):
         self.dust.q.sweep = None
         self.dust.q.turb1 = None
         self.dust.q.turb2 = None
-        self.dust.q.updater = ["frag", "eff"]  # TODO: update the updater
+        self.dust.q.updater = ["frag", "eff"]
         self.dust.addgroup("s", description="Characteristic particle sizes")
         self.dust.s.min = None
         self.dust.s.max = None
         self.dust.s.lim = None
-        self.dust.s._sdot_shrink = None
         self.dust.addgroup(
             "f", description="Fudge factors")
         self.dust.f.crit = None
@@ -90,7 +89,7 @@ class Simulation(dp.Simulation):
         del self.grid.m
         del self.grid.Nm
 
-        # TODO: Managing the self.ini object
+        # TODO (Sebastian) Managing the self.ini object
 
     # Note: the next two functions are to hide methods from DustPy that are not used in TwoPopPy
     def __dir__(self):
@@ -472,10 +471,6 @@ class Simulation(dp.Simulation):
             )
         self.dust.s.max.differentiator = std.dust.smax_deriv
 
-        if self.dust.s._sdot_shrink is None:
-            self.dust.s.addfield('_sdot_shrink', np.zeros(
-                shape1), description="Shrinking rate of s_max via transport")
-
         if self.dust.s.lim is None:
             self.dust.s.addfield(
                 'lim', 1e-4, description="Limiting size for shrinking")
@@ -511,6 +506,15 @@ class Simulation(dp.Simulation):
         # The right-hand side of the matrix equation is stored in a hidden field
         self.dust._rhs = Field(self, np.zeros(
             shape2Sigmaravel), description="Right-hand side of matrix equation [g/cm²]"
+        )
+        # storing coagulation and shrinkage separately to be able to ignore the shrinkate in the timestep  computation
+        self.dust.s._sdot_coag = Field(
+            self, np.zeros(shape1),
+            description="coagulation source term for amax [cm/s]"
+        )
+        self.dust.s._sdot_shrink = Field(
+            self, np.zeros(shape1),
+            description="shrinkage source term for amax [cm²/s]"
         )
         # State vector
         self.dust.addfield("_Y", np.zeros((int(self.grid._Nm_short) + 1) * int(self.grid.Nr)),
