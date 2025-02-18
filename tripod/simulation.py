@@ -294,8 +294,8 @@ class Simulation(dp.Simulation):
             self.dust.Fi.addfield(
                 "tot", np.zeros(shape2p1Sigma), description="Total flux [g/cm/s]"
             )
-            # TODO: Use DustPy updater after DustPy update
-            self.dust.Fi.tot.updater = std.dust.F_tot
+            # TODO: check if DustPy updater works here
+            self.dust.Fi.tot.updater = dp.std.dust.F_tot
         # Filling factor
         if self.dust.fill is None:
             self.dust.addfield(
