@@ -4,6 +4,7 @@ from tripod.utils.read_data import read_data
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from matplotlib.widgets import Slider
 from scipy.constants import golden
 from scipy.interpolate import interp1d
@@ -79,24 +80,24 @@ def panel(data,
                           extend="both"
                           )
     if show_St1:
-        ax00.contour(data.r[it, ...]/c.au,
-                     data.m[it, ...],
-                     data.St[it, ...].T,
+        ax00.contour(data.grid.r[it, ...]/c.au,
+                     data.grid.a_recon[it, ...],
+                     data.dust.St_recon[it, ...].T,
                      levels=[1.],
                      colors="white",
                      linewidths=2
                      )
     if show_limits:
-        ax00.contour(data.r[it, ...]/c.au,
-                     data.m[it, ...],
-                     (data.St - data.StDr[..., None])[it, ...].T,
+        ax00.contour(data.grid.r[it, ...]/c.au,
+                     data.grid.a_recon[it, ...],
+                     (data.dust.St_recon - data.dust.StDr[..., None])[it, ...].T,
                      levels=[0.],
                      colors="C2",
                      linewidths=1
                      )
-        ax00.contour(data.r[it, ...]/c.au,
-                     data.m[it, ...],
-                     (data.St - data.StFr[..., None])[it, ...].T,
+        ax00.contour(data.grid.r[it, ...]/c.au,
+                     data.grid.a_recon[it, ...],
+                     (data.dust.St_recon - data.dust.StFr[..., None])[it, ...].T,
                      levels=[0.],
                      colors="C0",
                      linewidths=1
@@ -116,11 +117,23 @@ def panel(data,
     ax00.set_yscale("log")
     ax00.set_xlabel("Distance from star [AU]")
     ax00.set_ylabel("Particle size [cm]")
-
+    sd_max_loc = np.ceil(np.log10(max(data.dust.Sigma[it,ir,0],data.dust.Sigma[it,ir,1], data.dust.sigma_recon[it,ir,:].max())))
     ax01.loglog(data.grid.a_recon[it, ...],
                 data.dust.sigma_recon[it, ir, :], c="C3")
     ax01.set_xlim(data.grid.a_recon[it, 0], data.grid.a_recon[it, -1])
-    ax01.set_ylim(10.**(sd_max-6.), 10.**sd_max)
+    ax01.axvline(data.dust.a[it, ir,0])
+    ax01.axvline(data.dust.a[it, ir,2])
+    ax01.axvline(data.dust.a[it, ir,4])
+    a_int = (data.dust.a[it, ir,4] * data.dust.s.min[it,ir] )**0.5
+    a_min = data.dust.s.min[it,ir]
+    a_max = data.dust.a[it, ir,4]
+    y_min = 10.**(sd_max_loc-3.)
+    ax01.add_patch(patches.Rectangle((a_min, y_min), a_int - a_min, data.dust.Sigma[it,ir,0], color='green', alpha=0.3))
+    ax01.add_patch(patches.Rectangle((a_int, y_min), a_max - a_int, data.dust.Sigma[it,ir,1], color='blue', alpha=0.3))
+    ax01.text(0.05,0.95,"q = %.2f"%data.dust.q[it,ir],va="top",ha="left", transform=ax01.transAxes)
+
+
+    ax01.set_ylim(10.**(sd_max_loc-3.), 10.**sd_max_loc)
     ax01.set_xlabel("Particle size [cm]")
     ax01.set_ylabel(r"$\sigma_\mathrm{d}$ [g/cm²]")
 
@@ -245,24 +258,24 @@ def ipanel(data,
                           extend="both"
                           )
     if show_St1:
-        plt00St = ax00.contour(data.r[it, ...]/c.au,
-                               data.m[it, ...],
-                               data.St[it, ...].T,
+        plt00St = ax00.contour(data.grid.r[it, ...]/c.au,
+                               data.grid.a_recon[it, ...],
+                               data.dust.St_recon[it, ...].T,
                                levels=[1.],
                                colors="white",
                                linewidths=2
                                )
     if show_limits:
-        plt00Dr = ax00.contour(data.r[it, ...]/c.au,
-                               data.m[it, ...],
-                               (data.St - data.StDr[..., None])[it, ...].T,
+        plt00Dr = ax00.contour(data.grid.r[it, ...]/c.au,
+                               data.grid.a_recon[it, ...],
+                               (data.dust.St_recon - data.dust.StDr[..., None])[it, ...].T,
                                levels=[0.],
                                colors="C2",
                                linewidths=1
                                )
-        plt00Fr = ax00.contour(data.r[it, ...]/c.au,
-                               data.m[it, ...],
-                               (data.St - data.StFr[..., None])[it, ...].T,
+        plt00Fr = ax00.contour(data.grid.r[it, ...]/c.au,
+                               data.grid.a_recon[it, ...],
+                               (data.dust.St_recon - data.dust.StFr[..., None])[it, ...].T,
                                levels=[0.],
                                colors="C0",
                                linewidths=1
@@ -407,7 +420,7 @@ def ipanel(data,
                 row.remove()
             plt00St = ax00.contour(data.grid.r[it, ...]/c.au,
                                    data.grid.a_recon[it, ...],
-                                   data.St[it, ...].T,
+                                   data.dust.St[it, ...].T,
                                    levels=[1.],
                                    colors="white",
                                    linewidths=2
@@ -417,7 +430,7 @@ def ipanel(data,
                 row.remove()
             plt00Dr = ax00.contour(data.grid.r[it, ...]/c.au,
                                    data.grid.a_recon[it, ...],
-                                   (data.St - data.StDr[..., None])[it, ...].T,
+                                   (data.dust.St - data.dust.StDr[..., None])[it, ...].T,
                                    levels=[0.],
                                    colors="C2",
                                    linewidths=1
@@ -426,7 +439,7 @@ def ipanel(data,
                 row.remove()
             plt00Fr = ax00.contour(data.grid.r[it, ...]/c.au,
                                    data.grid.a_recon[it, ...],
-                                   (data.St - data.StFr[..., None])[it, ...].T,
+                                   (data.dust.St - data.dust.StFr[..., None])[it, ...].T,
                                    levels=[0.],
                                    colors="C0",
                                    linewidths=1

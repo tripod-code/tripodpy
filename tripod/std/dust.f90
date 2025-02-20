@@ -601,10 +601,11 @@ subroutine smax_deriv_shrink(dt, slim, f_crit, smax, Sig, sdot, nr, nm)
     double precision :: t_dep(Nr)
     integer, intent(in) :: Nr, Nm
 
-    where (Sig(:, 2) .gt. f_crit * (Sig(:, 1) + Sig(:, 2)))
+    where (Sig(:, 2) .gt. f_crit * (Sig(:, 1) + Sig(:, 2)) .or. smax .lt. slim)
         sdot = 0d0
     elsewhere
         t_dep = dt * Sig(:, 2) / (f_crit * (Sig(:, 1) + Sig(:, 2)) - Sig(:, 2))
+        !the factor of 1+t_dep is differnt that in the paper
         sdot = smax / (t_dep + 1d0) * (1d0 - smax / slim)
     end where
 
@@ -647,7 +648,7 @@ subroutine Sig_deriv_shrink(Sig, amin, amax, xi, adot_shrink, Sigdot_shrink, Nr,
     sig_tot = Sig(:, 1) + Sig(:, 2)
 
     where (xi .eq. 0d0)
-        dum2 = sig_tot * (log(amax * amin) - log(amax)) / (amax * (log(amax) - log(amin))**2)
+        dum2 = 0.0d0
     elsewhere
         dum2 = sig_tot * xi * (0.5d0 * amin**xi * dum1 + amax**xi * (0.5d0 * (dum1 - amin**xi))) / (amax * (amax**xi - amin**xi)**2)
     end where
@@ -656,9 +657,107 @@ subroutine Sig_deriv_shrink(Sig, amin, amax, xi, adot_shrink, Sigdot_shrink, Nr,
         dum2 = 0d0
     end where
 
+    where (dum2 .ne. dum2)
+        dum2 = 0d0
+    end where
+    
     dum2 = dum2 * adot_shrink
 
     Sigdot_shrink(:, 1) = -dum2
     Sigdot_shrink(:, 2) = dum2
 
 end subroutine Sig_deriv_shrink
+
+
+
+subroutine jacobian_shrink_generator(Sigma, smin, smax,amax_dot, dat, row, col, Nr, Nm)
+    ! Subroutine calculates the coagulation Jacobian at every radial grid cell except for the boundaries.
+    !
+    ! Parameters
+    ! ----------
+    ! Sigma(Nr, Nm) : Dust surface densities
+    ! smin(Nr) : Minimum particle size
+    ! smax(Nr) : Maximum particle size
+    ! amax_dot(Nr) : drivative of max particle size
+    ! Nr : Number of radial grid cells
+    ! Nm : Number of sizes, should be 2
+    !
+    ! Returns
+    ! -------
+    ! dat((Nr-2)*Nm*Nm) : Non-zero elements of Jacobian
+    ! row((Nr-2)*Nm*Nm) : row location of non-zero elements
+    ! col((Nr-2)*Nm*Nm) : column location of non-zero elements
+
+    use constants, only : pi
+
+    implicit none
+
+    double precision, intent(in) :: Sigma(Nr, Nm)
+    double precision, intent(in) :: smin(Nr)
+    double precision, intent(in) :: smax(Nr)
+    double precision, intent(in) :: amax_dot(Nr)
+    double precision, intent(out) :: dat((Nr - 2) * Nm * Nm)
+    integer, intent(out) :: row((Nr - 2) * Nm * Nm)
+    integer, intent(out) :: col((Nr - 2) * Nm * Nm)
+    integer, intent(in) :: Nr
+    integer, intent(in) :: Nm
+
+    double precision :: jac(Nr, Nm, Nm)
+    double precision :: sint(Nr)
+    double precision :: xi(Nr)
+    double precision :: dum1(Nr)
+    double precision :: dum2(Nr)
+
+
+    integer :: ir
+    integer :: i
+    integer :: j
+    integer :: k
+    integer :: start
+
+    ! #TODO: here we do not include the shinkage term yet
+
+    ! Initialization
+    jac(:, :, :) = 0.d0
+    dat(:) = 0.d0
+    row(:) = 0
+    col(:) = 0
+
+    
+    sint(:) = SQRT(smin(:) * smax(:))
+    xi = log(Sigma(:,2)/Sigma(:,1))/log(smax/sint)
+
+    ! here collisions between large and small dust use a0 and a1
+    ! which corresponds to a(1, 3) in the full size array (with helper sizes).
+    where(xi .eq. 0d0)
+        dum2 = 0.0d0
+    elsewhere
+        dum2 =  xi * (0.5d0 * smin**xi * dum1 + smax**xi * (0.5d0 * (dum1 - smin**xi))) / (smax * (smax**xi - smin**xi)**2)
+    end where
+
+    where (dum2 .ne. dum2)
+        dum2 = 0.0d0
+    end where
+
+    dum2 = dum2 * amax_dot
+    !check if the signs are correct
+    jac(:, 1, 1) = dum2
+    jac(:, 2, 1) = -dum2
+    jac(:, 1, 2) = -dum2
+    jac(:, 2, 2) = dum2
+
+    ! Filling the data array
+    k = 1
+    do ir = 2, Nr - 1
+        start = (ir - 1) * Nm - 1
+        do i = 1, Nm
+            do j = 1, Nm
+                dat(k) = jac(ir, i, j)
+                row(k) = start + i
+                col(k) = start + j
+                k = k + 1
+            end do
+        end do
+    end do
+
+end subroutine jacobian_shrink_generator

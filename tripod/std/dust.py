@@ -11,6 +11,8 @@ import numpy as np
 
 import scipy.sparse as sp
 
+#dont mind me work in progress
+implicit_shrink = False
 
 def dt(sim):
     """Function calculates the time step from dust.
@@ -279,6 +281,15 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
         sim.dust.s.max,
         sim.dust.q.eff
     )
+    if(sim.dust.s._sdot_shrink is None):
+        sim.dust.s._sdot_shrink = np.zeros(Nr)
+
+    dat_shrink, row_shrink, col_shrink = dust_f.jacobian_shrink_generator(
+        sim.dust.Sigma,
+        sim.dust.s.min,
+        sim.dust.s.max,
+        sim.dust.s._sdot_shrink
+        )
 
     # Getting data vector and coordinates for the hydrodynamic sparse matrix
     A, B, C = dp_dust_f.jacobian_hydrodynamic_generator(
@@ -398,6 +409,10 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
     row = np.hstack((row_coag, row_hyd, row_in, row_out))
     col = np.hstack((col_coag, col_hyd, col_in, col_out))
     dat = np.hstack((dat_coag, dat_hyd, dat_in, dat_out))
+    row = np.hstack((row, row_shrink))
+    col = np.hstack((col, col_shrink))
+    dat = np.hstack((dat, dat_shrink))
+
     gen = (dat, (row, col))
     # Building sparse matrix of coagulation Jacobian
     J = sp.csc_matrix(
@@ -895,19 +910,10 @@ def _f_impl_1_direct(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
 
     # Sigma
     aint = np.sqrt(dust.s.min * dust.s.max)
-    xi = np.log(dust.Sigma[:, 1] / dust.Sigma[:, 0]) / \
-        np.log(dust.s.max / aint)
 
-    dSigma_shrink = dust_f.sig_deriv_shrink(
-        dust.Sigma,
-        dust.s.min,
-        dust.s.max,
-        xi,
-        dust.s._sdot_shrink)
 
     S_Sigma_ext = np.zeros_like(dust.Sigma)
     S_Sigma_ext[1:-1, ...] += dust.S.ext[1:-1, ...]
-    S_Sigma_ext[1:-1, ...] += dSigma_shrink[1:-1, ...]
 
     # smax*Sigma (product rule)
     S_smax_expl = np.zeros_like(dust.s.max)
