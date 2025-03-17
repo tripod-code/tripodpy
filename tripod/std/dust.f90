@@ -293,158 +293,6 @@ subroutine vrel_vertical_settling(h, OmK, St, vrel, Nr, Nm)
 end subroutine vrel_vertical_settling
 
 
-subroutine vrel_ormel_cuzzi_2007(alpha, cs, mump, OmegaK, rhoGas, &
-  & St, vrel, Nr, Nm)
-  ! Subroutine calculates the relative particle velocities due to turbulent motion
-  ! accourding the prescription of Ormel & Cuzzi (2007).
-  !
-  ! Parameters
-  ! ----------
-  ! alpha(Nr) : Turbulent alpha parameters
-  ! cs(Nr) : Sound speed
-  ! mump(Nr) : Mean molecular weight of the gas
-  ! OmegaK(Nr) : Keplerian frequency
-  ! rhoGas(Nr) : Gas midplane density
-  ! St(Nr, Nm) : Stokes number
-  ! Nr : Number of radial grid cells
-  ! Nm : Number of mass bins
-  !
-  ! Returns
-  ! -------
-  ! vrel(Nr, Nm) : Relative velocities
-
-  use constants, only: sigma_H2,pi
-
-  implicit none
-
-  double precision, intent(in)  :: alpha(Nr)
-  double precision, intent(in)  :: cs(Nr)
-  double precision, intent(in)  :: mump(Nr)
-  double precision, intent(in)  :: OmegaK(Nr)
-  double precision, intent(in)  :: rhoGas(Nr)
-  double precision, intent(in)  :: St(Nr, Nm)
-  double precision, intent(out) :: vRel(Nr, Nm, Nm)
-  integer,          intent(in)  :: Nr
-  integer,          intent(in)  :: Nm
-
-  double precision :: eps(Nr, Nm, Nm)
-  double precision :: OmKinv(Nr)
-  double precision :: Re
-  double precision :: ReInvSqrt(Nr)
-  double precision :: StL(Nr, Nm, Nm)
-  double precision :: StS(Nr, Nm, Nm)
-  double precision :: tauL(Nr, Nm, Nm)
-  double precision :: tauS(Nr, Nm, Nm)
-  double precision :: ts(Nr)
-  double precision :: vg2(Nr)
-  double precision :: vn
-  double precision :: vs(Nr)
-
-  double precision :: c0, c1, c2, c3, ya, yap1inv
-  double precision :: h1(Nr, Nm, Nm)
-  double precision :: h2(Nr, Nm, Nm)
-  double precision :: ys(Nr, Nm, Nm)
-
-  integer :: ir, i, j
-  double precision :: dum
-
-  c0      =  1.6015125d0
-  c1      = -0.63119577d0
-  c2      =  0.32938936d0
-  c3      = -0.29847604d0
-  ya      =  1.6d0
-  yap1inv =  1.d0/ (1.d0 + ya)
-
-  do ir=1, Nr
-    OmKinv(ir)    = 1.d0 / OmegaK(ir)
-    Re            =  alpha(ir) * rhoGas(ir) * sigma_H2 *cs(ir)/OmegaK(ir) / mump(ir)
-    ReInvSqrt(ir) = sqrt(1.d0 / Re)
-    vn            = sqrt(alpha(ir)) * cs(ir)
-    vs(ir)        = Re**(-0.25) * vn
-    ts(ir)        = OmKinv(ir) * ReInvSqrt(ir)
-    vg2(ir)       = 1.5d0 * vn**2
-  end do
-
-  do i=1, Nm
-    do j=1, i
-      do ir=1, Nr
-        StL(ir, j, i) = max(St(ir, j), St(ir, i))
-        StS(ir, j, i) = min(St(ir, j), St(ir, i))
-        eps(ir, j, i) = StS(ir, j, i) / StL(ir, j, i)
-
-        tauL(ir, j, i) = StL(ir, j, i) * OmKinv(ir)
-        tauS(ir, j, i) = StS(ir, j, i) * OmKinv(ir)
-
-        ys(ir, j, i) = c0 + c1*StL(ir, j, i) + c2*StL(ir, j, i)**2 &
-          & + c3*StL(ir, j, i)**3
-        h1(ir, j, i) = (StL(ir, j, i) - StS(ir, j, i))                 &
-          & / (StL(ir, j, i) + StS(ir, j, i))                          &
-          & * (StL(ir, j, i) * yap1inv                                 &
-          & - StS(ir, j, i)**2 / (StS(ir, j, i) + ya * StL(ir, j, i)))
-        h2(ir, j, i) = 2.d0 * (ya * StL(ir, j, i) - ReInvSqrt(ir))     &
-          & + StL(ir, j, i) * yap1inv                                     &
-          & - StL(ir, j, i)**2 / (StL(ir, j, i) + ReInvSqrt(ir))       &
-          & + StS(ir, j, i)**2 / (ya * StL(ir, j, i) + StS(ir, j, i))  &
-          & - StS(ir, j, i)**2 / (StS(ir, j, i) + ReInvSqrt(ir))
-      end do
-    end do
-  end do
-
-  do i=1, Nm
-    do j=1, i
-
-      where(tauL(:, j, i) .LT. 0.2d0 * ts(:))
-
-        vRel(:, j, i) = 1.5d0 * (vs(:) / ts(:) &
-          & * (tauL(:, j, i) - tauS(:, j, i)))**2
-
-      elsewhere(tauL(:, j, i)*ya .LT. ts(:))
-
-        vRel(:, j, i) = vg2(:) * (StL(:, j, i) - StS(:, j, i)) &
-          & / (StL(:, j, i) + StS(:, j, i)) * (StL(:, j, i)**2 &
-          & / (StL(:, j, i) + ReInvSqrt(:))                    &
-          & - StS(:, j, i)**2 / (StS(:, j, i) + ReInvSqrt(:)))
-
-      elsewhere(tauL(:, j, i) .LT. 5.d0 * ts(:))
-
-        vRel(:, j, i) = vg2(:) * (h1(:, j, i) + h2(:, j, i))
-
-      elsewhere(tauL(:, j, i) .LT. 0.2d0 * OmKinv(:))
-
-        vRel(:, j, i) = vg2(:) * StL(:, j, i)                             &
-          & * (2.d0*ya - 1.d0 - eps(:, j, i) + 2.d0/(1.d0 + eps(:, j, i)) &
-          & * (yap1inv + eps(:, j, i)**3/(ya+eps(:, j, i))))
-
-      elsewhere(tauL(:, j, i) .LT. OmKinv(:))
-        vRel(:, j, i) =  vg2(:) * StL(:, j, i)                  &
-          & * (2.d0*ys(:, j, i) - 1.d0 - eps(:, j, i)           &
-          & + 2.d0/(1.d0+eps(:, j, i))*(1.d0/(1.d0+ys(:, j, i)) &
-          & + eps(:, j, i)**3/(ys(:, j, i)+eps(:, j, i))))
-
-      elsewhere(tauL(:, j, i) .GE. OmKinv(:))
-
-        vRel(:, j, i) = vg2(:) &
-          & * (2.d0 + StL(:, j, i) + StS(:, j, i)) &
-          & / (1.d0 + StL(:, j, i) + StS(:, j, i) + StL(:, j, i)*StS(:, j, i))
-
-      end where
-
-    end do
-  end do
-
-  do i=1, Nm
-    do j=1, i
-      do ir=1, Nr
-        dum = sqrt(vRel(ir, j, i))
-        vRel(ir, j, i) = dum
-        vRel(ir, i, j) = dum
-      end do
-    end do
-  end do
-
-end subroutine vrel_ormel_cuzzi_2007
-
-
 subroutine calculate_m(a, rhos, fill, masses, Nr, Nm)
     ! Subroutine calculates the particle masses.
     !
@@ -514,7 +362,7 @@ subroutine pfrag(vrel, vfrag, pf, Nr)
 end subroutine pfrag
 
 subroutine qfrag(p_dr, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
-    & q_drfr, alpha, rhoGas,cs,OmegaK, mump, q_frag, Nr)
+    & q_drfr, alpha, SigmaGas, mump, q_frag, Nr)
     ! Subroutine calculates the power-law in the fragmentation
     ! regime, interpolating between different cases.
     !
@@ -532,9 +380,7 @@ subroutine qfrag(p_dr, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
     ! q_turb1 : the power-law exponent for fragmentation in the first turbulence regime
     ! q_turb2 : same for the second turbulence regime
     ! alpha : the turbulence parameter
-    ! rhoGas : the gas surface density
-    ! cs : sound speed
-    ! OmegaK : angular speed
+    ! SigmaGas : the gas surface density
     ! mump : array of mean molecular mass (\mu * m_p)
     ! q_drfr :  same if drift is causing fragmentation
     ! Nr : Number or radial grid cells
@@ -552,9 +398,7 @@ subroutine qfrag(p_dr, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
     double precision, intent(in) :: St_max(Nr)
     double precision, intent(in) :: q_turb1, q_turb2, q_drfr
     double precision, intent(in) :: alpha(Nr)
-    double precision, intent(in) :: rhoGas(Nr)
-    double precision, intent(in) :: cs(Nr)
-    double precision, intent(in) :: OmegaK(Nr)
+    double precision, intent(in) :: SigmaGas(Nr)
     double precision, intent(in) :: mump(Nr)
     double precision, intent(out) :: q_frag(Nr)
     integer, intent(in) :: Nr
@@ -565,7 +409,7 @@ subroutine qfrag(p_dr, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
 
     do ir = 1, Nr
         !This seems wrong with the paper
-        Re =  alpha(ir) * rhoGas(ir) *cs(ir)/OmegaK(ir) *  sigma_H2 / mump(ir)
+        Re =  0.5d0 * alpha(ir) * SigmaGas(ir) * sigma_H2 / mump(ir)
 
         ! Eq. A.1 of Pfeil+2024
         f_t1t2 = 5d0 * sqrt(1.d0 / Re) / St_max(ir)
@@ -583,7 +427,7 @@ subroutine qfrag(p_dr, dv_tot, vfrag, St_max, q_turb1, q_turb2, &
 
 end subroutine qfrag
 
-subroutine pfrag_trans( St_max, alpha, rhoGas,cs,OmegaK, mump, p_frag_trans, Nr)
+subroutine pfrag_trans( St_max, alpha, SigmaGas, mump, p_frag_trans, Nr)
     ! Subroutine calculates the power-law in the fragmentation
     ! regime, interpolating between different cases.
     !
@@ -609,9 +453,7 @@ subroutine pfrag_trans( St_max, alpha, rhoGas,cs,OmegaK, mump, p_frag_trans, Nr)
 
     double precision, intent(in) :: St_max(Nr)
     double precision, intent(in) :: alpha(Nr)
-    double precision, intent(in) :: rhoGas(Nr)
-    double precision, intent(in) :: cs(Nr)
-    double precision, intent(in) :: OmegaK(Nr)
+    double precision, intent(in) :: SigmaGas(Nr)
     double precision, intent(in) :: mump(Nr)
     double precision, intent(out) :: p_frag_trans(Nr)
     integer, intent(in) :: Nr
@@ -622,7 +464,7 @@ subroutine pfrag_trans( St_max, alpha, rhoGas,cs,OmegaK, mump, p_frag_trans, Nr)
 
     do ir = 1, Nr
         !This seems wrong with the paper
-        Re = alpha(ir) * rhoGas(ir) *cs(ir)/OmegaK(ir) *  sigma_H2 / mump(ir)
+        Re = 0.5d0 * alpha(ir) * SigmaGas(ir) * sigma_H2 / mump(ir)
 
         ! Eq. A.1 of Pfeil+2024
         f_t1t2 = 5d0 * sqrt(1.d0 / Re) / St_max(ir)
@@ -906,7 +748,7 @@ subroutine smax_deriv_shrink(dt, slim, f_crit, smax, Sig, sdot, nr, nm)
         t_dep = abs(Sig(:, 2)/(-(eps_crit - Sig(:,2))/dt))
         
         !the factor of 1+t_dep is differnt that in the paper
-        sdot = smax / (t_dep + 1d0) * (1d0 - smax / slim)
+        sdot = smax /t_dep * (1d0 - smax / slim)
         !limitng factor to be changed
         sdot_max = 0.4*smax/dt 
         sdot =  sdot *sdot_max/sqrt(sdot**2 + sdot_max**2)
@@ -914,7 +756,148 @@ subroutine smax_deriv_shrink(dt, slim, f_crit, smax, Sig, sdot, nr, nm)
 
 end subroutine smax_deriv_shrink
 
-subroutine Sig_deriv_shrink(Sig, amin, amax, adot_shrink, Sigdot_shrink, Nr, Nm)
+subroutine smax_deriv_shrink_2(dt, alim, q,  f_crit, amax,amin, Sig, sdot, nr, nm)
+    ! Subroutine calculates the shrinkage source term.
+    !
+    ! Parameters
+    ! ----------
+    ! dt : time scale of shinakge for each radius
+    ! slim : limiting size for shrinkage
+    ! f_crit : mass fraction below which Sig1 should not drop
+    ! smax : Maximum particle size
+    ! Sig : Dust surface densities
+    ! Nr : Number of radial grid cells
+    !
+    ! Returns
+    ! -------
+    ! sdot(Nr) : Shrinkage source term
+
+    implicit none
+
+    double precision, intent(in) :: dt
+    double precision, intent(in) :: alim
+    double precision, intent(in) :: q(Nr)
+    double precision, intent(in) :: f_crit
+    double precision, intent(in) :: amax(Nr)
+    double precision, intent(in) :: amin(Nr)
+    double precision, intent(in) :: Sig(Nr, Nm)
+    double precision, intent(out) :: sdot(Nr)
+
+    double precision :: Sig_crit(Nr)
+    double precision :: Sig_tot(Nr)
+    double precision :: dsig1dt(Nr)
+    double precision :: sdot_max(Nr)
+    double precision :: xi(Nr)
+    double precision :: dum1(Nr)
+    double precision :: dsig1da(Nr)
+
+    integer, intent(in) :: Nr, Nm
+
+    xi = q + 4d0   
+    dum1 = (amax * amin)**(0.5*xi)
+    Sig_tot = Sig(:, 1) + Sig(:, 2)
+    Sig_crit = f_crit * (Sig(:, 1) + Sig(:, 2))
+    dsig1dt = 0d0
+    dsig1da = 0d0
+
+
+    where (Sig(:, 2) .ge. Sig_crit .or. amax .le. alim .or. xi .eq. 0d0)    
+        dsig1dt = 0d0
+    elsewhere
+        dsig1dt = (Sig_crit - Sig(:, 2)) / dt
+    end where
+
+    where (xi .eq. 0d0 .or. Sig(:, 2) .ge. Sig_crit .or. amax .le. alim)
+        dsig1da = 0.0d0
+    elsewhere
+        dsig1da = abs(sig_tot * xi * (0.5d0 * amin**xi * dum1 + amax**xi * (0.5d0 * (dum1 - amin**xi))) &
+        / (amax * (amax**xi - amin**xi)**2))
+    end where
+
+    sdot_max = 0.1*amax/dt
+
+    where (dsig1da .ne. dsig1da)
+        dsig1da = 0d0
+    end where
+
+    where(dsig1da .ne. 0d0)
+        sdot = -dsig1dt/dsig1da
+    elsewhere
+        sdot = 0d0
+    end where
+
+    sdot  = sdot * sdot_max/sqrt(sdot**2 + sdot_max**2)
+
+
+end subroutine smax_deriv_shrink_2
+
+subroutine dadsig(alim, q,  f_crit, amax,amin, Sig, dadsig1, nr, nm)
+    ! Subroutine calculates the shrinkage source term.
+    !
+    ! Parameters
+    ! ----------
+    ! dt : time scale of shinakge for each radius
+    ! slim : limiting size for shrinkage
+    ! f_crit : mass fraction below which Sig1 should not drop
+    ! smax : Maximum particle size
+    ! Sig : Dust surface densities
+    ! Nr : Number of radial grid cells
+    !
+    ! Returns
+    ! -------
+    ! sdot(Nr) : Shrinkage source term
+
+    implicit none
+
+    double precision, intent(in) :: alim
+    double precision, intent(in) :: q(Nr)
+    double precision, intent(in) :: f_crit
+    double precision, intent(in) :: amax(Nr)
+    double precision, intent(in) :: amin(Nr)
+    double precision, intent(in) :: Sig(Nr, Nm)
+    double precision, intent(out) :: dadsig1(Nr)
+
+    double precision :: Sig_crit(Nr)
+    double precision :: Sig_tot(Nr)
+    double precision :: dsig1dt(Nr)
+    double precision :: sdot_max(Nr)
+    double precision :: xi(Nr)
+    double precision :: dum1(Nr)
+    double precision :: dsig1da(Nr)
+
+    integer, intent(in) :: Nr, Nm
+    xi = q + 4d0    
+    dum1 = (amax * amin)**(0.5*xi)
+    Sig_tot = Sig(:, 1) + Sig(:, 2)
+    Sig_crit = f_crit * (Sig(:, 1) + Sig(:, 2))
+ 
+    dsig1dt = 0d0
+    dsig1da = 0d0
+
+
+    where (xi .eq. 0d0 .or. Sig(:, 2) .ge. Sig_crit .or. amax .le. alim)
+        dsig1da = 0.0d0
+    elsewhere
+        dsig1da = abs(sig_tot * xi * (0.5d0 * amin**xi * dum1 + amax**xi * (0.5d0 * (dum1 - amin**xi))) &
+        / (amax * (amax**xi - amin**xi)**2))
+    end where
+
+    where (dsig1da .ne. dsig1da)
+        dsig1da = 0d0
+    end where
+
+    where(dsig1da .ne. 0d0)
+        dadsig1 = -1./dsig1da
+    elsewhere
+        dadsig1 = 0d0
+    end where
+
+end subroutine dadsig
+
+
+
+
+subroutine sig_deriv_shrink(Sig, amin, amax,alim,q,dt,f_crit, adot_shrink, Sigdot_shrink, Nr, Nm)
     ! Subroutine calculates the derivative of the dust surface density
     ! caused by the shrinkage of the maximum particle size.
     !
@@ -937,42 +920,39 @@ subroutine Sig_deriv_shrink(Sig, amin, amax, adot_shrink, Sigdot_shrink, Nr, Nm)
     double precision, intent(in) :: Sig(Nr, Nm)
     double precision, intent(in) :: amin(Nr)
     double precision, intent(in) :: amax(Nr)
+    double precision, intent(in) :: alim
+    double precision, intent(in) :: q(Nr)
+    double precision, intent(in) :: dt
+    double precision, intent(in) :: f_crit
     double precision, intent(in) :: adot_shrink(Nr)
     double precision, intent(out) :: Sigdot_shrink(Nr,Nm)
 
     integer, intent(in) :: Nr, Nm
-    double precision :: dum1(Nr)
     double precision :: dum2(Nr)
-    double precision :: aint(Nr)
+    double precision :: Sig_crit(Nr)
     double precision :: xi(Nr)
     double precision :: sig_tot(Nr)
 
-    aint(:) = SQRT(amin(:) * amax(:))
-    xi = log(Sig(:,2)/Sig(:,1))/log(amax/aint)
-    dum1 = (amax * amin)**(0.5*xi)
+    xi = q + 4d0
     sig_tot = Sig(:, 1) + Sig(:, 2)
-
-    where (xi .eq. 0d0)
-        dum2 = 0.0d0
-    elsewhere
-        dum2 = sig_tot * xi * (0.5d0 * amin**xi * dum1 + amax**xi * (0.5d0 * (dum1 - amin**xi))) / (amax * (amax**xi - amin**xi)**2)
-    end where
-
-
-    where (dum2 .ne. dum2)
-        dum2 = 0d0
-    end where
+    Sig_crit = f_crit * (Sig(:, 1) + Sig(:, 2))
     
-    dum2 = dum2 * adot_shrink
+    dum2 = 0 
+    where (Sig(:, 2) .ge. Sig_crit .or. amax .le. alim .or. xi .eq. 0d0)
+        dum2 = 0d0
+    elsewhere
+        dum2 = (Sig_crit - Sig(:, 2)) / dt
+    end where
+
 
     Sigdot_shrink(:, 1) = -dum2
     Sigdot_shrink(:, 2) = dum2
 
-end subroutine Sig_deriv_shrink
+end subroutine sig_deriv_shrink
 
 
 
-subroutine jacobian_shrink_generator(Sigma, smin, smax,amax_dot, dat, row, col, Nr, Nm)
+subroutine jacobian_shrink_generator(Sigma, smin, smax,slim,  q, dt,f_crit,amax_dot, dat, row, col, Nr, Nm)
     ! Subroutine calculates the coagulation Jacobian at every radial grid cell except for the boundaries.
     !
     ! Parameters
@@ -997,6 +977,10 @@ subroutine jacobian_shrink_generator(Sigma, smin, smax,amax_dot, dat, row, col, 
     double precision, intent(in) :: Sigma(Nr, Nm)
     double precision, intent(in) :: smin(Nr)
     double precision, intent(in) :: smax(Nr)
+    double precision, intent(in) :: slim
+    double precision, intent(in) :: q(Nr)
+    double precision, intent(in) :: dt
+    double precision, intent(in) :: f_crit
     double precision, intent(in) :: amax_dot(Nr)
     double precision, intent(out) :: dat((Nr - 2) * Nm * Nm)
     integer, intent(out) :: row((Nr - 2) * Nm * Nm)
@@ -1005,10 +989,10 @@ subroutine jacobian_shrink_generator(Sigma, smin, smax,amax_dot, dat, row, col, 
     integer, intent(in) :: Nm
 
     double precision :: jac(Nr, Nm, Nm)
-    double precision :: sint(Nr)
     double precision :: xi(Nr)
     double precision :: dum1(Nr)
     double precision :: dum2(Nr)
+    double precision :: Sig_crit(Nr)    
 
 
     integer :: ir
@@ -1026,12 +1010,11 @@ subroutine jacobian_shrink_generator(Sigma, smin, smax,amax_dot, dat, row, col, 
     col(:) = 0
 
  
-    sint(:) = SQRT(smin(:) * smax(:))
-    xi = log(Sigma(:,2)/Sigma(:,1))/log(smax/sint)
+    xi = q(:) + 4.d0
     dum1 = (smax * smin)**(0.5*xi)
     ! here collisions between large and small dust use a0 and a1
     ! which corresponds to a(1, 3) in the full size array (with helper sizes).
-    where(xi .eq. 0d0 .or. Sigma(:, 2) .gt. 0.425d0 * (Sigma(:, 1) + Sigma(:, 2)))
+    where(xi .eq. 0d0)
         dum2 = 0.0d0
     elsewhere
         dum2 =  xi * (0.5d0 * smin**xi * dum1 + smax**xi * (0.5d0 * (dum1 - smin**xi))) / (smax * (smax**xi - smin**xi)**2)
@@ -1041,14 +1024,27 @@ subroutine jacobian_shrink_generator(Sigma, smin, smax,amax_dot, dat, row, col, 
         dum2 = 0.0d0
     end where
 
-    where (dum2 .lt. 0d0)
+    dum2 = dum2 * amax_dot
+
+    dum2 = max(dum2, 0d0)
+
+    Sig_crit = f_crit * (Sigma(:, 1) + Sigma(:, 2))
+
+    dum2 = 0d0 
+    dum1 = 0d0
+    where (Sigma(:, 2) .ge. Sig_crit .or. smax .le. slim .or. xi .eq. 0d0)
         dum2 = 0d0
+        dum1 = 0d0
+    elsewhere
+        dum2 = (f_crit - 1.) / dt
+        dum1 = f_crit/dt 
+
     end where
 
-    dum2 = dum2 * amax_dot
     !check if the signs are correct
-    jac(:, 1, 1) = -dum2
-    jac(:, 2, 1) = dum2
+    jac(:, 1, 1) = -dum1
+    jac(:, 2, 1) = dum1
+
     jac(:, 1, 2) = -dum2
     jac(:, 2, 2) = dum2
 

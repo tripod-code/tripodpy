@@ -108,9 +108,11 @@ def prepare(sim):
     sim.dust._SigmaOld[...] = sim.dust.Sigma[...]
     sim.dust.s._maxOld = sim.dust.s.max
     s_max_deriv = sim.dust.s.max.derivative()
+    enforce_f(sim)
     sim.dust.S.ext.update()
     sim.dust.S.coag.update()
     sim.dust.S.hyd.update()
+    sim.dust.S.shrink = S_shrink(sim)
     sim.dust.S.coag[0] = 0.
     sim.dust.S.coag[-1] = 0.
     sim.dust.S.ext[0] = 0.
@@ -129,15 +131,14 @@ def finalize(sim):
 
     # Copy values from state vector to fields
     sim.dust.Sigma[...] = sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)
-    # Making sure smax is not smaller than 1.5 smin to ensure minimal distribution width
-    sim.dust.s.max[1:-1] = np.maximum(
-        1.5 * sim.dust.s.min[1:-1], sim.dust._Y[Nr * Nm_s + 1:-1] / sim.dust.Sigma[1:-1, 1])
+    # Making sure smax is not smaller than 1.5 smin to ensure minimal distribution width])
 
     sim.dust.s.max = np.maximum(
         1.5 * sim.dust.s.min, sim.dust._Y[Nr * Nm_s:] / sim.dust.Sigma[..., 1])
 
     dp_dust.boundary(sim)
     dp_dust.enforce_floor_value(sim)
+    enforce_f(sim)
     sim.dust.v.rad.update()
     sim.dust.Fi.update()
     sim.dust.S.coag.update()
@@ -214,7 +215,7 @@ def Sigma_initial(sim):
     S0 = np.zeros_like(sim.grid.r)
     S1 = np.zeros_like(sim.grid.r)
     for i in range(int(sim.grid.Nr)):
-        if smax[i] == smin[i]:
+        if smax[i] <= 1.5* smin[i]:
             S0[i] = SigmaFloor[i, 0]
             S1[i] = SigmaFloor[i, 1]
         else:
@@ -294,24 +295,7 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
         sim.dust.s.max,
         sim.dust.q.eff
     )
-    if(sim.dust.s.sdot_shrink is None):
-        sim.dust.s.sdot_shrink = np.zeros(Nr)
-    else:
-        #d_shrink = np.diff(sim.grid.ri) / (1e-100 + np.abs(sim.dust.v.rad[:, 2]))
-        sim.dust.s.sdot_shrink = dust_f.smax_deriv_shrink(
-        dt*np.ones_like(sim.grid.r),
-        sim.dust.s.lim,
-        sim.dust.f.crit,
-        sim.dust.s.max,
-        sim.dust.Sigma)
-
-    dat_shrink, row_shrink, col_shrink = dust_f.jacobian_shrink_generator(
-        sim.dust.Sigma,
-        sim.dust.s.min,
-        sim.dust.s.max,
-        sim.dust.s.sdot_shrink
-        )
-
+        
     # Getting data vector and coordinates for the hydrodynamic sparse matrix
     sim.dust.v.rad_flux.update()
     A, B, C = dp_dust_f.jacobian_hydrodynamic_generator(
@@ -432,10 +416,6 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
     col = np.hstack((col_coag, col_hyd, col_in, col_out))
     dat = np.hstack((dat_coag, dat_hyd, dat_in, dat_out))
 
-    row = np.hstack((row_hyd, row_in, row_out))
-    col = np.hstack((col_hyd, col_in, col_out))
-    dat = np.hstack((dat_hyd, dat_in, dat_out))
-
     gen = (dat, (row, col))
     # Building sparse matrix of coagulation Jacobian
     J = sp.csc_matrix(
@@ -460,7 +440,7 @@ def a(sim):
     a : Field
         Particle sizes"""
     # interpolate between drift and turbulence dominated pre-factor
-    return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.q.eff, sim.dust.f.dv, sim.grid._Nm_long)
+    return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.qrec, sim.dust.f.dv, sim.grid._Nm_long)
 
 
 def F_adv(sim, Sigma=None):
@@ -653,21 +633,26 @@ def smax_deriv(sim, t, smax):
 
     # TODO: here we compute a depletion time scale which sets
     # the rate of shrinkage.
-    dt = np.diff(sim.grid.ri) / (1e-100 + np.abs(sim.dust.v.rad[:, 2]))
-    dt = sim.t.stepsize* np.ones_like(sim.grid.r)
+    dt_dr = np.diff(sim.grid.ri) / (1e-100 + np.abs(sim.dust.v.rad[:, -1]))
+    dt = np.maximum(sim.t.stepsize* np.ones_like(sim.grid.r),dt_dr)
+    dt = 2e3*c.year* np.ones_like(sim.grid.r)
+    #dt = np.maximum(sim.t.stepsize * np.ones_like(sim.grid.r),2e3*c.year)
     #dt = np.maximum(dt,10*c.year)
 
-
+    """
     ds_shrink = dust_f.smax_deriv_shrink(
         dt,
         sim.dust.s.lim,
         sim.dust.f.crit,
         smax,
         sim.dust.Sigma
-    )
+    )"""
+
+    #ds_shrink = dust_f.smax_deriv_shrink_2(sim.t.stepsize, sim.dust.s.lim, sim.dust.qrec, sim.dust.f.crit, sim.dust.s.max, sim.dust.s.min, sim.dust.Sigma)
+    ds_shrink = np.zeros_like(sim.dust.s.max)
 
     sim.dust.s.sdot_shrink = ds_shrink
-    sim.dust.s._sdot_coag = ds_coag
+    sim.dust.s.sdot_coag = ds_coag
 
     return ds_coag + ds_shrink
 
@@ -707,6 +692,19 @@ def S_coag(sim, Sigma=None):
     return s_coag * np.where(sim.dust.Sigma.sum(-1) > sim.dust.SigmaFloor.sum(-1), 1., 0.)[:, None]
 
 # TODO: check if this is still needed after the dustpy update
+
+
+def enforce_f(sim):
+
+    delta = np.maximum( 0., sim.dust.f.crit * sim.dust.Sigma[...].sum(-1) - sim.dust.Sigma[:,1])
+    sim.dust.s.max += delta * dadsig(sim) 
+    sim.dust.Sigma[:,1] += delta
+    sim.dust.Sigma[:,0] -= delta
+    sim.dust.qrec.update()
+
+
+def dadsig(sim):
+    return dust_f.dadsig(sim.dust.s.lim, sim.dust.qrec,sim.dust.f.crit,  sim.dust.s.max, sim.dust.s.min, sim.dust.Sigma)
 
 
 def S_tot(sim, Sigma=None):
@@ -757,6 +755,10 @@ def S_shrink(sim, Sigma=None):
         sim.dust.Sigma,
         sim.dust.s.min,
         sim.dust.s.max,
+        sim.dust.s.lim,
+        sim.dust.qrec,
+        sim.t.stepsize,
+        sim.dust.f.crit,
         sim.dust.s.sdot_shrink)
 
 def vrel_brownian_motion(sim):
@@ -789,7 +791,7 @@ def vrel_radial_drift(sim):
     -------
     vrel : Field
         Relative velocities"""
-    return dust_f.vrel_radial_drift(sim.dust.v.driftmax/sim.gas.gamma,sim.dust.St/sim.gas.gamma[:,np.newaxis]**0.5)
+    return dust_f.vrel_radial_drift(sim.dust.v.driftmax, sim.dust.St)
 
 def vrel_azimuthal_drift(sim):
     """Function calculates the relative particle velocities due to azimuthal drift.
@@ -803,7 +805,7 @@ def vrel_azimuthal_drift(sim):
     -------
     vrel : Field
         Relative velocities"""
-    return dp_dust_f.vrel_azimuthal_drift(sim.dust.v.driftmax/sim.gas.gamma, sim.dust.St/sim.gas.gamma[:,np.newaxis]**0.5)
+    return dp_dust_f.vrel_azimuthal_drift(sim.dust.v.driftmax, sim.dust.St)
 
 
 
@@ -819,29 +821,7 @@ def vrel_vertical_settling(sim):
     -------
     vrel : Field
         Relative velocities"""
-    return dust_f.vrel_vertical_settling(sim.dust.H, sim.grid.OmegaK, sim.dust.St/sim.gas.gamma[:,np.newaxis]**0.5)
-
-def vrel_turbulent_motion(sim):
-    """Function calculates the relative particle velocities due to turbulent motion.
-    It uses the prescription of Ormel & Cuzzi (2007).
-
-    Parameters
-    ----------
-    sim : Frame
-        Parent simulation frame
-
-    Returns
-    -------
-    vrel : Field
-        Relative velocities"""
-    return dust_f.vrel_ormel_cuzzi_2007(
-        sim.dust.delta.turb,
-        sim.gas.cs,
-        sim.gas.mu,
-        sim.grid.OmegaK,
-        sim.gas.rho,
-        sim.dust.St/sim.gas.gamma[:,np.newaxis]**0.5)
-
+    return dust_f.vrel_vertical_settling(sim.dust.H, sim.grid.OmegaK, sim.dust.St)
 
 
 
@@ -879,10 +859,30 @@ def q_frag(sim):
         sim.dust.q.turb2,
         sim.dust.q.drfrag,
         sim.gas.alpha,
-        sim.gas.rho,
-        sim.gas.cs,
-        sim.grid.OmegaK,
+        sim.gas.Sigma,
         sim.gas.mu)
+
+def q_rec(sim):
+    """
+    Function computes the power law exponent of the size distribution
+    n(a) da = a^q da
+
+    Parameters
+    ----------
+    Sigma : array-like
+        Dust surface densities
+    smin : array-like
+        Minimum particle sizes
+    smax : array-like
+        Maximum particle sizes
+
+    Returns
+    -------
+    q : array-like
+        Size distribution exponent
+    """
+    return np.log(sim.dust.Sigma[..., 1]/sim.dust.Sigma[..., 0]) / np.log(np.sqrt(sim.dust.s.max/sim.dust.s.min)) - 4.
+
 
 def p_frag_trans(sim):
     """
@@ -897,9 +897,7 @@ def p_frag_trans(sim):
 
     return dust_f.pfrag_trans(sim.dust.St[:, -1],
         sim.gas.alpha,
-        sim.gas.rho,
-        sim.gas.cs,
-        sim.grid.OmegaK,
+        sim.gas.Sigma,
         sim.gas.mu)
 
 
@@ -917,22 +915,19 @@ def p_drift(sim):
     # where does the 0.3 come from
     st_mx    = sim.dust.St[...,-1]
     st_mn    = 0.5*st_mx
-    Re = sim.gas.alpha * 2e-15 * sim.gas.rho * sim.gas.cs / sim.grid.OmegaK / sim.gas.mu 
+    Re = 0.5 * sim.gas.alpha * 2e-15 * sim.gas.Sigma/ sim.gas.mu 
     vgas     = (1.5*sim.gas.alpha)**0.5*sim.gas.cs
-    vsmall   = vgas * ((st_mx-st_mn)/(st_mx+st_mn) * (st_mx**2/(st_mx+Re**-0.5) - st_mn**2./(st_mn+Re**-0.5)))**0.5
+    vsmall   = vgas * ((st_mx-st_mn)/(st_mx+st_mn) * (st_mx**2./(st_mx+Re**-0.5) - st_mn**2./(st_mn+Re**-0.5)))**0.5
     vinter   = vgas * (2.292*st_mx)**0.5
     pint = p_frag_trans(sim)
     psmall = 1. - pint
     vtr_simp = psmall*vsmall + pint*vinter
 
-    f_dt = 0.3 * vtr_simp/(dv_drmax)
-    f_dt[dv_drmax == 0] = 1e100
+    f_dt = np.where(dv_drmax != 0, 0.3 * vtr_simp / dv_drmax, 1e100)
 
     # Eq. A.4
-    pdr = 0.5 +  0.5 * ((1.0 - f_dt**6) / (f_dt**6 + 1.0))
-    pdr[f_dt  > 100] = 0
-    pdr[f_dt  < 0.001] = 1
-
+    pdr = np.where( f_dt < 1e100, 0.5 + 0.5 * ((1.0 - f_dt**6) / (f_dt**6 + 1.0)),0.0)
+    
     return pdr
 
 def D_mod(sim):
@@ -953,6 +948,7 @@ def D_mod(sim):
     The diffusivity at the first and last two radial
     grid cells will be set to zero to avoid unwanted
     behavior at the boundaries."""
+    # warning this is only done beacuse opf the pluto code -> times gammma factor athe the end
     v2 = sim.dust.delta.rad * sim.gas.cs**2
     Diff = dp_dust_f.d(v2, sim.grid.OmegaK, sim.dust.St*sim.dust.f.drift)
     Diff[:2, ...] = 0.
@@ -1136,13 +1132,12 @@ def _f_impl_1_direct(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
 
     S_Sigma_ext = np.zeros_like(dust.Sigma)
     S_Sigma_ext[1:-1, ...] += dust.S.ext[1:-1, ...]
-    S_Sigma_ext[1:-1, ...] += dust.S.coag[1:-1,...]
     
 
     # smax*Sigma (product rule)
     S_smax_expl = np.zeros_like(dust.s.max)
     S_smax_expl[1:-1] = s_max_deriv[1:-1] * dust.Sigma[1:-1, 1] \
-        + S_Sigma_ext[1:-1, 1] * dust.s.max[1:-1]
+        + (dust.S.ext[1:-1,1] + dust.S.coag[1:-1,1]) * dust.s.max[1:-1] 
     # Stitching both parts together
     S = np.hstack((S_Sigma_ext.ravel(), S_smax_expl))
 

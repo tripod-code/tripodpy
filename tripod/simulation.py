@@ -5,6 +5,7 @@ from simframe import Instruction
 from simframe import Integrator
 from simframe import schemes
 from simframe.frame import Field
+from simframe.io.writers import hdf5writer
 from . import std
 
 
@@ -39,6 +40,8 @@ class Simulation(dp.Simulation):
         self.dust.q.sweep = None
         self.dust.q.turb1 = None
         self.dust.q.turb2 = None
+        self.dust.qrec = None
+        self.dust.S.shrink = None
         self.dust.q.updater = ["frag", "eff"]
         self.dust.addgroup("s", description="Characteristic particle sizes")
         self.dust.s.min = None
@@ -70,13 +73,18 @@ class Simulation(dp.Simulation):
         addelemtafter(updtordr, "f", "p")
         # move "a" after "f"
         updtordr.remove("a")
-        addelemtafter(updtordr, "a", "f")
+        updtordr.remove("p")
+        addelemtafter(updtordr, "qrec", "f")
+
+        addelemtafter(updtordr, "a", "qrec")
         # Add "m" after "a"
         addelemtafter(updtordr, "m", "a")
+
+        addelemtafter(updtordr, "p", "m")
         # Add "q" after "m"
-        addelemtafter(updtordr, "q", "m")
+        addelemtafter(updtordr, "q", "p")
         # Add "SigmaFloor" after "m"
-        addelemtafter(updtordr, "SigmaFloor", "m")
+        addelemtafter(updtordr, "SigmaFloor", "q")
         # Removing elements that are not used
         updtordr.remove("kernel")
         # Assign updateorder
@@ -238,7 +246,7 @@ class Simulation(dp.Simulation):
 
         # Set writer
         if self.writer is None:
-            self.writer = dp.utils.hdf5writer()
+            self.writer = hdf5writer()
 
     def _initializedust(self):
         '''Function to initialize dust quantities'''
@@ -372,6 +380,10 @@ class Simulation(dp.Simulation):
                 "tot", np.zeros(shape2Sigma), description="Total sources [g/cm²/s]"
             )
             self.dust.S.tot.updater = std.dust.S_tot
+        if self.dust.S.shrink is None:
+            self.dust.S.addfield(
+                "shrink", np.zeros(shape2Sigma), description="Total sources [g/cm²/s]"
+            )
         # Stokes number
         if self.dust.St is None:
             self.dust.addfield(
@@ -380,7 +392,7 @@ class Simulation(dp.Simulation):
             self.dust.St.updater = dp.std.dust.St_Epstein_StokesI
         # Velocities
         if self.dust.v.frag is None:
-            vfrag = self.ini.dust.vfrag * np.ones(shape1)
+            vfrag = self.ini.dust.vFrag * np.ones(shape1)
             self.dust.v.addfield(
                 "frag", vfrag, description="Fragmentation velocity [cm/s]"
             )
@@ -403,7 +415,7 @@ class Simulation(dp.Simulation):
             self.dust.v.rel.addfield(
                 "turb", np.zeros(shape3), description="Relative turbulent velocity [cm/s]"
             )
-            self.dust.v.rel.turb.updater = std.dust.vrel_turbulent_motion
+            self.dust.v.rel.turb.updater = dp.std.dust.vrel_turbulent_motion
         if self.dust.v.rel.vert is None:
             self.dust.v.rel.addfield(
                 "vert", np.zeros(shape3), description="Relative vertical settling velocity [cm/s]"
@@ -442,6 +454,11 @@ class Simulation(dp.Simulation):
                 "frag", np.ones(shape1), description="Fragmentation distribution exponent"
             )
             self.dust.q.frag.updater = std.dust.q_frag
+        if self.dust.qrec is None:
+            self.dust.addfield(
+                "qrec",q , description="reconstructed distribution exponent"
+            )
+            self.dust.qrec.updater = std.dust.q_rec
         if self.dust.q.turb1 is None:
             self.dust.q.addfield(
                 "turb1", -3.5, description="Size distribution exponent in first turbulence regime"
@@ -535,7 +552,7 @@ class Simulation(dp.Simulation):
             shape2Sigmaravel), description="Right-hand side of matrix equation [g/cm²]"
         )
         # storing coagulation and shrinkage separately to be able to ignore the shrinkate in the timestep  computation
-        self.dust.s._sdot_coag = Field(
+        self.dust.s.sdot_coag = Field(
             self, np.zeros(shape1),
             description="coagulation source term for amax [cm/s]"
         )
@@ -543,7 +560,6 @@ class Simulation(dp.Simulation):
             self, np.zeros(shape1),
             description="shrinkage source term for amax [cm²/s]",
         )
-        self.dust.S.ext.updater = std.dust.S_shrink
         # State vector
         self.dust.addfield("_Y", np.zeros((int(self.grid._Nm_short) + 1) * int(self.grid.Nr)),
                            description="Dust state vector (Sig1, Sig2, a_max * Sig1)")
