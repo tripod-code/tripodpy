@@ -516,7 +516,7 @@ subroutine pdriftfrag(dv_rad,dv_az, St_max, alpha, SigmaGas, mump, cs,p_frag_tra
 
 
     do ir = 1 , Nr
-        dv_drmax = (dv_rad(ir)**2 + dv_az(ir)**2)**0.5d0
+        dv_drmax = max((dv_rad(ir)**2 + dv_az(ir)**2)**0.5d0, 1d-10)
         st_mx = St_max(ir)
         St_mn = 0.5d0 * St_max(ir)
         Re = 0.5d0 * alpha(ir) * SigmaGas(ir) * sigma_H2 / mump(ir)
@@ -527,6 +527,7 @@ subroutine pdriftfrag(dv_rad,dv_az, St_max, alpha, SigmaGas, mump, cs,p_frag_tra
 
         f_dt = 0.3d0*v_tr_s/dv_drmax
         p_driftfrag(ir) =  0.5d0 + 0.5d0 * ((1.0d0 - f_dt**6) / (f_dt**6 + 1.0d0))
+        if(p_driftfrag(ir) .ne. p_driftfrag(ir)) p_driftfrag(ir) = 0.0d0
     enddo 
 
 end subroutine pdriftfrag

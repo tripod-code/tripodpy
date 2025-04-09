@@ -112,7 +112,6 @@ def dt_smax(sim):
     f = sim.dust.Sigma[:,1]/sim.dust.Sigma.sum(-1)
     mask2 = np.logical_and(mask2, f<0.43)
     smax_dot_hyd = sim.dust.S.smax_hyd
-    sim.dust.s.max.derivative()
 
     smax_dot = np.minimum(np.abs(sim.dust.s.sdot_coag[1:-1]) , np.abs(sim.dust.s.sdot_coag[1:-1]+smax_dot_hyd[1:-1]))
     dt = sim.dust.s.max[1:-1] / (smax_dot + 1e-100)
@@ -141,6 +140,7 @@ def prepare(sim):
     # Storing current surface density
     sim.dust._SigmaOld[...] = sim.dust.Sigma[...]
     sim.dust.s._maxOld = sim.dust.s.max
+    sim.dust.s._prev_sdot_coag = sim.dust.s.sdot_coag
     s_max_deriv = sim.dust.s.max.derivative()
     sim.dust.S.shrink = S_shrink(sim)
     enforce_f(sim)
@@ -665,6 +665,18 @@ def smax_deriv(sim, t, smax):
         sim.dust.Sigma,
         sim.dust.SigmaFloor)
 
+    # Prevents unwanted growth of smax at the inner boundary Experimental
+    if(True):
+        mask = (sim.dust.v.rel.tot[:, -2, -1]/ sim.dust.v.frag) > 0.94
+        damp_factor = 0.05
+        r0 = 2.5e-1*c.au
+        ir = np.argmin(abs(r0-sim.grid.r))
+        width = 5e-2*c.au
+        damp_coag = damp_factor + (1 - damp_factor) * (0.5 * (1 + np.tanh((sim.grid.r - r0) / width)))
+        damp_coag = damp_factor + (1 - damp_factor) / (1 + np.exp(-(sim.grid.r - r0) / width))
+
+        if(mask[0:ir].all()):
+            ds_coag *= damp_coag
 
     sim.dust.s.sdot_shrink = np.zeros_like(sim.dust.s.max)
     sim.dust.s.sdot_coag = ds_coag
@@ -1029,34 +1041,12 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
     col_max_adv= np.hstack((np.arange(Nr - 1), np.arange(Nr), np.arange(Nr - 1) + 1))
     dat_max_adv = np.hstack((A.ravel()[1:], B.ravel(), C.ravel()[:-1]))
 
-
-
-    dat_coag, row_coag, col_coag = dust_f.jacobian_coagulation_generator(
-        # here we compute the cross section where the first entry is
-        # the cross section of (a0, a1) and the second of (a1, fudge * a1)
-        np.pi * (sim.dust.a[:, [0, 2]]+sim.dust.a[:, [2, 1]])**2,
-        # same for the relative velocities
-        sim.dust.v.rel.tot[:, [0, 2], [2, 1]],
-        sim.dust.H[:, [0, 2]],
-        sim.dust.m[:, [0, 2]],
-        sim.dust.Sigma,
-        sim.dust.s.min,
-        sim.dust.s.max,
-        sim.dust.q.eff)
-    mask = col_coag %2 == 1
-    col_coag = col_coag[mask]
-    row_coag = row_coag[mask]
-    dat_coag = dat_coag[mask]
-    row_coag =(row_coag-1)/Nm_s
-    col_coag = (col_coag-1)/Nm_s
-
     dat_in = np.zeros(3)
     row_in = np.zeros(3)
     col_in = np.arange(3)
 
 
-    
-    if sim.dust.boundary.inner is not None:
+    if sim.dust.s.boundary.inner.condition is not None:
         # Given value    
         if sim.dust.s.boundary.inner.condition == "const_grad":
             Di = ri[1] / ri[2] * (r[1] - r[0]) / (r[2] - r[0])
@@ -1065,15 +1055,25 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
             dat_in[1] = -K1 / dt
             dat_in[2] = -K2 / dt
             smaxSig_rhs[0] = 0.     
-        if sim.dust.s.boundary.inner.condition == "val":
+        elif sim.dust.s.boundary.inner.condition == "val":
             #dust value times the maximal size at the time
             smaxSig_rhs[0] =  sim.dust.s.boundary.inner.value
 
-        if sim.dust.s.boundary.inner.condition == "const_val":
+        elif sim.dust.s.boundary.inner.condition == "const_val":
             # const_val
             dat_in[1] = 1. / dt
             smaxSig_rhs[0] = 0.
-        # to do pow and const_pow 
+        elif sim.dust.s.boundary.inner.condition == "pow":
+            p = sim.dust.s.boundary.inner.value
+            dat_in[1] =  (r[0]/r[1])**p/dt
+            smaxSig_rhs[0] = 0.
+
+        elif sim.dust.s.boundary.inner.condition == "const_pow":
+            p = np.log(smaxSig[2] / smaxSig[1]) / \
+                np.log(r[2]/r[1])
+            K1 = -(r[0]/r[1])**p
+            dat_in[1] = -K1/dt
+            smaxSig_rhs[0] = 0.
 
 
     #outer boundary
@@ -1101,9 +1101,9 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
         # to do pow and const_pow
 
     # Stitching together the generators
-    row = np.hstack((row_max_adv,row_coag, row_in, row_out))
-    col = np.hstack((col_max_adv,col_coag, col_in, col_out))
-    dat = np.hstack((dat_max_adv, dat_coag, dat_in, dat_out))
+    row = np.hstack((row_max_adv, row_in, row_out))
+    col = np.hstack((col_max_adv, col_in, col_out))
+    dat = np.hstack((dat_max_adv, dat_in, dat_out))
 
     gen = (dat, (row, col))
     # Building sparse matrix of coagulation Jacobian
@@ -1173,7 +1173,7 @@ def _f_impl_1_direct(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     # smax*Sigma (product rule)
     S_smax_expl = np.zeros_like(dust.s.max)
     S_smax_expl[1:-1] = s_max_deriv[1:-1] * dust.Sigma[1:-1, 1] \
-        + (dust.S.ext[1:-1,1]) * dust.s.max[1:-1] 
+        + (dust.S.ext[1:-1,1] + dust.S.coag[1:-1,1]) * dust.s.max[1:-1] 
     # Stitching both parts together
     S = np.hstack((S_Sigma_ext.ravel(), S_smax_expl))
 
