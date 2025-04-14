@@ -3,7 +3,7 @@ build-backend = 'mesonpy'
 requires = ['meson-python', 'numpy']
 
 [project]
-name = 'tripod'
+name = 'TriPoD'
 version = '0.0.1'
 description = 'Tri-population method for dust evolution in protoplanetary disks'
 readme = { file = 'README.md', content-type = 'text/markdown' }

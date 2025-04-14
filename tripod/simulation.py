@@ -10,15 +10,13 @@ from . import std
 
 class Simulation(dp.Simulation):
     """The main simulation class for running dust evolution simulations.
-    `twopoppy.Simulation`` is a child of ``dustpy.Simulation``,
+    `tripod.Simulation`` is a child of ``dustpy.Simulation``,
     which is in turn a child of ``simframe.Frame``.
     For setting simple initial conditions use ``Simulation.ini``,
     For making the simulation grids use ``Simulation.makegrids()``,
     For initialization use ``Simulation.initialize()``,
     For running simulations use ``Simulation.run()``.
     Please have a look at the documentation of ``simframe`` for further details."""
-
-    __name__ = "TwoPopPy"
 
     # Exclude the following functions from the from DustPy inherited object
     _excludefromdustpy = [
@@ -91,7 +89,7 @@ class Simulation(dp.Simulation):
 
         # TODO (Sebastian) Managing the self.ini object
 
-    # Note: the next two functions are to hide methods from DustPy that are not used in TwoPopPy
+    # Note: the next two functions are to hide methods from DustPy that are not used in TriPoD
     def __dir__(self):
         '''This function hides all attributes in _excludefromparten from inherited DustPy object.
         It is only hiding them. They can still be accessed.'''
@@ -100,7 +98,7 @@ class Simulation(dp.Simulation):
 
     def __getattribute__(self, name):
         '''This function raises an attribute error for elements that should not be inherited from DustPy if they
-        were not manually set in TwoPopPy.'''
+        were not manually set in TriPoD.'''
         in_tp = name in super(
             dp.Simulation, self).__getattribute__("__dict__")
         in_dp = name in dp.Simulation.__dict__
@@ -115,7 +113,7 @@ class Simulation(dp.Simulation):
         # Print welcome message
         if self.verbosity > 0:
             msg = ""
-            msg += "\nTwoPopPy v{}".format(self.__version__)
+            msg += "\nTriPoD v{}".format(self.__version__)
             msg += "\n"
             print(msg)
         # Actually run the simulation
@@ -219,7 +217,7 @@ class Simulation(dp.Simulation):
 
         # Set writer
         if self.writer is None:
-            self.writer = dp.utils.hdf5writer()
+            self.writer = dp.hdf5writer()
 
     def _initializedust(self):
         '''Function to initialize dust quantities'''
@@ -361,7 +359,7 @@ class Simulation(dp.Simulation):
             self.dust.St.updater = dp.std.dust.St_Epstein_StokesI
         # Velocities
         if self.dust.v.frag is None:
-            vfrag = self.ini.dust.vfrag * np.ones(shape1)
+            vfrag = self.ini.dust.vFrag * np.ones(shape1)
             self.dust.v.addfield(
                 "frag", vfrag, description="Fragmentation velocity [cm/s]"
             )
@@ -477,7 +475,7 @@ class Simulation(dp.Simulation):
 
         # Floor value
         if self.dust.SigmaFloor is None:
-            # TODO: What is a reasonable value for this in TwoPopPy
+            # TODO: What is a reasonable value for this in TriPoD
             SigmaFloor = 1.e-50 * np.ones(shape2Sigma)
             self.dust.addfield(
                 "SigmaFloor", SigmaFloor, description="Floor value of surface density [g/cm²]"
