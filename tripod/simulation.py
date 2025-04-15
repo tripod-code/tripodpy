@@ -122,8 +122,6 @@ class Simulation(dp.Simulation):
         del self.grid.m
         del self.grid.Nm
 
-        # TODO (Sebastian) Managing the self.ini object
-
     # Note: the next two functions are to hide methods from DustPy that are not used in TriPoD
     def __dir__(self):
         '''This function hides all attributes in _excludefromparten from inherited DustPy object.
@@ -342,7 +340,6 @@ class Simulation(dp.Simulation):
             self.dust.Fi.addfield(
                 "tot", np.zeros(shape2p1Sigma), description="Total flux [g/cm/s]"
             )
-            # TODO: check if DustPy updater works here
             self.dust.Fi.tot.updater = dp.std.dust.F_tot
         # Filling factor
         if self.dust.fill is None:
@@ -406,7 +403,7 @@ class Simulation(dp.Simulation):
                 "tot", np.zeros(shape2Sigma), description="Total sources [g/cm²/s]"
             )
             self.dust.S.tot.updater = std.dust.S_tot
-            
+
         if self.dust.S.smax_hyd is None:
             self.dust.S.addfield(
                 "smax_hyd", np.zeros(shape1), description="Total sources [g/cm²/s]"
@@ -431,17 +428,17 @@ class Simulation(dp.Simulation):
             self.dust.v.rel.addfield(
                 "azi", np.zeros(shape3), description="Relative azimuthal velocity [cm/s]"
             )
-            self.dust.v.rel.azi.updater = std.dust.vrel_azimuthal_drift
+            self.dust.v.rel.azi.updater = dp.std.dust.vrel_azimuthal_drift
         if self.dust.v.rel.brown is None:
             self.dust.v.rel.addfield(
                 "brown", np.zeros(shape3), description="Relative Brownian motion velocity [cm/s]"
             )
-            self.dust.v.rel.brown.updater = std.dust.vrel_brownian_motion
+            self.dust.v.rel.brown.updater = dp.std.dust.vrel_brownian_motion
         if self.dust.v.rel.rad is None:
             self.dust.v.rel.addfield(
                 "rad", np.zeros(shape3), description="Relative radial velocity [cm/s]"
             )
-            self.dust.v.rel.rad.updater = std.dust.vrel_radial_drift
+            self.dust.v.rel.rad.updater = dp.std.dust.vrel_radial_drift
         if self.dust.v.rel.turb is None:
             self.dust.v.rel.addfield(
                 "turb", np.zeros(shape3), description="Relative turbulent velocity [cm/s]"
@@ -451,7 +448,7 @@ class Simulation(dp.Simulation):
             self.dust.v.rel.addfield(
                 "vert", np.zeros(shape3), description="Relative vertical settling velocity [cm/s]"
             )
-            self.dust.v.rel.vert.updater = std.dust.vrel_vertical_settling
+            self.dust.v.rel.vert.updater = dp.std.dust.vrel_vertical_settling
         if self.dust.v.rel.tot is None:
             self.dust.v.rel.addfield(
                 "tot", np.zeros(shape3), description="Total relative velocity [cm/s]"
