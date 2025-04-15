@@ -587,7 +587,6 @@ subroutine jacobian_coagulation_generator(sig, dv, H, m, Sigma, smin, smax, qeff
     integer :: k
     integer :: start
 
-    ! #TODO: here we do not include the shinkage term yet
 
     ! Initialization
     jac(:, :, :) = 0.d0
@@ -689,7 +688,6 @@ subroutine s_coag(sig, dv, H, m, Sigma, smin, smax, qeff,Sigmin, S, Nr, Nm)
     dot01(:) = Sigma(:, 1) * Sigma(:, 2) * sig(:, 1) * dv(:, 1) / (m(:, 2) * SQRT(2.d0 * pi * (H(:, 1)**2 + H(:, 2)**2)))
     dot10(:) = Sigma(:, 2)**2 * sig(:, 2) * dv(:, 2) * F(:) / (2.d0 * m(:, 2) * SQRT(pi) * H(:, 2))
 
-    !#TODO: here we do not include the shinkage term yet
     where(sum(Sigma, dim=2) .gt. sum(Sigmin, dim=2))
         S(:, 1) = dot10(:) - dot01(:)
         S(:, 2) = -S(:, 1)
@@ -743,8 +741,6 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, &
     double precision :: f
     double precision :: thr
 
-    ! #TODO: here we do not include the shinkage term yet
-
     ! Initialization
     dsmax(:) = 0.d0
 
@@ -775,126 +771,6 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, &
 
 end subroutine smax_deriv
 
-subroutine smax_deriv_shrink(dt, slim, f_crit, smax, Sig, sdot, nr, nm)
-    ! Subroutine calculates the shrinkage source term.
-    !
-    ! Parameters
-    ! ----------
-    ! dt : time scale of shinakge for each radius
-    ! slim : limiting size for shrinkage
-    ! f_crit : mass fraction below which Sig1 should not drop
-    ! smax : Maximum particle size
-    ! Sig : Dust surface densities
-    ! Nr : Number of radial grid cells
-    !
-    ! Returns
-    ! -------
-    ! sdot(Nr) : Shrinkage source term
-
-    implicit none
-
-    double precision, intent(in) :: dt(Nr)
-    double precision, intent(in) :: slim
-    double precision, intent(in) :: f_crit
-    double precision, intent(in) :: smax(Nr)
-    double precision, intent(in) :: Sig(Nr, Nm)
-    double precision, intent(out) :: sdot(Nr)
-
-    double precision :: t_dep(Nr)
-    double precision :: eps_crit(Nr)
-    double precision :: sdot_max(Nr)
-
-    integer, intent(in) :: Nr, Nm
-
-    eps_crit = f_crit * (Sig(:, 1) + Sig(:, 2))
-    where (Sig(:, 2) .gt. f_crit * (Sig(:, 1) + Sig(:, 2)) .or. smax .le. slim)
-        sdot = 0d0
-    elsewhere
-        t_dep = abs(Sig(:, 2)/(-(eps_crit - Sig(:,2))/dt))
-        
-        !the factor of 1+t_dep is differnt that in the paper
-        sdot = smax /t_dep * (1d0 - smax / slim)
-        !limitng factor to be changed
-        sdot_max = 0.4*smax/dt 
-        sdot =  sdot *sdot_max/sqrt(sdot**2 + sdot_max**2)
-    end where
-
-end subroutine smax_deriv_shrink
-
-subroutine smax_deriv_shrink_2(dt, alim, q,  f_crit, amax,amin, Sig, sdot, nr, nm)
-    ! Subroutine calculates the shrinkage source term.
-    !
-    ! Parameters
-    ! ----------
-    ! dt : time scale of shinakge for each radius
-    ! slim : limiting size for shrinkage
-    ! f_crit : mass fraction below which Sig1 should not drop
-    ! smax : Maximum particle size
-    ! Sig : Dust surface densities
-    ! Nr : Number of radial grid cells
-    !
-    ! Returns
-    ! -------
-    ! sdot(Nr) : Shrinkage source term
-
-    implicit none
-
-    double precision, intent(in) :: dt
-    double precision, intent(in) :: alim
-    double precision, intent(in) :: q(Nr)
-    double precision, intent(in) :: f_crit
-    double precision, intent(in) :: amax(Nr)
-    double precision, intent(in) :: amin(Nr)
-    double precision, intent(in) :: Sig(Nr, Nm)
-    double precision, intent(out) :: sdot(Nr)
-
-    double precision :: Sig_crit(Nr)
-    double precision :: Sig_tot(Nr)
-    double precision :: dsig1dt(Nr)
-    double precision :: sdot_max(Nr)
-    double precision :: xi(Nr)
-    double precision :: dum1(Nr)
-    double precision :: dsig1da(Nr)
-
-    integer, intent(in) :: Nr, Nm
-
-    xi = q + 4d0   
-    dum1 = (amax * amin)**(0.5*xi)
-    Sig_tot = Sig(:, 1) + Sig(:, 2)
-    Sig_crit = f_crit * (Sig(:, 1) + Sig(:, 2))
-    dsig1dt = 0d0
-    dsig1da = 0d0
-
-
-    where (Sig(:, 2) .ge. Sig_crit .or. amax .le. alim .or. xi .eq. 0d0)    
-        dsig1dt = 0d0
-    elsewhere
-        dsig1dt = (Sig_crit - Sig(:, 2)) / dt
-    end where
-
-    where (xi .eq. 0d0 .or. Sig(:, 2) .ge. Sig_crit .or. amax .le. alim)
-        dsig1da = 0.0d0
-    elsewhere
-        dsig1da = abs(sig_tot * xi * (0.5d0 * amin**xi * dum1 + amax**xi * (0.5d0 * (dum1 - amin**xi))) &
-        / (amax * (amax**xi - amin**xi)**2))
-    end where
-
-    sdot_max = 0.1*amax/dt
-
-    where (dsig1da .ne. dsig1da)
-        dsig1da = 0d0
-    end where
-
-    where(dsig1da .ne. 0d0)
-        sdot = -dsig1dt/dsig1da
-    elsewhere
-        sdot = 0d0
-    end where
-
-    sdot  = sdot * sdot_max/sqrt(sdot**2 + sdot_max**2)
-
-
-end subroutine smax_deriv_shrink_2
 
 subroutine dadsig(alim, q,  f_crit, amax,amin, Sig, dadsig1, nr, nm)
     ! Subroutine calculates the shrinkage source term.
@@ -1016,177 +892,6 @@ subroutine dsigda(alim, q,  f_crit, amax,amin, Sig, dsig1da, nr, nm)
 
 
 end subroutine dsigda
-
-
-
-
-
-subroutine sig_deriv_shrink(Sig, amin, amax,alim,q,dt,f_crit, adot_shrink, Sigdot_shrink, Nr, Nm)
-    ! Subroutine calculates the derivative of the dust surface density
-    ! caused by the shrinkage of the maximum particle size.
-    !
-    ! Parameters
-    ! ----------
-    ! Sig(Nr, Nm) : Dust surface densities
-    ! amin(Nr) : Minimal particle size
-    ! amax(Nr) : Maximum particle size
-    ! xi(Nr) : Size distribution exponent (q+4)
-    ! adot_shrink(Nr) : Shrinkage source term for the particle size
-    ! Nr : Number of radial grid cells
-    ! Nm : Number of size bins
-    !
-    ! Returns
-    ! -------
-    ! Sigdot_shrink(Nr) : Shrinkage source term
-
-    implicit none
-
-    double precision, intent(in) :: Sig(Nr, Nm)
-    double precision, intent(in) :: amin(Nr)
-    double precision, intent(in) :: amax(Nr)
-    double precision, intent(in) :: alim
-    double precision, intent(in) :: q(Nr)
-    double precision, intent(in) :: dt
-    double precision, intent(in) :: f_crit
-    double precision, intent(in) :: adot_shrink(Nr)
-    double precision, intent(out) :: Sigdot_shrink(Nr,Nm)
-
-    integer, intent(in) :: Nr, Nm
-    double precision :: dum2(Nr)
-    double precision :: Sig_crit(Nr)
-    double precision :: xi(Nr)
-    double precision :: sig_tot(Nr)
-
-    xi = q + 4d0
-    sig_tot = Sig(:, 1) + Sig(:, 2)
-    Sig_crit = f_crit * (Sig(:, 1) + Sig(:, 2))
-    
-    dum2 = 0 
-    where (Sig(:, 2) .ge. Sig_crit .or. amax .le. alim .or. xi .eq. 0d0)
-        dum2 = 0d0
-    elsewhere
-        dum2 = (Sig_crit - Sig(:, 2)) / dt
-    end where
-
-
-    Sigdot_shrink(:, 1) = -dum2
-    Sigdot_shrink(:, 2) = dum2
-
-end subroutine sig_deriv_shrink
-
-
-
-subroutine jacobian_shrink_generator(Sigma, smin, smax,slim,  q, dt,f_crit,amax_dot, dat, row, col, Nr, Nm)
-    ! Subroutine calculates the coagulation Jacobian at every radial grid cell except for the boundaries.
-    !
-    ! Parameters
-    ! ----------
-    ! Sigma(Nr, Nm) : Dust surface densities
-    ! smin(Nr) : Minimum particle size
-    ! smax(Nr) : Maximum particle size
-    ! amax_dot(Nr) : drivative of max particle size
-    ! Nr : Number of radial grid cells
-    ! Nm : Number of sizes, should be 2
-    !
-    ! Returns
-    ! -------
-    ! dat((Nr-2)*Nm*Nm) : Non-zero elements of Jacobian
-    ! row((Nr-2)*Nm*Nm) : row location of non-zero elements
-    ! col((Nr-2)*Nm*Nm) : column location of non-zero elements
-
-    use constants, only : pi
-
-    implicit none
-
-    double precision, intent(in) :: Sigma(Nr, Nm)
-    double precision, intent(in) :: smin(Nr)
-    double precision, intent(in) :: smax(Nr)
-    double precision, intent(in) :: slim
-    double precision, intent(in) :: q(Nr)
-    double precision, intent(in) :: dt
-    double precision, intent(in) :: f_crit
-    double precision, intent(in) :: amax_dot(Nr)
-    double precision, intent(out) :: dat((Nr - 2) * Nm * Nm)
-    integer, intent(out) :: row((Nr - 2) * Nm * Nm)
-    integer, intent(out) :: col((Nr - 2) * Nm * Nm)
-    integer, intent(in) :: Nr
-    integer, intent(in) :: Nm
-
-    double precision :: jac(Nr, Nm, Nm)
-    double precision :: xi(Nr)
-    double precision :: dum1(Nr)
-    double precision :: dum2(Nr)
-    double precision :: Sig_crit(Nr)    
-
-
-    integer :: ir
-    integer :: i
-    integer :: j
-    integer :: k
-    integer :: start
-
-    ! #TODO: here we do not include the shinkage term yet
-
-    ! Initialization
-    jac(:, :, :) = 0.d0
-    dat(:) = 0.d0
-    row(:) = 0
-    col(:) = 0
-
- 
-    xi = q(:) + 4.d0
-    dum1 = (smax * smin)**(0.5*xi)
-    ! here collisions between large and small dust use a0 and a1
-    ! which corresponds to a(1, 3) in the full size array (with helper sizes).
-    where(xi .eq. 0d0)
-        dum2 = 0.0d0
-    elsewhere
-        dum2 =  xi * (0.5d0 * smin**xi * dum1 + smax**xi * (0.5d0 * (dum1 - smin**xi))) / (smax * (smax**xi - smin**xi)**2)
-    end where
-
-    where (dum2 .ne. dum2)
-        dum2 = 0.0d0
-    end where
-
-    dum2 = dum2 * amax_dot
-
-    dum2 = max(dum2, 0d0)
-
-    Sig_crit = f_crit * (Sigma(:, 1) + Sigma(:, 2))
-
-    dum2 = 0d0 
-    dum1 = 0d0
-    where (Sigma(:, 2) .ge. Sig_crit .or. smax .le. slim .or. xi .eq. 0d0)
-        dum2 = 0d0
-        dum1 = 0d0
-    elsewhere
-        dum2 = (f_crit - 1.) / dt
-        dum1 = f_crit/dt 
-
-    end where
-
-    !check if the signs are correct
-    jac(:, 1, 1) = -dum1
-    jac(:, 2, 1) = dum1
-
-    jac(:, 1, 2) = -dum2
-    jac(:, 2, 2) = dum2
-
-    ! Filling the data array
-    k = 1
-    do ir = 2, Nr - 1
-        start = (ir - 1) * Nm - 1
-        do i = 1, Nm
-            do j = 1, Nm
-                dat(k) = jac(ir, i, j)
-                row(k) = start + i
-                col(k) = start + j
-                k = k + 1
-            end do
-        end do
-    end do
-
-end subroutine jacobian_shrink_generator
 
 subroutine fi_diff_no_limit(D, SigmaD, SigmaG, St, u, r, ri, Fi, Nr, Nm)
     ! Subroutine calculates the diffusive dust fluxes at the grid cell interfaces.

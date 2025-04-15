@@ -39,7 +39,6 @@ class Simulation(dp.Simulation):
         self.dust.q.turb1 = None
         self.dust.q.turb2 = None
         self.dust.qrec = None
-        self.dust.S.shrink = None
         self.dust.S.smax_hyd = None
         self.dust.q.updater = ["frag", "eff"]
         self.dust.addgroup("s", description="Characteristic particle sizes")
@@ -407,10 +406,7 @@ class Simulation(dp.Simulation):
                 "tot", np.zeros(shape2Sigma), description="Total sources [g/cm²/s]"
             )
             self.dust.S.tot.updater = std.dust.S_tot
-        if self.dust.S.shrink is None:
-            self.dust.S.addfield(
-                "shrink", np.zeros(shape2Sigma), description="Total sources [g/cm²/s]"
-            )
+            
         if self.dust.S.smax_hyd is None:
             self.dust.S.addfield(
                 "smax_hyd", np.zeros(shape1), description="Total sources [g/cm²/s]"

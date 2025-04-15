@@ -30,7 +30,6 @@ def dt(sim):
     dtsmax = dt_smax(sim)
     return np.minimum(dtSigma, dtsmax)
 
-# TODO: Check if this is still needed since we now use the one from dustpy
 
 
 def dt_Sigma(sim):
@@ -106,7 +105,6 @@ def dt_smax(sim):
     -------
     dt_smax : float
         Particle growth time step"""
-    # TODO: double check if this makes sense
     mask2 = sim.dust.S.tot[:, 1] < 0.
     mask2 = sim.dust.S.tot[:,1] * sim.dust.Sigma[:,0] - sim.dust.S.tot[:,0] * sim.dust.Sigma[:,1] < 0.
     f = sim.dust.Sigma[:,1]/sim.dust.Sigma.sum(-1)
@@ -142,7 +140,6 @@ def prepare(sim):
     sim.dust.s._maxOld = sim.dust.s.max
     sim.dust.s._prev_sdot_coag = sim.dust.s.sdot_coag
     s_max_deriv = sim.dust.s.max.derivative()
-    sim.dust.S.shrink = S_shrink(sim)
     enforce_f(sim)
     sim.dust.S.ext.update()
     sim.dust.S.coag.update()
@@ -214,7 +211,6 @@ def smax_initial(sim):
             * sim.dust.rhos[:, 0] * (sim.grid.OmegaK * sim.grid.r) ** 2. / sim.gas.cs ** 2. / gamma
         aIni = np.minimum(sim.ini.dust.aIniMax, ad)
 
-        # TODO: Sandro used this; we need to check if this is necessary
         # Enforce initial drift limit
         # sim.dust.q.eff = np.where(
         #     aIni < sim.ini.dust.aIniMax, sim.dust.q.sweep, sim.dust.q.eff)
@@ -719,7 +715,6 @@ def S_coag(sim, Sigma=None):
     # Prevents unwanted growth of smax
     return s_coag
 
-# TODO: check if this is still needed after the dustpy update
 
 
 def enforce_f(sim):
@@ -764,33 +759,6 @@ def S_tot(sim, Sigma=None):
         if Shyd is None:
             Shyd = sim.dust.S.hyd
     return Scoag + Shyd + Sext
-
-
-def S_shrink(sim, Sigma=None):
-    """Function calculates the source terms from dust shrinkage
-
-    Parameters
-    ----------
-    sim : Frame
-        Parent simulation frame
-    Sigma : Field, optional, default : None
-        Surface density to be used if not None
-
-    Returns
-    -------
-    Sshrink : Field
-        Source terms from dust shrinkage"""
-    if Sigma is None:
-        Sigma = sim.dust.Sigma
-    return dust_f.sig_deriv_shrink(
-        sim.dust.Sigma,
-        sim.dust.s.min,
-        sim.dust.s.max,
-        sim.dust.s.lim,
-        sim.dust.qrec,
-        sim.t.stepsize,
-        sim.dust.f.crit,
-        sim.dust.s.sdot_shrink)
 
 def vrel_brownian_motion(sim):
     """Function calculates the relative particle velocities due to Brownian motion.
