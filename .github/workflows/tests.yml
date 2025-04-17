@@ -1,0 +1,48 @@
+# .github/workflows/run-duffle.yml
+name: Run Duffle on Push
+
+on:
+  push:  # Runs on push to any branch
+    branches: ["**"]
+
+jobs:
+  run-duffle:
+    if: False  # Set to true if you want to run this job on every push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'  # Adjust if needed
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Optional: only if you use a requirements file
+
+      - name: Run Duffle.py
+        run: python ./tests/Duffle.py
+
+  run-smooth:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'  # Adjust if needed
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Optional: only if you use a requirements file
+
+      - name: Run Duffle.py
+        run: python ./tests/Smooth.py
