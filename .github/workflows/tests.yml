@@ -2,8 +2,7 @@
 name: Run Duffle on Push
 
 on:
-  push:  # Runs on push to any branch
-    branches: ["**"]
+  workflow_dispatch:  # 👈 This enables manual runs from GitHub UI
 
 jobs:
   run-duffle:
