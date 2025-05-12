@@ -526,6 +526,12 @@ subroutine jacobian_coagulation_generator(sig, dv, H, m, Sigma, smin, smax, qeff
     ! Filling the data array
     k = 1
     do ir = 2, Nr - 1
+        if(dv(ir, 1) == 0.d0 .or. dv(ir,2) == 0d0) then
+            jac(ir, 1, 1) = 0.d0
+            jac(ir, 1, 2) = 0.d0
+            jac(ir, 2, 1) = 0.d0
+            jac(ir, 2, 2) = 0.d0
+        end if
         start = (ir - 1) * Nm - 1
         do i = 1, Nm
             do j = 1, Nm
@@ -597,7 +603,7 @@ subroutine s_coag(sig, dv, H, m, Sigma, smin, smax, qeff,Sigmin, S, Nr, Nm)
     dot01(:) = Sigma(:, 1) * Sigma(:, 2) * sig(:, 1) * dv(:, 1) / (m(:, 2) * SQRT(2.d0 * pi * (H(:, 1)**2 + H(:, 2)**2)))
     dot10(:) = Sigma(:, 2)**2 * sig(:, 2) * dv(:, 2) * F(:) / (2.d0 * m(:, 2) * SQRT(pi) * H(:, 2))
 
-    where(sum(Sigma, dim=2) .gt. sum(Sigmin, dim=2))
+    where(sum(Sigma, dim=2) .gt. sum(Sigmin, dim=2) .and. dv(:, 1) .gt. 0.d0 .and. dv(:, 2) .gt. 0.d0)
         S(:, 1) = dot10(:) - dot01(:)
         S(:, 2) = -S(:, 1)
     elsewhere
@@ -662,7 +668,7 @@ subroutine smax_deriv(dv, rhod, rhos, smin, smax, vfrag, Sigma, SigmaFloor, &
 
             A = (dv(ir) / vfrag(ir)) ** 3
             B = (1.d0 - A) / (1.d0 + A)
-            B = 1.0d0 - 2.0d0 / (1.d0 + (vfrag(ir)/dv(ir))**3.d0)
+            !B = 1.0d0 - 2.0d0 / (1.d0 + (vfrag(ir)/dv(ir))**3.d0)
             dsmax(ir) = rhod(ir) / rhos(ir) * dv(ir) * B
 
             ! limiter to stall negative growth near the lower size limit
