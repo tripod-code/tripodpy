@@ -43,6 +43,11 @@ def prepare(sim):
         Parent simulation frame"""
     # Storing current surface density
     sim.gas._SigmaOld[:] = sim.gas.Sigma[:]
+    for name, comp in sim.gas.components.__dict__.items():
+        if name.startswith("_"):
+            continue
+        comp._SigmaOld[:] = comp.Sigma[:]
+
 
 
 def finalize(sim):
@@ -57,8 +62,37 @@ def finalize(sim):
     sim.gas.v.update()
     sim.gas.Fi.update()
     sim.gas.S.hyd.update()
-    set_implicit_boundaries(sim)
+    #set_implicit_boundaries(sim)
+    set_implicit_boundaries_compo(sim)
 
+#Modify 
+def set_implicit_boundaries_compo(sim):
+    """Function calculates the fluxes at the boundaries after the implicit integration step.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame"""
+    for name, comp in sim.gas.components.__dict__.items():
+        if name.startswith("_"):
+            continue
+        ret = gas_f.implicit_boundaries(
+            sim.t.prevstepsize,
+            comp.Fi,
+            sim.grid.ri,
+            comp.Sigma,
+            comp._SigmaOld
+        )
+
+        # Source terms
+        comp.S.tot[0] = ret[0]
+        comp.S.hyd[0] = ret[0]
+        comp.S.tot[-1] = ret[1]
+        comp.S.hyd[-1] = ret[1]
+
+        # Fluxes through boundaries
+        comp.Fi[0] = ret[2]
+        comp.Fi[-1] = ret[3]
 
 def set_implicit_boundaries(sim):
     """Function calculates the fluxes at the boundaries after the implicit integration step.

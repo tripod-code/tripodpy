@@ -675,6 +675,8 @@ class Simulation(dp.Simulation):
         self.gas.components.__dict__[name].addfield(
             "Sigma", Sigma, description="Surface density [g/cm²]")
         self.gas.components.__dict__[name].addfield(
+            "_SigmaOld", Sigma, description="Surface density [g/cm²]")
+        self.gas.components.__dict__[name].addfield(
             "Fi", np.zeros(self.grid.Nr + 1 ), description="Surface density [g/cm²]")
         self.gas.components.__dict__[name].Fi.updater = partial(std.gas.Fi_compo,compkey=name)
         # Adding source terms
