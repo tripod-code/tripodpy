@@ -17,16 +17,15 @@ def prepare(sim):
     ----------
     sim : Frame
         Parent simulation frame"""
-    Nm_s = int(sim.grid._Nm_short)
     Nr = int(sim.grid.Nr)
 
     # Copy values to state vector Y
-    for name, comp in sim.gas.components.__dict__.items():
-        if(name.startswith("_") or not comp.includedust):
+    for name, comp in sim.components.__dict__.items():
+        if(name.startswith("_") or not (comp.includedust and comp.includegas)):
             continue
 
-        comp._Y[:Nr] = comp.Sigma.ravel()
-        comp._Y[Nr:] = comp.dust.Sigma_dust.ravel()
+        comp._Y[:Nr] = comp.gas.Sigma.ravel()
+        comp._Y[Nr:] = comp.dust.Sigma.ravel()
     
 def finalize(sim):
     """Function finalizes implicit integration step.
@@ -35,15 +34,14 @@ def finalize(sim):
     ----------
     sim : Frame
         Parent integration frame"""
-    Nm_s = int(sim.grid._Nm_short)
     Nr = int(sim.grid.Nr)
 
-    for name, comp in sim.gas.components.__dict__.items():
-        if(name.startswith("_") or not comp.includedust):
+    for name, comp in sim.components.__dict__.items():
+        if(name.startswith("_") or not (comp.includedust and comp.includegas)):
             continue
 
-        comp.Sigma = comp._Y[:Nr].reshape(comp.Sigma.shape)
-        comp.dust.Sigma_dust = comp._Y[Nr:].reshape(comp.dust.Sigma_dust.shape)
+        comp.gas.Sigma = comp._Y[:Nr].reshape(comp.gas.Sigma.shape)
+        comp.dust.Sigma = comp._Y[Nr:].reshape(comp.dust.Sigma.shape)
 
 
 
@@ -87,13 +85,14 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
         J_Sigma_coo.col + J_Gas.shape[1],
         J_compo_coo.col
     ])
-    
+    #J_compo_coo.data *= 0
     # Combine data
     data = np.hstack([
         J_Gas_coo.data,
         J_Sigma_coo.data,
         J_compo_coo.data
     ])
+
 
     # Total size
     Ntot = J_Gas.shape[0] + J_Sigma.shape[0]
@@ -145,7 +144,7 @@ def _f_impl_1_direct_compo(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
 
     # Add external/explicit source terms to right-hand side
     name = kwargs.get("name")
-    comp = Y0._owner.gas.components.__dict__.get(name)
+    comp = Y0._owner.components.__dict__.get(name)
 
     r = Y0._owner.grid.r
     ri = Y0._owner.grid.ri
@@ -170,7 +169,7 @@ def _f_impl_1_direct_compo(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
 
     
 
-    S = np.hstack((comp.S.ext.ravel(), comp.dust.Sext_dust.ravel()))
+    S = np.hstack((comp.gas.S.ext.ravel(), comp.dust.S.ext.ravel()))
 
     # Right hand side
     rhs[...] += dx * S 
@@ -247,8 +246,6 @@ def jacobian_compo(sim, x, dx=None, *args, **kwargs):
     condensation[0] = 0
     condensation[Nr] = 0
 
-    #condensation[:Nm_s] = 0
-    #condensation[-Nm_s:] = 0
 
 
     #Gas affecting terms 
@@ -330,16 +327,16 @@ def L_condensation(sim,name=None,Pstick=1):
         Condensation source term for the given component
     """
     if name is None:
-        name = list(sim.gas.components.__dict__.keys())[0]
+        name = list(sim.components.__dict__.keys())[0]
             
-    comp = sim.gas.components.__dict__[name]
-    if not comp.includedust:
-        raise ValueError(f"Component {name} does not include dust.")
+    comp = sim.components.__dict__[name]
+    if not (comp.includedust and comp.includegas):
+        raise ValueError(f"Component {name} does not include evaporation and sublimation.")
     
     # Calculate the total surface area of all dust grains
     A = A_grains(sim)
 
-    L_con = A/4./(2*np.pi)**0.5 /  sim.gas.Hp[:,None] *((8.*c.k_B*sim.gas.T[:,None])/(np.pi*comp.mu))**0.5 * Pstick
+    L_con = A/4./(2*np.pi)**0.5 /  sim.gas.Hp[:,None] *((8.*c.k_B*sim.gas.T[:,None])/(np.pi*comp.gas.mu))**0.5 * Pstick
 
     return L_con
 
@@ -366,19 +363,19 @@ def L_sublimation(sim,name=None,N_bind=1e15):
     A = A_grains(sim)
 
     if name is None:
-        name = list(sim.gas.components.__dict__.keys())[0]
+        name = list(sim.components.__dict__.keys())[0]
             
-    comp = sim.gas.components.__dict__[name]
-    if not comp.includedust:
-        raise ValueError(f"Component {name} does not include dust.")
+    comp = sim.components.__dict__[name]
+    if not (comp.includedust and comp.includegas):
+        raise ValueError(f"Component {name} does not include evaporation and sublimation.")
     
 
-    N_layer = comp.dust.Sigma_dust/(A * N_bind*comp.mu)
+    N_layer = comp.dust.Sigma/(A * N_bind*comp.gas.mu)
 
     mask = N_layer < 1e-2
 
     L_sub = np.where(mask, comp.nu * np.exp(-comp.Tsub/sim.gas.T[:,None]), \
-                    A / comp.dust.Sigma_dust *  N_bind * comp.nu * comp.mu * (1. - np.exp(-N_layer)) \
+                    A / comp.dust.Sigma *  N_bind * comp.nu * comp.gas.mu * (1. - np.exp(-N_layer)) \
                     * np.exp(-comp.Tsub/sim.gas.T[:,None]))
 
     return L_sub

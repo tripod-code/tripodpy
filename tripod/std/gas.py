@@ -10,11 +10,11 @@ def boundary(sim):
     ----------
     sim : Frame
         Parent simulation frame"""
-    for name, comp in sim.gas.components.__dict__.items():
-        if name.startswith("_"):
+    for name, comp in sim.components.__dict__.items():
+        if(name.startswith("_") or not comp.includegas):
             continue
-        comp.boundary.inner.setboundary()
-        comp.boundary.outer.setboundary()
+        comp.gas.boundary.inner.setboundary()
+        comp.gas.boundary.outer.setboundary()
 
 
 def enforce_floor_value(sim):
@@ -24,11 +24,11 @@ def enforce_floor_value(sim):
     ----------
     sim : Frame
         Parent simulation frame"""
-    for name, comp in sim.gas.components.__dict__.items():
-        if name.startswith("_"):
+    for name, comp in sim.components.__dict__.items():
+        if (name.startswith("_") or not comp.includegas):
             continue
-        comp.Sigma[:] = gas_f.enforce_floor(
-            comp.Sigma,
+        comp.gas.Sigma[:] = gas_f.enforce_floor(
+            comp.gas.Sigma,
             sim.gas.SigmaFloor
         )
 
@@ -43,10 +43,10 @@ def prepare(sim):
         Parent simulation frame"""
     # Storing current surface density
     sim.gas._SigmaOld[:] = sim.gas.Sigma[:]
-    for name, comp in sim.gas.components.__dict__.items():
+    for name, comp in sim.components.__dict__.items():
         if name.startswith("_"):
             continue
-        comp._SigmaOld[:] = comp.Sigma[:]
+        comp.gas._SigmaOld[:] = comp.gas.Sigma[:]
 
 
 
@@ -73,26 +73,26 @@ def set_implicit_boundaries_compo(sim):
     ----------
     sim : Frame
         Parent simulation frame"""
-    for name, comp in sim.gas.components.__dict__.items():
+    for name, comp in sim.components.__dict__.items():
         if name.startswith("_"):
             continue
         ret = gas_f.implicit_boundaries(
             sim.t.prevstepsize,
-            comp.Fi,
+            comp.gas.Fi,
             sim.grid.ri,
-            comp.Sigma,
-            comp._SigmaOld
+            comp.gas.Sigma,
+            comp.gas._SigmaOld
         )
 
         # Source terms
-        comp.S.tot[0] = ret[0]
-        comp.S.hyd[0] = ret[0]
-        comp.S.tot[-1] = ret[1]
-        comp.S.hyd[-1] = ret[1]
+        comp.gas.S.tot[0] = ret[0]
+        comp.gas.S.hyd[0] = ret[0]
+        comp.gas.S.tot[-1] = ret[1]
+        comp.gas.S.hyd[-1] = ret[1]
 
         # Fluxes through boundaries
-        comp.Fi[0] = ret[2]
-        comp.Fi[-1] = ret[3]
+        comp.gas.Fi[0] = ret[2]
+        comp.gas.Fi[-1] = ret[3]
 
 def set_implicit_boundaries(sim):
     """Function calculates the fluxes at the boundaries after the implicit integration step.
@@ -136,11 +136,11 @@ def Sigma_tot(sim):
         Total gas surface density
     """
     ret = np.zeros_like(sim.gas.Sigma)
-    for key, comp in sim.gas.components.__dict__.items():
+    for key, comp in sim.components.__dict__.items():
         if key.startswith("_"):
             continue
         if not comp.tracer:
-            ret += comp.Sigma
+            ret += comp.gas.Sigma
     return ret
 
 
@@ -160,11 +160,11 @@ def mu(sim):
         Mean molecular weight
     """
     ret = np.zeros_like(sim.gas.mu)
-    for key, comp in sim.gas.components.__dict__.items():
+    for key, comp in sim.components.__dict__.items():
         if key.startswith("_"):
             continue
         if not comp.tracer:
-            ret += comp.Sigma / comp.mu
+            ret += comp.gas.Sigma / comp.gas.mu
 
     return sim.gas.Sigma/ret
 
@@ -182,9 +182,9 @@ def dt_compo(sim):
     dt : float
         Time step"""
     dt = 1.e100
-    for key,comp in sim.gas.components.__dict__.items():
+    for key,comp in sim.components.__dict__.items():
         if not key.startswith("_"):
-            dt = min(dt,gas_f.timestep(comp.S.tot,comp.Sigma,sim.gas.SigmaFloor))
+            dt = min(dt,gas_f.timestep(comp.gas.S.tot,comp.gas.Sigma,sim.gas.SigmaFloor))
 
     return dt
 
@@ -201,11 +201,11 @@ def Fi_compo(sim,compkey = "default"):
     -------
     Fi : Field
         Fluxes at the boundaries for each component"""
-    comp = sim.gas.components.__dict__.get(compkey)
+    comp = sim.components.__dict__.get(compkey)
     if comp is None:
         raise ValueError(f"Component {compkey} not found in gas components.")
 
-    return gas_f.fi(comp.Sigma, sim.gas.v.rad,sim.grid.r,sim.grid.ri)
+    return gas_f.fi(comp.gas.Sigma, sim.gas.v.rad,sim.grid.r,sim.grid.ri)
 
 
 def S_hyd_compo(sim, compkey="default"):
@@ -222,10 +222,10 @@ def S_hyd_compo(sim, compkey="default"):
     -------
     S_hyd : Field
         Hydrodynamical source terms for each component"""
-    comp = sim.gas.components.__dict__.get(compkey)
+    comp = sim.components.__dict__.get(compkey)
 
     
-    return gas_f.s_hyd(comp.Fi,sim.grid.ri)
+    return gas_f.s_hyd(comp.gas.Fi,sim.grid.ri)
 
 
 def S_tot_compo(sim, compkey="default"):
@@ -242,9 +242,9 @@ def S_tot_compo(sim, compkey="default"):
     -------
     S_ext : Field
         External source terms for each component"""
-    comp = sim.gas.components.__dict__.get(compkey)
+    comp = sim.components.__dict__.get(compkey)
     
-    return  comp.S.hyd + comp.S.ext
+    return  comp.gas.S.hyd + comp.gas.S.ext
     
 def S_ext_total(sim):
     """Function returns the total external source terms for all components.
@@ -259,9 +259,9 @@ def S_ext_total(sim):
     S_ext_total : Field
         Total external source terms for all components"""
     ret = np.zeros_like(sim.gas.Sigma)
-    for key, comp in sim.gas.components.__dict__.items():
+    for key, comp in sim.components.__dict__.items():
         if key.startswith("_"):
             continue
-        ret += comp.S.ext
+        ret += comp.gas.S.ext
         
     return ret

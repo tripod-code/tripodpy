@@ -263,24 +263,26 @@ class Simulation(dp.Simulation):
 
         # setup gas_compo 
         # Adding gas components to gas group
-        self.gas.addgroup("components", description="Gas components")
-        self.gas.components.updater = []
+        self.addgroup("components", description="Gas components")
+        self.components.updater = []
+        lst = self.updateorder.copy()
+        lst.insert(lst.index("gas"), "components")
+        self.updater =   lst
+        #self.addgascomponent("default", self.gas.Sigma[...], self.ini.gas.mu, tracer=False, description="Molecular hydrogen")
         # Add component for H2
         Sigma = 0.75 * self.gas.Sigma[...]
         mu = 2.016 * c.m_p
-        self.addgascomponent(
+        self.addcomponent(
             "H2", Sigma, mu, tracer=False, description="Molecular hydrogen")
         # Add component for He
         Sigma = 0.25 * self.gas.Sigma[...]
         mu = 4.0026 * c.m_p
-        self.addgascomponent(
+        self.addcomponent(
             "He", Sigma, mu, tracer=False, description="Atomic helium")
-        
-        #self.addgascomponent("default", self.gas.Sigma,self.ini.gas.mu ,tracer=False, description="Default gas component")
 
 
         # Adding dust surface density updater to gas updater
-        self.gas.updater = ["components", "Sigma"] + self.gas.updateorder
+        self.gas.updater = ["Sigma"] + self.gas.updateorder
 
         #change the updater of Sigma to include composition
         self.gas.Sigma.updater = std.gas.Sigma_tot
@@ -657,9 +659,9 @@ class Simulation(dp.Simulation):
                 condition="val",
                 value= self.dust.SigmaFloor[-1,1]*self.dust.s.max[-1]
             )
-    def addgascomponent(self, name, Sigma, mu, tracer=False, includedust=False, description=""):
+    def addcomponent(self, name, Sigma, mu, tracer=False,includegas = True, includedust=False, description=""):
 
-        if name in self.gas.components.__dict__:
+        if name in self.components.__dict__:
             raise RuntimeError(
                 "Component with name {} already exists.".format(name))
 
@@ -667,104 +669,132 @@ class Simulation(dp.Simulation):
             raise RuntimeError(
                 "Sigma does not have the correct shape of {}".format(self.grid.r.shape))
         # Adding group and fields
-        self.gas.components.addgroup(name, description=description)
-        self.gas.components.__dict__[name].addfield(
+        self.components.addgroup(name, description=description)
+        self.components.__dict__[name].addfield(
             "tracer", tracer, description="Is this component tracer?")
-        self.gas.components.__dict__[name].addfield(
+        self.components.__dict__[name].addfield(
             "includedust", includedust, description="Is this component tracer?")
-        self.gas.components.__dict__[name].addfield(
-            "mu", mu, description="Molecular weight [g]")
-        self.gas.components.__dict__[name].addfield(
-            "Sigma", Sigma, description="Surface density [g/cm²]")
-        self.gas.components.__dict__[name].addfield(
-            "_SigmaOld", Sigma, description="Surface density [g/cm²]")
-        self.gas.components.__dict__[name].addfield(
-            "Fi", np.zeros(self.grid.Nr + 1 ), description="Surface density [g/cm²]")
-        self.gas.components.__dict__[name].Fi.updater = partial(std.gas.Fi_compo,compkey=name)
-        # Adding source terms
-        self.gas.components.__dict__[name].addgroup("S", description="Sources")
-        self.gas.components.__dict__[name].S.addfield(
-            "ext", np.zeros_like(Sigma), description="External sources [g/cm²/s]")
-        self.gas.components.__dict__[name].S.addfield(
-            "hyd", np.zeros_like(Sigma), description="External sources [g/cm²/s]")
-        self.gas.components.__dict__[name].S.hyd.updater = partial(std.gas.S_hyd_compo,compkey=name)
-        self.gas.components.__dict__[name].S.addfield(
-            "tot", np.zeros_like(Sigma), description="External sources [g/cm²/s]")
-        self.gas.components.__dict__[name].S.tot.updater = partial(std.gas.S_tot_compo,compkey=name)    
-        self.gas.components.__dict__[name].updater = ["Fi","S"]
-        self.gas.components.__dict__[name].S.updater = ["ext","hyd","tot"]
-
-
+        self.components.__dict__[name].addfield(
+            "includegas", includegas, description="Is this component tracer?")
         # Adding component to updater
-        self.gas.components.updater = self.gas.components.updateorder + [name]
+        self.components.updater = self.components.updateorder + [name]
+        self.components.__dict__[name].updater = []
 
-        # Boundaries
-        self.gas.components.__dict__[name].addgroup(
-            "boundary", description="Boundary conditions")
-        self.gas.components.__dict__[name].boundary.inner = Boundary(
-            self.grid.r,
-            self.grid.ri,
-            self.gas.components.__dict__[name].Sigma,
-            condition="const_grad"
-        )
-        self.gas.components.__dict__[name].boundary.outer = Boundary(
-            self.grid.r[::-1],
-            self.grid.ri[::-1],
-            self.gas.components.__dict__[name].Sigma[::-1],
-            condition="val",
-            value=0.1*self.gas.SigmaFloor[-1]
-        )
+        # Adding fields for gas component
+        if includegas:
+            self.components.__dict__[name].addgroup("gas", description="Gas phase of component")
+            self.components.__dict__[name].updater = self.components.__dict__[name].updateorder + ["gas"]
 
-        if not includedust:
-            # Jacobinator
-            self.gas.components.__dict__[
-                name].Sigma.jacobinator = dp.std.gas.jacobian
 
-            # Integrator
-            inst = Instruction(
-                dp.std.gas.impl_1_direct,
-                self.gas.components.__dict__[name].Sigma,
-                controller={
-                    "boundary": self.gas.components.__dict__[name].boundary,
-                    "Sext": self.gas.components.__dict__[name].S.ext,
-                },
-                description="{}: implicit 1st-order direct solver".format(name)
+            self.components.__dict__[name].gas.addfield(
+                "mu", mu, description="Molecular weight [g]")
+            self.components.__dict__[name].gas.addfield(
+                "Sigma", Sigma, description="Surface density [g/cm²]")
+            self.components.__dict__[name].gas.addfield(
+                "_SigmaOld", Sigma, description="Surface density [g/cm²]")
+            self.components.__dict__[name].gas.addfield(
+                "Fi", np.zeros(self.grid.Nr + 1 ), description="Surface density [g/cm²]")
+            self.components.__dict__[name].gas.Fi.updater = partial(std.gas.Fi_compo,compkey=name)
+
+            # Adding S group 
+            self.components.__dict__[name].gas.addgroup("S", description="Sources")
+
+            self.components.__dict__[name].gas.S.addfield(
+                "ext", np.zeros_like(Sigma), description="External sources [g/cm²/s]")
+            self.components.__dict__[name].gas.S.addfield(
+                "hyd", np.zeros_like(Sigma), description="External sources [g/cm²/s]")
+            self.components.__dict__[name].gas.S.hyd.updater = partial(std.gas.S_hyd_compo,compkey=name)
+            self.components.__dict__[name].gas.S.addfield(
+                "tot", np.zeros_like(Sigma), description="External sources [g/cm²/s]")
+            self.components.__dict__[name].gas.S.tot.updater = partial(std.gas.S_tot_compo,compkey=name)    
+            # adding the updater for the gas component
+            self.components.__dict__[name].gas.updater = ["Fi","S"]
+            self.components.__dict__[name].gas.S.updater = ["ext","hyd","tot"]
+
+            #add boundaries for gas component
+            self.components.__dict__[name].gas.addgroup(
+                "boundary", description="Boundary conditions")
+            self.components.__dict__[name].gas.boundary.inner = Boundary(
+                self.grid.r,
+                self.grid.ri,
+                self.components.__dict__[name].gas.Sigma,
+                condition="const_grad"
             )
-            self.integrator.instructions.append(
-                inst)
-        else:
-            self.gas.components.__dict__[name].addgroup("dust", description="Dust component")
 
-            # add dust surface densit
+            self.components.__dict__[name].gas.boundary.outer = Boundary(
+                self.grid.r[::-1],
+                self.grid.ri[::-1],
+                self.components.__dict__[name].gas.Sigma[::-1],
+                condition="val",
+                value=0.1*self.gas.SigmaFloor[-1]
+            )
+
+        if includedust:
+            #add dust group
+            self.components.__dict__[name].addgroup("dust", description="Dust component")
+            self.components.__dict__[name].updater = self.components.__dict__[name].updateorder + ["dust"]
+
+
+
             shape = (int(self.grid.Nr), int(self.grid._Nm_short))
-            self.gas.components.__dict__[name].dust.addfield(
-            "Sigma_dust", np.zeros(shape), description="Surface density [g/cm²]")
+            self.components.__dict__[name].dust.addfield(
+            "Sigma", np.zeros(shape), description="Surface density [g/cm²]")
 
-            self.gas.components.__dict__[name].dust.addfield(
-            "_Sigma_dustOld", np.zeros(shape), description="Surface density [g/cm²]")
-            self.gas.components.__dict__[name].dust.addfield(
-            "Sext_dust", np.zeros(shape), description="source")
+            self.components.__dict__[name].dust.addfield(
+            "_SigmaOld", np.zeros(shape), description="Surface density [g/cm²]")
+            self.components.__dict__[name].dust.addgroup("S", description="Sources")
+            self.components.__dict__[name].dust.S.addfield("ext", np.zeros(shape), description="source")
+            self.components.__dict__[name].dust.S.addfield("hyd", np.zeros(shape), description="source")
+            self.components.__dict__[name].dust.S.addfield("coag", np.zeros(shape), description="source")
+            self.components.__dict__[name].dust.S.addfield("tot", np.zeros(shape), description="source")
 
-            self.gas.components.__dict__[name].addfield(
-            "Tsub", 0 , description="Sublimatio Temperature [K]")
-            self.gas.components.__dict__[name].addfield(
-            "nu", 0 , description="attempt frequency for sublimation")
+            # adding the updater for the dust component
+            self.components.__dict__[name].dust.updater = ["S"]
+            self.components.__dict__[name].dust.S.updater = ["ext", "hyd", "coag", "tot"]
+
+            # quntities for sublimation
+            self.components.__dict__[name].addfield("Tsub", 0 , description="Sublimatio Temperature [K]")
+            self.components.__dict__[name].addfield("nu", 0 , description="attempt frequency for sublimation")
+
+
+        # define integrator instructions 
+        if (includedust and includegas):
 
             # State vector
-            self.gas.components.__dict__[name].addfield("_Y", np.zeros((int(self.grid._Nm_short) + 1) * int(self.grid.Nr)),
+            self.components.__dict__[name].addfield("_Y", np.zeros((int(self.grid._Nm_short) + 1) * int(self.grid.Nr)),
                             description="Dust state vector (siggas , sig0, sig1)")
-            self.gas.components.__dict__[name]._Y.jacobinator = partial(std.compo.Y_jacobian,name=name)
+            self.components.__dict__[name]._Y.jacobinator = partial(std.compo.Y_jacobian,name=name)
 
             # The right-hand side of the state vector matrix equation is stored in a hidden field
-            self.gas.components.__dict__[name]._Y_rhs = Field(self, np.zeros_like(
-                self.gas.components.__dict__[name]._Y), description="Right-hand side of state vector matrix equation")
+            self.components.__dict__[name]._Y_rhs = Field(self, np.zeros_like(
+                self.components.__dict__[name]._Y), description="Right-hand side of state vector matrix equation")
                         # Integrator
             inst = Instruction(
                 std.compo._f_impl_1_direct_compo,
-                self.gas.components.__dict__[name]._Y,
+                self.components.__dict__[name]._Y,
                 controller={"name": name },
                 description="{}: implicit 1st-order direct solver for tracers".format(name))
             
             self.integrator.instructions.append(
                 inst)
-        
+            
+        elif includegas:
+            self.components.__dict__[
+                name].gas.Sigma.jacobinator = dp.std.gas.jacobian
+
+            # Integrator
+            inst = Instruction(
+                dp.std.gas.impl_1_direct,
+                self.components.__dict__[name].gas.Sigma,
+                controller={
+                    "boundary": self.components.__dict__[name].gas.boundary,
+                    "Sext": self.components.__dict__[name].gas.S.ext,
+                },
+                description="{}: implicit 1st-order direct solver".format(name)
+            )
+            self.integrator.instructions.append(
+                inst)
+
+        elif includedust:
+            print("Dust component {} added without gas component. This is not recommended.".format(name))
+            exit()
