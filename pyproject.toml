@@ -43,5 +43,9 @@ classifiers = [
 ]
 dependencies = ["dustpy"]
 
+[project.optional-dependencies]
+test = ["pytest>=6.0", "pytest-cov", "numpy", "scipy"]
+dev = ["pytest>=6.0", "pytest-cov", "numpy", "scipy"]
+
 [project.urls]
 Repository = "https://github.com/birnstiel/twopoppy3/"
