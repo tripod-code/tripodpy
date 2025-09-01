@@ -159,6 +159,7 @@ def mu(sim):
     mu : Field
         Mean molecular weight
     """
+    #TODO: modify for new structure
     ret = np.zeros_like(sim.gas.mu)
     for key, comp in sim.components.__dict__.items():
         if key.startswith("_"):
