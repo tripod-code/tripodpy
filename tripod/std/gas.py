@@ -1,20 +1,6 @@
+from math import e
 from dustpy.std import gas_f
 import numpy as np
-
-
-def boundary(sim):
-    """Function set the boundary conditions of the gas.
-    Not implemented, yet.
-
-    Parameters
-    ----------
-    sim : Frame
-        Parent simulation frame"""
-    for name, comp in sim.components.__dict__.items():
-        if(name.startswith("_") or not comp.includegas):
-            continue
-        comp.gas.boundary.inner.setboundary()
-        comp.gas.boundary.outer.setboundary()
 
 
 def enforce_floor_value(sim):
@@ -25,7 +11,7 @@ def enforce_floor_value(sim):
     sim : Frame
         Parent simulation frame"""
     for name, comp in sim.components.__dict__.items():
-        if (name.startswith("_") or not comp.includegas):
+        if (name.startswith("_")):
             continue
         comp.gas.Sigma[:] = gas_f.enforce_floor(
             comp.gas.Sigma,
@@ -57,7 +43,6 @@ def finalize(sim):
     ----------
     sim : Frame
         Parent simulation frame"""
-    boundary(sim)
     enforce_floor_value(sim)
     sim.gas.v.update()
     sim.gas.Fi.update()
@@ -139,8 +124,7 @@ def Sigma_tot(sim):
     for key, comp in sim.components.__dict__.items():
         if key.startswith("_"):
             continue
-        if not comp.tracer:
-            ret += comp.gas.Sigma
+        ret += comp.gas.Sigma
     return ret
 
 
@@ -159,13 +143,11 @@ def mu(sim):
     mu : Field
         Mean molecular weight
     """
-    #TODO: modify for new structure
     ret = np.zeros_like(sim.gas.mu)
     for key, comp in sim.components.__dict__.items():
         if key.startswith("_"):
             continue
-        if not comp.tracer:
-            ret += comp.gas.Sigma / comp.gas.mu
+        ret += comp.gas.Sigma / comp.gas.pars.mu
 
     return sim.gas.Sigma/ret
 
@@ -184,14 +166,14 @@ def dt_compo(sim):
         Time step"""
     dt = 1.e100
     for key,comp in sim.components.__dict__.items():
-        if not key.startswith("_"):
-            dt = min(dt,gas_f.timestep(comp.gas.S.tot,comp.gas.Sigma,sim.gas.SigmaFloor))
+        if not key.startswith("_") and comp.gas._active:
+            dt = min(dt,gas_f.timestep(comp.gas.Sigma_dot,comp.gas.Sigma,sim.gas.SigmaFloor))
 
     return dt
 
 
 
-def Fi_compo(sim,compkey = "default"):
+def Fi_compo(sim,compkey = "default",group=None):
     """Function returns the fluxes at the boundaries for each component.
     
     Parameters
@@ -202,14 +184,17 @@ def Fi_compo(sim,compkey = "default"):
     -------
     Fi : Field
         Fluxes at the boundaries for each component"""
-    comp = sim.components.__dict__.get(compkey)
-    if comp is None:
-        raise ValueError(f"Component {compkey} not found in gas components.")
+    if group is not None:
+        return gas_f.fi(group.Sigma, sim.gas.v.rad,sim.grid.r,sim.grid.ri)
+    else:
+        comp = sim.components.__dict__.get(compkey)
+        if comp is None:
+            raise ValueError(f"Component {compkey} not found in gas components.")
 
-    return gas_f.fi(comp.gas.Sigma, sim.gas.v.rad,sim.grid.r,sim.grid.ri)
+        return gas_f.fi(comp.gas.Sigma, sim.gas.v.rad,sim.grid.r,sim.grid.ri)
 
 
-def S_hyd_compo(sim, compkey="default"):
+def S_hyd_compo(sim, compkey="default",group=None):
     """Function returns the hydrodynamical source terms for each component.
     
     Parameters
@@ -223,13 +208,15 @@ def S_hyd_compo(sim, compkey="default"):
     -------
     S_hyd : Field
         Hydrodynamical source terms for each component"""
-    comp = sim.components.__dict__.get(compkey)
-
     
-    return gas_f.s_hyd(comp.gas.Fi,sim.grid.ri)
+    if group is None:
+        comp = sim.components.__dict__.get(compkey)
+        return gas_f.s_hyd(comp.gas.Fi,sim.grid.ri)
+    else:
+        return gas_f.s_hyd(group.Fi,sim.grid.ri)
 
 
-def S_tot_compo(sim, compkey="default"):
+def S_tot_compo(sim, compkey="default",group=None):
     """Function returns the external source terms for each component.
     
     Parameters
@@ -243,9 +230,11 @@ def S_tot_compo(sim, compkey="default"):
     -------
     S_ext : Field
         External source terms for each component"""
-    comp = sim.components.__dict__.get(compkey)
-    
-    return  comp.gas.S.hyd + comp.gas.S.ext
+    if group is not None:
+        return group.S.ext + group.S.hyd
+    else:
+        comp = sim.components.__dict__.get(compkey)
+        return  comp.gas.S.hyd + comp.gas.S.ext
     
 def S_ext_total(sim):
     """Function returns the total external source terms for all components.
@@ -263,6 +252,6 @@ def S_ext_total(sim):
     for key, comp in sim.components.__dict__.items():
         if key.startswith("_"):
             continue
-        ret += comp.gas.S.ext
+        ret += comp.gas.Sigma_dot
         
     return ret

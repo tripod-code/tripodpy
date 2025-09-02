@@ -17,16 +17,59 @@ def prepare(sim):
     ----------
     sim : Frame
         Parent simulation frame"""
-    Nr = int(sim.grid.Nr)
+    
+    set_state_vector_components(sim)
+    set_boundary_conditions_components(sim) 
 
-    # Copy values to state vector Y
+
+def set_state_vector_components(sim):
+    #iterate over all components and set the state vector
     for name, comp in sim.components.__dict__.items():
-        if(name.startswith("_") or not (comp.includedust and comp.includegas)):
+        if(name.startswith("_")):
             continue
 
-        comp._Y[:Nr] = comp.gas.Sigma.ravel()
-        comp._Y[Nr:] = comp.dust.Sigma.ravel()
-    
+        #gas component
+        #TODO fix the checks of how to construct the state vector
+        if (comp._comp_type == np.array([False, True, False])).all():
+            comp._Y = comp.gas.Sigma.ravel()
+            comp._S = comp.gas.Sigma_dot
+        #gas tracer
+        elif comp._comp_type == (False, False, True):
+            comp._Y = comp.gas.value*sim.gas.Sigma # tracer int variable = tracer * Sigma
+            comp._S = comp.gas.S*sim.gas.Sigma
+        #dust tracer
+        elif comp._comp_type == (True, False, False):
+            comp._Y = comp.dust.value.ravel()*sim.dust.Sigma # tracer int variable = tracer * Sigma
+            comp._S = comp.dust.S*sim.dust.Sigma + comp.dust.value.ravel()*sim.dust.Sigma_dot
+        #dust and gas
+        elif comp._comp_type == (True, True, False):
+            Nr = int(sim.grid.Nr)
+            comp._Y[:Nr] = comp.gas.Sigma.ravel()
+            comp._Y[Nr:] = comp.dust.value.ravel()
+            comp._S[:Nr] = comp.gas.Sigma_dot
+            comp._S[Nr:] = comp.dust.S
+        elif comp._comp_type == (True, False, True):
+            raise RuntimeError("Dust tracer only not implemented yet")
+        else:
+            raise RuntimeError("Component type not recognized")
+        
+def set_boundary_conditions_components(sim):
+    #iterate over all components and set the state vector
+    for name, comp in sim.components.__dict__.items():
+        if(name.startswith("_")):
+            continue
+            #gas component
+        comp._Y_rhs[...] = comp._Y.ravel()
+        if (comp._comp_type == np.array([False, True, False])).all():
+            if comp.boundary.outer.condition == "val":
+               comp._Y_rhs[-1] = comp.boundary.outer.value
+
+            if comp.boundary.inner.condition == "val":
+               comp._Y_rhs[0] = comp.boundary.inner.value
+        else:
+            #TODO think of smoother way to do boundary conditions for all component types
+            raise RuntimeError("Boundary conditions for this component type not implemented yet")
+
 def finalize(sim):
     """Function finalizes implicit integration step.
 
@@ -34,14 +77,26 @@ def finalize(sim):
     ----------
     sim : Frame
         Parent integration frame"""
-    Nr = int(sim.grid.Nr)
 
+    #iterate over all components and get back variable from state vector
+    #TODO think of smoother way to do this for all component types
     for name, comp in sim.components.__dict__.items():
-        if(name.startswith("_") or not (comp.includedust and comp.includegas)):
+        if(name.startswith("_")):
             continue
-
-        comp.gas.Sigma = comp._Y[:Nr].reshape(comp.gas.Sigma.shape)
-        comp.dust.Sigma = comp._Y[Nr:].reshape(comp.dust.Sigma.shape)
+        if (comp._comp_type == np.array([False, True, False])).all():
+            comp.gas.Sigma[...] = comp._Y.reshape(comp.gas.Sigma.shape)
+        elif comp._comp_type == (False, False, True):
+            comp.gas.value[...] = (comp._Y/ sim.gas.Sigma).reshape(comp.gas.Sigma.shape)
+        elif comp._comp_type == (True, False, False):
+            comp.dust.value[...] = (comp._Y/ sim.dust.Sigma).reshape(comp.dust.Sigma.shape)
+        elif comp._comp_type == (True, True, False):
+            comp.gas.Sigma[...] = comp._Y[:sim.grid.Nr].reshape(comp.gas.Sigma.shape)
+            comp.dust.value[...] = (comp._Y[sim.grid.Nr:]/sim.dust.Sigma).reshape(comp.dust.Sigma.shape)
+        elif comp._comp_type == (True, False, True):
+            raise RuntimeError("Dust tracer only not implemented yet")
+        else:
+            raise RuntimeError("Component type not recognized")
+                
 
 
 
@@ -146,31 +201,10 @@ def _f_impl_1_direct_compo(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     name = kwargs.get("name")
     comp = Y0._owner.components.__dict__.get(name)
 
-    r = Y0._owner.grid.r
-    ri = Y0._owner.grid.ri
-    area = Y0._owner.grid.A
-    Nr = int(Y0._owner.grid.Nr)
-    Nm_s = int(Y0._owner.grid._Nm_short)
 
-    #set first row of jacobian to zero 
-    jac.data[jac.row == 0] = 0.0
-
-
-    # Set the right-hand side to 0 for the dust to be handeled like the global dust
-    if Y0._owner.dust.boundary.inner.condition.startswith("const"):
-        rhs[Nr:Nr+Nm_s] = 0.
-
-    if Y0._owner.dust.boundary.outer.condition.startswith("const"):
-        rhs[-Nm_s:] = 0.
-
+    # Source term for the integration variable
+    S = kwargs.get("Sext", np.zeros_like(Y0))
     
-    if Y0._owner.dust.boundary.outer.condition == "val":
-        rhs[-Nm_s:] =  Y0[-Nm_s:]
-
-    
-
-    S = np.hstack((comp.gas.S.ext.ravel(), comp.dust.S.ext.ravel()))
-
     # Right hand side
     rhs[...] += dx * S 
 
@@ -379,3 +413,28 @@ def L_sublimation(sim,name=None,N_bind=1e15):
                     * np.exp(-comp.Tsub/sim.gas.T[:,None]))
 
     return L_sub
+
+
+def c_jacobian(sim, x, dx=None, *args, **kwargs):
+    #wrapper function to call the correct jacobian depending on the component type
+
+    #get component type
+    type = kwargs.get("comp_type")
+
+    #call the correct jacobian depending on the component type (dust_active, gas_active, gas_tracer)
+    
+    #gas component only or tracrer share jacobian
+    if (type == np.array([False, True, False])).all() or (type == np.array([False, False, True])).all():
+        return dp.std.gas.jacobian(sim, x, dx=dx, *args, **kwargs)
+    #dust tracer
+    elif type == (True, False, False):
+        #TODO 
+        raise RuntimeError("Dust tracer only not implemented yet")
+        return jacobian_gas(sim, x, dx=dx, *args, **kwargs)
+    #dust and gas
+    elif type == (True, True, False):
+        #TODO
+        raise RuntimeError("Dust tracer only not implemented yet")
+        return Y_jacobian(sim, x, dx=dx, *args, **kwargs)
+    
+    
