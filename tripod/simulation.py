@@ -10,7 +10,7 @@ from dustpy.utils import Boundary
 from functools import partial
 from . import std
 import types
-from tripod.utils.components import addcomponent_c
+from .utils.components.addcomponent import addcomponent_c
 
 
 class Simulation(dp.Simulation):
@@ -287,6 +287,7 @@ class Simulation(dp.Simulation):
         #change the updater of Sigma to include composition
         self.gas.Sigma.updater = std.gas.Sigma_tot
         self.gas.mu.updater = std.gas.mu
+        self.gas.S.ext.updater = std.gas.S_ext_total
 
         # Bring the entire object to initial state
         dp.std.gas.enforce_floor_value(self)
@@ -426,6 +427,10 @@ class Simulation(dp.Simulation):
                 "coag", np.zeros(shape2Sigma), description="Coagulation sources [g/cm²/s]"
             )
             self.dust.S.coag.updater = std.dust.S_coag
+
+        self.dust.S.addfield("compo", np.zeros(shape2Sigma), description="Sources due to composition changes [g/cm²/s]")
+        self.dust.S.compo.updater = std.dust.S_compo
+        
         if self.dust.S.tot is None:
             self.dust.S.addfield(
                 "tot", np.zeros(shape2Sigma), description="Total sources [g/cm²/s]"

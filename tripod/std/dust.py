@@ -140,18 +140,6 @@ def prepare(sim):
     sim.dust.s._maxOld = sim.dust.s.max
     sim.dust.s._prev_sdot_coag = sim.dust.s.sdot_coag
     s_max_deriv = sim.dust.s.max.derivative()
-    if(True):
-        mask = (sim.dust.v.rel.tot[:, -2, -1] / sim.dust.v.frag) > 0.94
-        damp_factor = 0.01
-        r0 = sim.grid.r[0] 
-        width = sim.grid.r[0]*0.5 
-        # Alternative falloff function: Gaussian
-        damp_coag = 1 - (1 - damp_factor) * np.exp(-((sim.grid.r - r0) ** 2) / (2 * width ** 2))
-
-        if(mask[0] or sim.t > 1e4*c.year):
-            sim.dust.s._damp  = damp_coag
-        else:
-            sim.dust.s._damp = np.ones_like(damp_coag)
 
     enforce_f(sim)
     sim.dust.S.ext.update()
@@ -690,8 +678,33 @@ def S_coag(sim, Sigma=None):
     # Prevents unwanted growth of smax
     return s_coag
 
+def S_tot_ext(sim, Sigma=None):
+    """Function calculates the total source terms. including contributions from components
 
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    Sigma : Field, optional, default : None
+        Surface density to be used if not None
+    Returns
+    -------
+    Stot : Field
+        Total source terms of surface density"""
+    
+    if Sigma is None:
+        Sigma = sim.dust.Sigma
 
+    #global source terms
+    ret = sim.dust.S.ext
+
+    #source terms from components
+    for key, comp in sim.components.__dict__.items():
+        if key.startswith("_"):
+            continue
+        ret += comp.dust.S_Sigma
+
+    return ret
 def enforce_f(sim):
 
     delta = np.maximum( 0., sim.dust.f.crit * sim.dust.Sigma[...].sum(-1) - sim.dust.Sigma[:,1])
@@ -726,6 +739,7 @@ def S_tot(sim, Sigma=None):
     if Sigma is None:
         Scoag = sim.dust.S.coag
         Shyd = sim.dust.S.hyd
+        Scomp = sim.dust.S.compo
     else:
         Scoag = sim.dust.S.coag.updater.beat(sim, Sigma=Sigma)
         if Scoag is None:
@@ -733,7 +747,38 @@ def S_tot(sim, Sigma=None):
         Shyd = sim.dust.S.hyd.updater.beat(sim, Sigma=Sigma)
         if Shyd is None:
             Shyd = sim.dust.S.hyd
-    return Scoag + Shyd + Sext
+        Scomp = sim.dust.S.compo.updater.beat(sim, Sigma=Sigma)
+        if Scomp is None:
+            Scomp = sim.dust.S.compo
+
+    return Scoag + Shyd + Sext + Scomp
+
+
+def S_compo(sim, Sigma=None):
+    """Function calculates the source terms from dust composion source terms
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    Sigma : Field, optional, default : None
+        Surface density to be used if not None
+
+    Returns
+    -------
+    Scoag : Field
+        Source terms from dust gomponents"""
+    
+    if Sigma is None:
+        Sigma = sim.dust.Sigma
+
+    Scomp = np.zeros_like(Sigma)
+    for key, comp in sim.components.__dict__.items():
+        if key.startswith("_"):
+            continue
+        Scomp += comp.dust.S_Sigma
+
+    return Scomp
 
 def vrel_brownian_motion(sim):
     """Function calculates the relative particle velocities due to Brownian motion.
@@ -1059,7 +1104,7 @@ def _f_impl_1_direct(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     s_max_deriv = dust.s.max.derivative()
 
     S_Sigma_ext = np.zeros_like(dust.Sigma)
-    S_Sigma_ext[1:-1, ...] += dust.S.ext[1:-1, ...]
+    S_Sigma_ext[1:-1, ...] += dust.S.ext[1:-1, ...] + dust.S.compo[1:-1, ...]
     
 
     # smax*Sigma (product rule)

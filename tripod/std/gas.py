@@ -143,6 +143,7 @@ def mu(sim):
     mu : Field
         Mean molecular weight
     """
+    # divides the totoal suraced densyty by the sum of the numberdesities of all components -> mu = Sigma_tot / (sum_i Sigma_i/mu_i)
     ret = np.zeros_like(sim.gas.mu)
     for key, comp in sim.components.__dict__.items():
         if key.startswith("_"):
