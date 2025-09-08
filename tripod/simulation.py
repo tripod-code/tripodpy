@@ -10,7 +10,6 @@ from dustpy.utils import Boundary
 from functools import partial
 from . import std
 import types
-from .utils.components.addcomponent import addcomponent_c
 
 
 class Simulation(dp.Simulation):
@@ -271,15 +270,15 @@ class Simulation(dp.Simulation):
         self.updater =   lst
         #self.addgascomponent("default", self.gas.Sigma[...], self.ini.gas.mu, tracer=False, description="Molecular hydrogen")
         # Add component for H2
-        self.addcomponent_c = types.MethodType(addcomponent_c, self)
+        self.addcomponent_c = types.MethodType(std.addcomponent_c, self)
         Sigma = 0.75 * self.gas.Sigma[...]
         mu = 2.016 * c.m_p
-        addcomponent_c(self,
+        std.addcomponent_c(self,
             "H2", Sigma, mu, gas_active=True, description="Molecular hydrogen")
         # Add component for He
         Sigma = 0.25 * self.gas.Sigma[...]
         mu = 4.0026 * c.m_p
-        addcomponent_c(self,
+        std.addcomponent_c(self,
             "He", Sigma, mu, gas_active=True, description="Atomic helium")
         # Adding dust surface density updater to gas updater
         self.gas.updater = ["Sigma"] + self.gas.updateorder

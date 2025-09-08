@@ -5,5 +5,3 @@ python_sources = [
 ]
 
 py3.install_sources(python_sources, subdir: 'tripod/utils')
-
-subdir('components')

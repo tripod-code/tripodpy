@@ -4,6 +4,7 @@ from . import dust
 from . import gas
 from . import sim
 from . import compo
+from .addcomponent import addcomponent_c
 
 __all__ = [
     "dust",

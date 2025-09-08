@@ -1,6 +1,6 @@
-from tripod.std import gas
+from tripod.std import compo as compo
+from tripod.std import gas as gas
 from .component import Component
-from ... import std 
 from functools import partial
 from simframe import Instruction
 from dustpy.utils import Boundary
@@ -22,16 +22,16 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None , dust_active=Fa
     comp = Component(self, dust_active=dust_active, gas_active=gas_active, gas_tracer=gas_tracer, description=description)
 
     #Jacobinator for state vector
-    comp._Y.jacobinator = partial(std.compo.c_jacobian,component=comp)
+    comp._Y.jacobinator = partial(compo.c_jacobian,component=comp)
 
 
 
     #TODO cleaner initalisation
     if comp.gas._active:
-        comp.gas.Fi.updater = partial(std.gas.Fi_compo,group=comp.gas)   
+        comp.gas.Fi.updater = partial(gas.Fi_compo,group=comp.gas)   
         comp.gas.S.ext.updater = lambda sim: comp.gas.Sigma_dot    
-        comp.gas.S.tot.updater = partial(std.gas.S_tot_compo,group=comp.gas)
-        comp.gas.S.hyd.updater = partial(std.gas.S_hyd_compo,group=comp.gas)
+        comp.gas.S.tot.updater = partial(gas.S_tot_compo,group=comp.gas)
+        comp.gas.S.hyd.updater = partial(gas.S_hyd_compo,group=comp.gas)
         comp.gas.updater = ["Fi","S"]
         comp.gas.S.updater = ["ext","hyd","tot"]
         # set initial gas values
@@ -89,7 +89,7 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None , dust_active=Fa
 
 
     inst = Instruction(
-                    std.compo._f_impl_1_direct_compo,
+                    compo._f_impl_1_direct_compo,
                     self.components.__dict__[name]._Y,
                     description="{}: implicit 1st-order direct solver for tracers".format(name),
                     controller={"boundary": self.components.__dict__[name].boundary,
