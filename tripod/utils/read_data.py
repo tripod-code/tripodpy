@@ -52,10 +52,10 @@ def read_data(data, filename="data", extension="hdf5", Na=50):
         rhos = data.dust.rhos.reshape((1, -1))
         smax = data.dust.s.max.reshape((1, -1))
         smin = data.dust.s.min.reshape((1, -1))
-        SigmaDust = data.dust.Sigma.reshape((1, -1))
+        SigmaDust = data.dust.Sigma.reshape((1,) + data.dust.Sigma.shape)
         vFrag = data.dust.v.frag.reshape((1, -1))
         Mpart = data.dust.m.reshape((1, -1))
-        a_char = data.dust.a.reshape((1, -1))
+        a_char = data.dust.a.reshape((1,) + data.dust.a.shape)
 
         # Gas
         cs = data.gas.cs.reshape((1, -1))

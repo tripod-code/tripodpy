@@ -16,9 +16,9 @@ sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'TwoPopPy'
-copyright = '2022, TwoPopPy Developers'
-author = 'TwoPopPy Developers'
+project = 'TripodPy'
+copyright = '2025, TripodPy Developers'
+author = 'TripodPy Developers'
 
 
 # -- General configuration ---------------------------------------------------
@@ -28,15 +28,11 @@ author = 'TwoPopPy Developers'
 # ones.
 extensions = [
     "numpydoc",
+    "nbsphinx",
     "sphinx_rtd_theme",
     "sphinx.ext.autodoc",
-    "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
-    "sphinx.ext.autosummary",
-    "sphinx.ext.doctest",
-    "sphinx.ext.inheritance_diagram",
     "sphinx_automodapi.automodapi",
-    "sphinx_automodapi.smart_resolver"
 ]
 numpydoc_show_class_members = False
 
@@ -61,3 +57,7 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+autosummary_generate = True
+
+nbsphinx_execute = 'never'

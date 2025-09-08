@@ -6,6 +6,9 @@ __pycache__/
 # Testing output
 tests/data*
 
+# Examples output
+docs/source/data*
+docs/source/*data
 # C extensions
 *.so
 
