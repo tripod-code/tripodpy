@@ -4,6 +4,7 @@ from .component import Component
 from functools import partial
 from simframe import Instruction
 from dustpy.utils import Boundary
+from simframe import schemes
 import numpy as np
 import dustpy.constants as c
 
@@ -58,34 +59,36 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None , dust_active=Fa
         self.components.updater = lst
 
 
-    # TODO cleaner way to set up boundaries and what values to use as default
-    # Set boundary conditions values 
-    if comp.dust._active and (comp.gas._active or comp.gas._tracer):
-        val_inner = np.hstack((gas_value[0], dust_value[0,:]))
-        val_outer = np.hstack((0.1*self.gas.SigmaFloor[-1], 0.1*self.dust.SigmaFloor[-1,:]))
-    elif comp.gas._active or comp.gas._tracer:
-        val_inner = gas_value[0]
-        val_outer = 0.1*self.gas.SigmaFloor[-1]
-    elif comp.dust._active:
-        val_inner = dust_value[0,:]
-        val_outer = 0.1*self.dust.SigmaFloor[-1,:]
-    else:
-        raise RuntimeError("Component must be either gas or dust active.")
-    
-    comp.boundary.inner = Boundary(
-                self.grid.r,
-                self.grid.ri,
-                comp._Y,
-                condition="val",
-                value=val_inner
-            )
-    comp.boundary.outer = Boundary(
-                self.grid.r[::-1],
-                self.grid.ri[::-1],
-                comp._Y[::-1],
-                condition="val",
-                value=val_outer
-            )
+    if gas_active:
+
+        comp.gas.addgroup("boundary")
+        
+        comp.gas.boundary.inner = Boundary(self.grid.r, self.grid.ri, comp.gas.Sigma)
+        comp.gas.boundary.inner.setcondition("const_grad")
+        
+        comp.gas.boundary.outer = Boundary(self.grid.r[::-1], self.grid.ri[::-1], comp.gas.Sigma[::-1])
+        comp.gas.boundary.outer.setcondition("val", self.gas.SigmaFloor[-1])
+
+    elif gas_tracer:
+        comp.gas.addgroup("boundary")
+
+        comp.gas.boundary.inner = Boundary(self.grid.r, self.grid.ri, comp.gas.value)
+        comp.gas.boundary.inner.setcondition("val", gas_value[0])
+        
+        comp.gas.boundary.outer = Boundary(self.grid.r[::-1], self.grid.ri[::-1], comp.gas.value[::-1])
+        comp.gas.boundary.outer.setcondition("val", gas_value[-1])
+
+
+
+    if dust_active:
+        comp.dust.addgroup("boundary")
+
+        comp.dust.boundary.inner = Boundary(self.grid.r, self.grid.ri, comp.dust.value)
+        comp.dust.boundary.inner.setcondition("val", dust_value[0,:])
+        
+        comp.dust.boundary.outer = Boundary(self.grid.r[::-1], self.grid.ri[::-1], comp.dust.value[::-1])
+        comp.dust.boundary.outer.setcondition("val", dust_value[-1,:])
+
 
 
     inst = Instruction(
@@ -94,5 +97,14 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None , dust_active=Fa
                     description="{}: implicit 1st-order direct solver for tracers".format(name),
                     controller={"boundary": self.components.__dict__[name].boundary,
                     "Sext": self.components.__dict__[name]._S,
-                    "rhs": self.components.__dict__[name]._Y_rhs})
-    self.integrator.instructions.append(inst)
+                    "rhs": self.components.__dict__[name]._Y_rhs,
+                    "name": name},)
+    
+
+    if comp.gas._active:
+        upd = Instruction(schemes.update, self.components.__dict__[name]._Y, description="Update {}".format(name))
+        self.integrator.instructions.insert(2, upd)
+        self.integrator.instructions.insert(2, inst)
+        
+    else:
+        self.integrator.instructions.append(inst)

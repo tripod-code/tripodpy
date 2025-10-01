@@ -76,12 +76,14 @@ def finalize(sim):
         elif (comp.dust._active == False) and (comp.gas._tracer == True):
             comp.gas.value[...] = (comp._Y/ sim.gas.Sigma)
         elif (comp.dust._active == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
-            comp.dust.value[...] = (comp._Y/ sim.dust.Sigma.ravel()).reshape(comp.dust.value.shape)
+            comp.dust.value[...] = (comp._Y/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape)
         elif (comp.dust._active == True) and (comp.gas._active == True):
             comp.gas.Sigma[...] = comp._Y[:sim.grid.Nr].reshape(comp.gas.Sigma.shape)
-            comp.dust.value[...] = (comp._Y[sim.grid.Nr:]/sim.dust.Sigma.ravel()).reshape(comp.dust.value.shape)
+            comp.dust.value[...] = (comp._Y[sim.grid.Nr:]/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape)
         else:
             raise RuntimeError("Component type not recognized")
+        
+    sim.components._gas_updated = False
 
 
 
@@ -149,7 +151,7 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
     
     
     # Create the combined matrix
-    J = sp.coo_matrix((data, (rows, cols)), shape=(Ntot, Ntot))
+    J = sp.csc_matrix((data, (rows, cols)), shape=(Ntot, Ntot))
 
     return J
 
@@ -185,6 +187,7 @@ def _f_impl_1_direct_compo(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     # Source term for the integration variable
     S = kwargs.get("Sext", np.zeros_like(Y0))
     
+    name = kwargs.get("name", "component")
     # Right hand side
     rhs[...] += dx * S 
 
@@ -200,7 +203,6 @@ def _f_impl_1_direct_compo(x0, Y0, dx, jac=None, rhs=None, *args, **kwargs):
     Y1_ravel = A_LU.solve(rhs)
 
     Y1 = Y1_ravel.reshape(Y0.shape)
-
     return Y1 - Y0
 
 
@@ -418,22 +420,21 @@ def c_jacobian(sim, x, dx=None, *args, **kwargs):
     #gas component only or tracrer share jacobian
     if comp.dust._active == False and (comp.gas._active == True or comp.gas._tracer == True):
         J = dp.std.gas.jacobian(sim,x, dx=dt, *args, **kwargs)
-        set_boundaries_component(sim,J,dt,comp)
-        return J
+        J_new = set_boundaries_component(sim,J,dt,comp)
+        return J_new
     #dust tracer
     elif comp.dust._active == True and comp.gas._active == False and comp.gas._tracer == False:
         J = tridust.jacobian(sim,x, dx=dt, *args, **kwargs)
-        set_boundaries_component(sim,J,dt,comp)
-        return J
+        J_new = set_boundaries_component(sim,J,dt,comp)
+        return J_new
     #dust and ga
     elif comp.dust._active == True and comp.gas._active == True:
         J = Y_jacobian(sim, x, dx=dt, *args, **kwargs)
-        set_boundaries_component(sim,J,dt,comp)
-        return J
+        J_new = set_boundaries_component(sim,J,dt,comp)
+        return J_new
     else:    
         raise RuntimeError("Component type not recognized")
     
-
 def set_boundaries_component(sim,J,dx,comp):
     """Function sets the boundary conditions for the Jacobian of a component.
     
@@ -444,201 +445,133 @@ def set_boundaries_component(sim,J,dx,comp):
     comp : Component
         Component to set the boundary conditions for
     """
-    
-    #TODO rework this (tracer boundaries are not correct) also matrix element setting so J remains sparce
-    # gas component and tracer
-    if comp.dust._active == False and (comp.gas._active == True or comp.gas._tracer == True):
+    Nr = int(sim.grid.Nr)
+    Nm_s = int(sim.grid._Nm_short)
+
+    if(comp.dust._active):
+        # Given value
+        if comp.gas._active or comp.gas._tracer:
+            offset = Nr
+        else:
+            offset = 0
+        
+        #assure jacobian is empty for boundaries
+        comp._Y_rhs[offset:offset+Nm_s] = comp.dust.boundary.inner.value * sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[0,:]
+        comp._Y_rhs[offset+Nm_s*(Nr-1):offset+Nm_s*Nr] = comp.dust.boundary.outer.value * sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[-1,:]
+
+        # Set source term to zero at the boundaries
+        comp._S[offset] = 0.
+        comp._S[offset+Nm_s*Nr-1] = 0.
+
+        # Set rows of jacobian to zero at the boundaries
+        row_indices = np.arange(offset, offset + Nm_s)
+        row_mask = np.isin(J.indices, row_indices)
+        J.data[row_mask] = 0.0
+
+        #set rows of jacobian to zero at the boundaries
+        row_indices = np.arange(offset+Nm_s*(Nr-1), offset+Nm_s*(Nr))
+        row_mask = np.isin(J.indices, row_indices)
+        J.data[row_mask] = 0.0
+
+
+
+    if(comp.gas._tracer):
+        if not sim.components._gas_updated:
+            for nm, cint in sim.components.__dict__.items():
+                if(nm.startswith("_")):
+                    continue
+                if cint.gas._active:
+                    cint.gas.Sigma[...] = cint._Y[:sim.grid.Nr].reshape(sim.gas.Sigma.shape)
+
+            sim.gas.Sigma.update()
+            sim.components._gas_updated = True
+
+        # Given value
+        comp._Y_rhs[0] = comp.gas.boundary.inner.value * sim.gas.Sigma[0]
+        comp._Y_rhs[Nr-1] = comp.gas.boundary.outer.value * sim.gas.Sigma[-1]
+
+        # Set source term to zero at the boundaries
         comp._S[0] = 0.
-        comp._S[-1] = 0.
-        if comp.boundary.inner.condition == "val":
-            comp._Y_rhs[0] = comp.boundary.inner.value
-            if comp.gas._tracer:
-                comp._Y_rhs[0] *= sim.gas.Sigma[0]
-            #J.data[J.row == 0] = 0.
-        elif comp.boundary.inner.condition == "const_val":
-            J[0,1] = 1./dx
-            comp._Y_rhs[0] = 0.
-        elif comp.boundary.inner.condition == "grad":
-            K1 = - comp.oundary.inner._r[1]/comp.boundary.inner._r[0]
-            J[0, 1] = -K1/dx
-            comp._Y_rhs[0] = - comp.boundary.inner._ri[1]/comp.boundary.inner._r[0] * \
-                (comp.boundary.inner._r[1]-comp.boundary.inner._r[0]) * \
-                comp.boundary.inner.value
-        elif comp.boundary.inner.condition == "const_grad":
-            Di = comp.boundary.inner._ri[1]/comp.boundary.inner._ri[2] * (
-                comp.boundary.inner._r[1]-comp.boundary.inner._r[0]) / (comp.boundary.inner._r[2]-comp.boundary.inner._r[0])
-            K1 = - comp.boundary.inner._r[1]/comp.boundary.inner._r[0] * (1. + Di)
-            K2 = comp.boundary.inner._r[2]/comp.boundary.inner._r[0] * Di
-            J[0, :3] = 0.
-            J[0, 1] = -K1/dx
-            J[0, 2] = -K2/dx
-            comp._Y_rhs[0] = 0.
-        # Given power law
-        elif comp.boundary.inner.condition == "pow":
-            p = comp.boundary.inner.value
-            comp._Y_rhs[0] = comp._Y[1] * (comp.boundary.inner._r[0]/comp.boundary.inner._r[1])**p
-        # Constant power law
-        elif comp.boundary.inner.condition == "const_pow":
-            p = np.log(comp._Y[2] / comp._Y[1]) / \
-                np.log(comp.boundary.inner._r[2]/comp.boundary.inner._r[1])
-            K1 = - (comp.boundary.inner._r[0]/comp.boundary.inner._r[1])**p
-            J[0, 1] = -K1/dx
-            comp._Y_rhs[0] = 0.
+        comp._S[Nr-1] = 0.
 
 
-        if comp.boundary.outer is not None:
-            # Given value
-            if comp.boundary.outer.condition == "val":
-                comp._Y_rhs[-1] = comp.boundary.outer.value
-                if comp.gas._tracer:
-                    comp._Y_rhs[-1] *= sim.gas.Sigma[-1]
-            # Constant value
-            elif comp.boundary.outer.condition == "const_val":
-                J[-1, -2] = (1./dx)
-                comp._Y_rhs[-1] = 0.
-            # Given gradient
-            elif comp.boundary.outer.condition == "grad":
-                KNrm2 = - comp.boundary.outer._r[1]/comp.boundary.outer._r[0]
-                J[-1, -2] = -(KNrm2/dx)
-                comp._Y_rhs[-1] = comp.boundary.outer._ri[1]/comp.boundary.outer._r[0] * \
-                    (comp.boundary.outer._r[0]-comp.boundary.outer._r[1]) * \
-                    comp.boundary.outer.value
-            # Constant gradient
-            elif comp.boundary.outer.condition == "const_grad":
-                Do = comp.boundary.outer._ri[1]/comp.boundary.outer._ri[2] * (
-                    comp.boundary.outer._r[0]-comp.boundary.outer._r[1]) / (comp.boundary.outer._r[1]-comp.boundary.outer._r[2])
-                KNrm2 = - comp.boundary.outer._r[1]/comp.boundary.outer._r[0] * (1. + Do)
-                KNrm3 = comp.boundary.outer._r[2]/comp.boundary.outer._r[0] * Do
-                J[-1, -2] = -KNrm2/dx
-                J[-1, -3] = -KNrm3/dx
-                comp._Y_rhs[-1] = 0.
-            # Given power law
-            elif comp.boundary.outer.condition == "pow":
-                p = comp.boundary.outer.value
-                comp._Y_rhs[-1] = comp._Y[-2] * (comp.boundary.outer._r[-0]/comp.boundary.outer._r[1])**p
-            # Constant power law
-            elif comp.boundary.outer.condition == "const_pow":
-                p = np.log(comp._Y[-2] / comp._Y[-3]) / \
-                    np.log(comp.boundary.outer._r[1]/comp.boundary.outer._r[2])
-                KNrm2 = - (comp.boundary.outer._r[0]/comp.boundary.outer._r[1])**p
-                J[-1, -2] = -KNrm2/dx
-                comp._Y_rhs[-1] = 0.
-    # dust tracer
-    elif comp.dust._active == True and comp.gas._active == False:
-        # Filling data vector depending on boundary condition
-        Nm_s = int(sim.grid._Nm_short)
-        r = sim.grid.r
-        ri = sim.grid.ri
-        J[:Nm_s,:] = 0.
-        J[-Nm_s:,:] = 0.
-        if comp.boundary.inner is not None:
-            # Given value
-            if comp.boundary.inner.condition == "val":
-                comp._Y_rhs[:Nm_s] = comp.boundary.inner.value*sim.dust.Sigma[0]
-            # Constant value
-            elif comp.boundary.inner.condition == "const_val":
-                J[[0,1], [2,3]] = 1. / dx
-                comp._Y_rhs[:Nm_s] = 0.
-            # Given gradient
-            elif comp.boundary.inner.condition == "grad":
-                K1 = - r[1] / r[0]
-                J[[0,1], [2,3]] = -K1 / dx
-                comp._Y_rhs[:Nm_s] = - ri[1] / r[0] * \
-                    (r[1] - r[0]) * comp.boundary.inner.value
-            # Constant gradient
-            elif comp.boundary.inner.condition == "const_grad":
-                Di = ri[1] / ri[2] * (r[1] - r[0]) / (r[2] - r[0])
-                K1 = - r[1] / r[0] * (1. + Di)
-                K2 = r[2] / r[0] * Di
-                J[:Nm_s] = 0.
-                J[[0,1], [2,3]] = -K1 / dx
-                J[[0,1], [4,5]] = -K2 / dx
-                comp._Y_rhs[:Nm_s] = 0.
-            # Given power law
-            elif comp.boundary.inner.condition == "pow":
-                p = comp.boundary.inner.value
-                comp._Y_rhs[:Nm_s] = comp.dust.value[1] * (r[0] / r[1]) ** p
-            # Constant power law
-            elif comp.boundary.inner.condition == "const_pow":
-                p = np.log(comp.dust.value[2,0] /
-                        comp.dust.value[1,0]) / np.log(r[2] / r[1])
-                K1 = - (r[0] / r[1]) ** p
-                J[[0,1], [2,3]] = -K1 / dx
-                comp._Y_rhs[:Nm_s] = 0.
+    if(comp.gas._active):
 
-        if comp.boundary.outer is not None:
+        # Set source term to zero at the boundaries
+        comp._S[0] = 0.
+        comp._S[Nr-1] = 0.
+        if comp.gas.boundary.inner is not None:
             # Given value
-            if comp.boundary.outer.condition == "val":
-                comp._Y_rhs[-Nm_s:] = sim.dust.boundary.outer.value*sim.dust.Sigma[-1]
+            if comp.gas.boundary.inner.condition == "val":
+                comp._Y_rhs[0] = comp.gas.boundary.inner.value
             # Constant value
-            elif comp.boundary.outer.condition == "const_val":
-                J[[-2,-1],[-4,-3]]= 1. / dx
-                comp._Y_rhs[-Nm_s:] = 0.
-            # Given gradient
-            elif comp.boundary.outer.condition == "grad":
-                KNrm2 = -r[-2] / r[-1]
-                J[[-2,-1],[-4,-3]]= -KNrm2 / dx
-                comp._Y_rhs[-Nm_s:] = ri[-2] / r[-1] * \
-                    (r[-1] - r[-2]) * sim.dust.boundary.outer.value
-            # Constant gradient
-            elif comp.boundary.outer.condition == "const_grad":
-                Do = ri[-2] / ri[-3] * (r[-1] - r[-2]) / (r[-2] - r[-3])
-                KNrm2 = - r[-2] / r[-1] * (1. + Do)
-                KNrm3 = r[-3] / r[-1] * Do
-                J[[-2,-1],[-4,-3]]= -KNrm2 / dx
-                J[[-2,-1],[-6,-5]] = -KNrm3 / dx
-                comp._Y_rhs[-Nm_s:] = 0.
-            # Given power law
-            elif comp.boundary.outer.condition == "pow":
-                p = sim.dust.boundary.outer.value
-                comp._Y_rhs[-Nm_s:] = comp.dust.value[-2] * (r[-1] / r[-2]) ** p
-            # Constant power law
-            elif comp.boundary.outer.condition == "const_pow":
-                p = np.log(comp.dust.value[-2] /
-                        comp.dust.value[-3]) / np.log(r[-2] / r[-3])
-                KNrm2 = - (r[-1] / r[-2]) ** p
-                J[[-2,-1],[-4,-3]]= -KNrm2 / dx
-                comp._Y_rhs[-Nm_s:] = 0.
-    # dust and gas
-    elif comp.dust._active == True and comp.gas._active == True:
-        Nr = int(sim.grid.Nr)
-        Nm_s = int(sim.grid._Nm_short)
-        r = sim.grid.r
-        ri = sim.grid.ri
-        # Gas boundary conditions
-        if comp.boundary.inner is not None:
-            # Given value
-            if comp.boundary.inner.condition == "val":
-                comp._Y_rhs[0] = comp.boundary.inner.value[0]
-                comp._Y_rhs[Nr:Nr+2] = comp.boundary.inner.value[1:]
-            # Constant value
-            elif comp.boundary.inner.condition == "const_val":
-                J[0,1] = 1./dx
+            elif comp.gas.boundary.inner.condition == "const_val":
+                J[0, 1] = 1./dx
                 comp._Y_rhs[0] = 0.
             # Given gradient
-            elif comp.boundary.inner.condition == "grad":
-                K1 = - r[1]/r[0]
+            elif comp.gas.boundary.inner.condition == "grad":
+                K1 = - comp.gas.boundary.inner._r[1]/comp.gas.boundary.inner._r[0]
                 J[0, 1] = -K1/dx
-                comp._Y_rhs[0] = - ri[1]/r[0] * (r[1]-r[0]) * comp.boundary.inner.value
+                comp._Y_rhs[0] = - comp.gas.boundary.inner._ri[1]/comp.gas.boundary.inner._r[0] * \
+                    (comp.gas.boundary.inner._r[1]-comp.gas.boundary.inner._r[0]) * \
+                    comp.gas.boundary.inner.value
             # Constant gradient
-            elif comp.boundary.inner.condition == "const_grad":
-                Di = ri[1]/ri[2] * (r[1]-r[0]) / (r[2]-r[0])
-                K1 = - r[1]/r[0] * (1. + Di)
-                K2 = r[2]/r[0] * Di
+            elif comp.gas.boundary.inner.condition == "const_grad":
+                Di = comp.gas.boundary.inner._ri[1]/comp.gas.boundary.inner._ri[2] * (
+                    comp.gas.boundary.inner._r[1]-comp.gas.boundary.inner._r[0]) / (comp.gas.boundary.inner._r[2]-comp.gas.boundary.inner._r[0])
+                K1 = - comp.gas.boundary.inner._r[1]/comp.gas.boundary.inner._r[0] * (1. + Di)
+                K2 = comp.gas.boundary.inner._r[2]/comp.gas.boundary.inner._r[0] * Di
                 J[0, :3] = 0.
                 J[0, 1] = -K1/dx
                 J[0, 2] = -K2/dx
                 comp._Y_rhs[0] = 0.
             # Given power law
-            elif comp.boundary.inner.condition == "pow":
-                p = comp.boundary.inner.value
-                comp._Y_rhs[0] = comp._Y[1] * (r[0]/r[1])**p
+            elif comp.gas.boundary.inner.condition == "pow":
+                p = comp.gas.boundary.inner.value
+                comp._Y_rhs[0] = comp._Y_rhs[1] * (comp.gas.boundary.inner._r[0]/comp.gas.boundary.inner._r[1])**p
             # Constant power law
-            elif comp.boundary.inner.condition == "const_pow":
-                p = np.log(comp._Y[2] / comp._Y[1]) / \
-                    np.log(r[2]/r[1])
-                K1 = - (r[0]/r[1])**p
+            elif comp.gas.boundary.inner.condition == "const_pow":
+                p = np.log(comp._Y_rhs[2] / comp._Y_rhs[1]) / \
+                    np.log(comp.gas.boundary.inner._r[2]/comp.gas.boundary.inner._r[1])
+                K1 = - (comp.gas.boundary.inner._r[0]/comp.gas.boundary.inner._r[1])**p
                 J[0, 1] = -K1/dx
                 comp._Y_rhs[0] = 0.
-    else:
-        raise RuntimeError("Component type not recognized")
+
+    # Outer boundary
+        if comp.gas.boundary.outer is not None:
+            # Given value
+            if comp.gas.boundary.outer.condition == "val":
+                comp._Y_rhs[Nr-1] = comp.gas.boundary.outer.value
+            # Constant value
+            elif comp.gas.boundary.outer.condition == "const_val":
+                J[Nr-1,Nr-2] = (1./dx)
+                comp._Y_rhs[Nr-1] = 0.
+            # Given gradient
+            elif comp.gas.boundary.outer.condition == "grad":
+                KNrm2 = - comp.gas.boundary.outer._r[1]/comp.gas.boundary.outer._r[0]
+                J[Nr-1,Nr-2] = -(KNrm2/dx)
+                comp._Y_rhs[Nr-1] = comp.gas.boundary.outer._ri[1]/comp.gas.boundary.outer._r[0] * \
+                    (comp.gas.boundary.outer._r[0]-comp.gas.boundary.outer._r[1]) * \
+                    comp.gas.boundary.outer.value
+            # Constant gradient
+            elif comp.gas.boundary.outer.condition == "const_grad":
+                Do = comp.gas.boundary.outer._ri[1]/comp.gas.boundary.outer._ri[2] * (
+                    comp.gas.boundary.outer._r[0]-comp.gas.boundary.outer._r[1]) / (comp.gas.boundary.outer._r[1]-comp.gas.boundary.outer._r[2])
+                KNrm2 = - comp.gas.boundary.outer._r[1]/comp.gas.boundary.outer._r[0] * (1. + Do)
+                KNrm3 = comp.gas.boundary.outer._r[2]/comp.gas.boundary.outer._r[0] * Do
+                J[Nr-1,Nr-2] = -KNrm2/dx
+                J[Nr-1,Nr-3] = -KNrm3/dx
+                comp._Y_rhs[Nr-1] = 0.
+            # Given power law
+            elif comp.gas.boundary.outer.condition == "pow":
+                p = comp.gas.boundary.outer.value
+                comp._Y_rhs[Nr-1] = comp._Y_rhs[Nr-2] * (comp.gas.boundary.outer._r[-0]/comp.gas.boundary.outer._r[1])**p
+            # Constant power law
+            elif comp.gas.boundary.outer.condition == "const_pow":
+                p = np.log(comp._Y_rhs[Nr-2] / comp._Y_rhs[Nr-3]) / \
+                    np.log(comp.gas.boundary.outer._r[1]/comp.gas.boundary.outer._r[2])
+                KNrm2 = - (comp.gas.boundary.outer._r[0]/comp.gas.boundary.outer._r[1])**p
+                J[Nr-1,Nr-2] = -KNrm2/dx
+                comp._Y_rhs[Nr-1] = 0.
+
+    return J

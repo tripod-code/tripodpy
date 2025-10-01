@@ -253,7 +253,7 @@ class Simulation(dp.Simulation):
                     self.dust._Y,
                     controller={"rhs": self.dust._Y_rhs},
                     description="Dust (state vector): implicit 1st-order direct solver"
-                ),
+                ),Instruction(schemes.update,  self.dust._Y, description="Update all int variable after dust step")
             ]
             self.integrator = Integrator(
                 self.t, description="Default integrator")
@@ -264,6 +264,7 @@ class Simulation(dp.Simulation):
         # setup gas_compo 
         # Adding gas components to gas group
         self.addgroup("components", description="components")
+        self.components.addfield("_gas_updated", False, description="Flag to indicate if gas has been updated in this timestep", constant=False)
         self.components.updater = []
         lst = self.updateorder.copy()
         lst.insert(lst.index("gas"), "components")
