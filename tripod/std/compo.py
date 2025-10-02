@@ -29,19 +29,19 @@ def set_state_vector_components(sim):
             continue
 
         #gas component
-        if (comp.dust._active == False) and (comp.gas._active == True):
+        if (comp.dust._tracer == False) and (comp.gas._active == True):
             comp._Y = comp.gas.Sigma
             comp._S = comp.gas.Sigma_dot
         #gas tracer
-        elif (comp.dust._active == False) and (comp.gas._tracer == True):
+        elif (comp.dust._tracer == False) and (comp.gas._tracer == True):
             comp._Y = comp.gas.value*sim.gas.Sigma # tracer int variable = tracer * Sigma
             comp._S = comp.gas.value_dot*sim.gas.Sigma + comp.gas.value*sim.gas.S.ext
         #dust tracer
-        elif (comp.dust._active == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
+        elif (comp.dust._tracer == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
             comp._Y = comp.dust.value.ravel()*sim.dust.Sigma.ravel() # tracer int variable = tracer * Sigma
             comp._S = comp.dust.S.ravel()*sim.dust.Sigma.ravel() + comp.dust.value.ravel()*(sim.dust.S.ext.ravel() + sim.dust.S.compo.ravel())
         #dust and gas
-        elif (comp.dust._active == True) and (comp.gas._active == True):
+        elif (comp.dust._tracer == True) and (comp.gas._active == True):
             Nr = int(sim.grid.Nr)
             comp._Y[:Nr] = comp.gas.Sigma.ravel()
             comp._Y[Nr:] = comp.dust.value.ravel()*sim.dust.Sigma.ravel()
@@ -66,22 +66,25 @@ def finalize(sim):
         if(name.startswith("_")):
             continue
 
-        if (comp.dust._active == False) and (comp.gas._active == True):
+        if (comp.dust._tracer == False) and (comp.gas._active == True):
             comp.gas.Sigma[...] = comp._Y
 
     sim.gas.Sigma.update()
     for name, comp in sim.components.__dict__.items():
-        if(name.startswith("_") or ((comp.dust._active == False) and (comp.gas._active == True))):
+        if(name.startswith("_") or ((comp.dust._tracer == False) and (comp.gas._active == True))):
             continue
-        elif (comp.dust._active == False) and (comp.gas._tracer == True):
+        elif (comp.dust._tracer == False) and (comp.gas._tracer == True):
             comp.gas.value[...] = (comp._Y/ sim.gas.Sigma)
-        elif (comp.dust._active == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
+        elif (comp.dust._tracer == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
             comp.dust.value[...] = (comp._Y/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape)
-        elif (comp.dust._active == True) and (comp.gas._active == True):
+        elif (comp.dust._tracer == True) and (comp.gas._active == True):
             comp.gas.Sigma[...] = comp._Y[:sim.grid.Nr].reshape(comp.gas.Sigma.shape)
             comp.dust.value[...] = (comp._Y[sim.grid.Nr:]/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape)
         else:
             raise RuntimeError("Component type not recognized")
+        
+    sim.dust.S.compo.update()
+    sim.dust.S.tot.update()
         
     sim.components._gas_updated = False
 
@@ -418,17 +421,17 @@ def c_jacobian(sim, x, dx=None, *args, **kwargs):
     #call the correct jacobian depending on the component type (dust_active, gas_active, gas_tracer)
     
     #gas component only or tracrer share jacobian
-    if comp.dust._active == False and (comp.gas._active == True or comp.gas._tracer == True):
+    if comp.dust._tracer == False and (comp.gas._active == True or comp.gas._tracer == True):
         J = dp.std.gas.jacobian(sim,x, dx=dt, *args, **kwargs)
         J_new = set_boundaries_component(sim,J,dt,comp)
         return J_new
     #dust tracer
-    elif comp.dust._active == True and comp.gas._active == False and comp.gas._tracer == False:
+    elif comp.dust._tracer == True and comp.gas._active == False and comp.gas._tracer == False:
         J = tridust.jacobian(sim,x, dx=dt, *args, **kwargs)
         J_new = set_boundaries_component(sim,J,dt,comp)
         return J_new
     #dust and ga
-    elif comp.dust._active == True and comp.gas._active == True:
+    elif comp.dust._tracer == True and comp.gas._active == True:
         J = Y_jacobian(sim, x, dx=dt, *args, **kwargs)
         J_new = set_boundaries_component(sim,J,dt,comp)
         return J_new
@@ -448,7 +451,7 @@ def set_boundaries_component(sim,J,dx,comp):
     Nr = int(sim.grid.Nr)
     Nm_s = int(sim.grid._Nm_short)
 
-    if(comp.dust._active):
+    if(comp.dust._tracer):
         # Given value
         if comp.gas._active or comp.gas._tracer:
             offset = Nr

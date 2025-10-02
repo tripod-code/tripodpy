@@ -424,6 +424,9 @@ class Simulation(dp.Simulation):
 
         self.dust.S.addfield("compo", np.zeros(shape2Sigma), description="Sources due to composition changes [g/cm²/s]")
         self.dust.S.compo.updater = std.dust.S_compo
+        lst = self.dust.S.updateorder
+        lst.insert(0, "compo")
+        self.dust.S.updater = lst
         
         if self.dust.S.tot is None:
             self.dust.S.addfield(

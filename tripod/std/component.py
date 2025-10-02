@@ -2,10 +2,10 @@ import numpy as np
 from simframe.frame import Group
 import dustpy.constants as c
 class Component(Group):
-    def __init__(self, owner, updater=None,dust_active= False,gas_active=False,gas_tracer=False,description=""):
+    def __init__(self, owner, updater=None,dust_tracer= False,gas_active=False,gas_tracer=False,description=""):
         super().__init__(owner, updater=updater, description=description)
 
-        dust = DustComponent(owner,active=dust_active, description="Dust related fields")
+        dust = DustComponent(owner,active=dust_tracer, description="Dust related fields")
         self.dust = dust
 
         gas = GasComponent(owner,active=gas_active,tracer=gas_tracer, description="Gas related fields")
@@ -13,11 +13,11 @@ class Component(Group):
 
         #add which components are active in the description
         desc = self.description
-        desc += f" (dust_active={dust_active}, gas_active={gas_active}, gas_tracer={gas_tracer})"
+        desc += f" (dust_tracer={dust_tracer}, gas_active={gas_active}, gas_tracer={gas_tracer})"
         self.description = desc
 
         # Initalize combined state vector 2*Nr for dust, Nr for gas (added if poth are present)
-        n = owner.grid.Nr * (gas_active or gas_tracer) + dust_active * owner.grid.Nr*2
+        n = owner.grid.Nr * (gas_active or gas_tracer) + dust_tracer * owner.grid.Nr*2
         self.addfield("_Y",np.zeros(n), description="Combined state vector for component [???]")
         self.addfield("_S",np.zeros(n), description="Combined source term for component [???/s]")
         self.addfield("_Y_rhs",np.zeros(n), description="Right-hand side for implicit solver [???/s]")
@@ -25,7 +25,7 @@ class Component(Group):
 
         #Set updater 
         lst = []
-        if dust_active:
+        if dust_tracer:
             lst.append("dust")
         if gas_active or gas_tracer:
             lst.append("gas")
@@ -37,46 +37,46 @@ class DustComponent(Group):
     def __init__(self, owner, updater=None, active=False, description=""):
         super().__init__(owner, updater=updater, description=description)
         
-        self._active = active
+        self._tracer = active
         self.addfield("_value", np.zeros_like(owner.dust.Sigma), description="tracer value [???]")
         self.addfield("_S", np.zeros_like(owner.dust.Sigma), description="tracer source term [???/s]")
         self.addfield("_S_Sigma", np.zeros_like(owner.dust.Sigma), description="Source term for dust surface density [g/cm²]")
     
     @property
     def value(self):
-        if self._active:
+        if self._tracer:
             return self._value
         return 0. * self._value
     
     @value.setter
     def value(self, value):
-        if self._active:
+        if self._tracer:
             self._value = value
         else:
             raise RuntimeError("Do not set dust parameter for inactive dust species.")
         
     @property
     def S(self):
-        if self._active:
+        if self._tracer:
             return self._S
         return 0. * self._S
     
     @S.setter
     def S(self, value):
-        if self._active:
+        if self._tracer:
             self._S = value
         else:
             raise RuntimeError("Do not set source term for inactive dust species.")
         
     @property
     def S_Sigma(self):
-        if self._active:
+        if self._tracer:
             return self._S_Sigma
         return 0. * self._S_Sigma
     
     @S_Sigma.setter
     def S_Sigma(self, value):
-        if self._active:
+        if self._tracer:
             self._S_Sigma = value
         else:
             raise RuntimeError("Do not set Sigma source for inactive dust species.")

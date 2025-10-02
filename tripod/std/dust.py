@@ -64,7 +64,7 @@ def dt_Sigma(sim):
 
         dt = np.ones_like(sim.dust.Sigma)*1e100
         dt[mask] = np.abs(sim.dust.Sigma[mask] / sim.dust.S.tot[mask])
-        dt[mask2,1] = np.maximum(dt[mask2,1],dt_pred)
+        dt[mask2,1] = np.minimum(dt[mask2,1],dt_pred)
         return dt.min()
     return 1e100
 
@@ -773,6 +773,9 @@ def S_compo(sim, Sigma=None):
         Sigma = sim.dust.Sigma
 
     Scomp = np.zeros_like(Sigma)
+    if hasattr(sim,"components") == False:
+        return Scomp
+
     for key, comp in sim.components.__dict__.items():
         if key.startswith("_"):
             continue

@@ -10,7 +10,7 @@ import dustpy.constants as c
 
 
 
-def addcomponent_c(self, name, gas_value, mu, dust_value = None , dust_active=False, gas_active=False, gas_tracer=False, description=""):
+def addcomponent_c(self, name, gas_value, mu, dust_value = None , dust_tracer=False, gas_active=False, gas_tracer=False, description=""):
      
     #check if component with name already exists
     if name in self.components.__dict__:
@@ -20,7 +20,7 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None , dust_active=Fa
 
     #initalize gas and dust fields
     description = description + name
-    comp = Component(self, dust_active=dust_active, gas_active=gas_active, gas_tracer=gas_tracer, description=description)
+    comp = Component(self, dust_tracer=dust_tracer, gas_active=gas_active, gas_tracer=gas_tracer, description=description)
 
     #Jacobinator for state vector
     comp._Y.jacobinator = partial(compo.c_jacobian,component=comp)
@@ -43,9 +43,9 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None , dust_active=Fa
     if comp.gas._tracer:
         comp.gas._value = gas_value
 
-    if comp.dust._active:
+    if comp.dust._tracer:
         if dust_value is None:
-            raise RuntimeError("Dust value must be provided if dust_active is True.")
+            raise RuntimeError("Dust value must be provided if dust_tracer is True.")
         comp.dust.value = dust_value
 
 
@@ -80,7 +80,7 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None , dust_active=Fa
 
 
 
-    if dust_active:
+    if dust_tracer:
         comp.dust.addgroup("boundary")
 
         comp.dust.boundary.inner = Boundary(self.grid.r, self.grid.ri, comp.dust.value)
