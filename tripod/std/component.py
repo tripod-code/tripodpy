@@ -42,11 +42,22 @@ class DustComponent(Group):
         self._active = active
         assert not (self._tracer and self._active), "Dust component cannot be both active and tracer."
         self.addfield("_Sigma", np.zeros_like(owner.dust.Sigma), description="Dust surface density [g/cm²]")
+        self.addfield("_SigmaOld", np.zeros_like(owner.dust.Sigma), description="Dust surface density [g/cm²]")
         self.addfield("_value", np.zeros_like(owner.dust.Sigma), description="tracer value [???]")
-        self.addfield("_S", np.zeros_like(owner.dust.Sigma), description="tracer source term [???/s]")
+        self.addfield("_value_dot" , np.zeros_like(owner.dust.Sigma), description="Gas parameter source term [???/s]")
+        #self.addfield("_S", np.zeros_like(owner.dust.Sigma), description="tracer source term [???/s]")
         self.addfield("_Sigma_dot", np.zeros_like(owner.dust.Sigma), description="Gas surface density source term [g/cm²/s]")
         self.addfield("_S_Sigma", np.zeros_like(owner.dust.Sigma), description="Source term for dust surface density [g/cm²]")
     
+        self.addgroup("S", description="Gas source terms")
+        self.addfield("Fi", np.zeros_like(owner.dust.Fi.tot), description="Gas flux [g/cm²/s]")
+        self.S.addfield("ext", np.zeros_like(owner.dust.Sigma), description="External source term [g/cm²/s]")
+        self.S.addfield("hyd", np.zeros_like(owner.dust.Sigma), description="Hydrodynamical source term [g/cm²/s]")
+        self.S.addfield("coag", np.zeros_like(owner.dust.Sigma), description="Hydrodynamical source term [g/cm²/s]")
+        self.S.addfield("tot", np.zeros_like(owner.dust.Sigma), description="Total source term [g/cm²/s]")
+
+        self.addgroup("pars", description="Dust parameters")
+        self.pars.addfield("rhos", 1.0, description="Material density of dust grains [g/cm³]")
     @property
     def value(self):
         if self._tracer:
@@ -59,20 +70,7 @@ class DustComponent(Group):
             self._value = value
         else:
             raise RuntimeError("Do not set dust parameter for inactive dust species.")
-        
-    @property
-    def S(self):
-        if self._tracer:
-            return self._S
-        return 0. * self._S
-    
-    @S.setter
-    def S(self, value):
-        if self._tracer:
-            self._S = value
-        else:
-            raise RuntimeError("Do not set source term for inactive dust species.")
-        
+            
     @property
     def S_Sigma(self):
         if self._tracer:
@@ -111,6 +109,19 @@ class DustComponent(Group):
             self._Sigma_dot = value
         else:
             raise RuntimeError("Do not set Sigma source for inactive dust species.")
+        
+    @property
+    def value_dot(self):
+        if self._tracer:
+            return self._value_dot
+        return 0. * self._value_dot
+    
+    @value_dot.setter
+    def value_dot(self, value):
+        if self._tracer:
+            self._value_dot = value
+        else:
+            raise RuntimeError("Do not set gas parameter source for inactive dust species.")
 
 class GasComponent(Group):
     def __init__(self, owner, updater=None, active=False,tracer=True, description=""):

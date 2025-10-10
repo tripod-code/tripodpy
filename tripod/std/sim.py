@@ -21,6 +21,8 @@ def dt(sim):
 
     dt_gas = std.gas.dt_compo(sim) or 1.e100
     dt_dust = std.dust.dt(sim) or 1.e100
+    if sim._dust_compo:
+        dt_dust = min(dt_dust, std.dust.dt_compo(sim) or 1.e100)
     dt = np.minimum(dt_gas, dt_dust)
     return sim.t.cfl * dt
 

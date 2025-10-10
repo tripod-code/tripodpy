@@ -266,6 +266,7 @@ class Simulation(dp.Simulation):
         self.addgroup("components", description="components")
         self.components.addfield("_gas_updated", False, description="Flag to indicate if gas has been updated in this timestep", constant=False)
         self.components.addfield("_dust_updated", False, description="Flag to indicate if gas has been updated in this timestep", constant=False)
+        self.addfield("_dust_compo",False, description="Flag to indicate if composition affects dust", constant=False)
         self.components.updater = []
         lst = self.updateorder.copy()
         lst.insert(lst.index("gas"), "components")

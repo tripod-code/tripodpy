@@ -68,6 +68,33 @@ def dt_Sigma(sim):
         return dt.min()
     return 1e100
 
+def dt_compo(sim):
+    """Function calculates the time step due to changes in Sigma.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    dt_Sigma : float
+        Time step due to changes in Sigma"""
+    dt = 1e100
+    for key,comp in sim.components.__dict__.items():
+        if not key.startswith("_") and comp.dust._active:
+            if np.any(sim.dust.S.tot[1:-1, ...] < 0.):
+                mask = np.logical_and(
+                    comp.dust.Sigma > sim.dust.SigmaFloor,
+                    comp.dust.S.tot < 0.)
+                mask[0, :] = False
+                mask[-1:, :] = False
+                dt_int = np.ones_like(sim.dust.Sigma)*1e100
+                dt_int[mask] = np.abs(comp.dust.Sigma[mask] / comp.dust.S.tot[mask])
+
+                dt = min(dt,dt_int.min())
+    return 1e100
+
 
 def S_smax_hyd(sim):
     """Function calculates the hydrodynamic source terms for s.max 
@@ -78,6 +105,64 @@ def S_smax_hyd(sim):
     S_hyd = (dp_dust_f.s_hyd(Fi,sim.grid.ri)[:,0] - sim.dust.S.hyd[:,1]*sim.dust.s.max)/sim.dust.Sigma[:,1]
 
     return S_hyd
+
+
+def S_hyd_compo(sim, group=None):
+    """Function calculates the hydrodynamic source terms.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    Sigma : Field, optional, default : None
+        Surface density to be used if not None
+
+    Returns
+    -------
+    Shyd : Field
+        Hydrodynamic source terms"""
+
+    return dp_dust_f.s_hyd(group.Fi,sim.grid.ri)
+
+def S_tot_compo(sim,group=None):
+    """Function returns the external source terms for each component.
+    
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    compkey : str, optional
+        Key of the component, by default "default"
+        
+    Returns
+    -------
+    S_ext : Field
+        External source terms for each component"""
+
+    return group.S.ext + group.S.hyd + group.S.coag
+
+def rhos_compo(sim):
+    """Function returns the material density of dust from the composition.
+    
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+        
+    Returns
+    -------
+    rhos : Field
+        Material density of dust grains for each component"""
+    
+    temp = np.zeros_like(sim.gas.Sigma)
+    sig_tot = np.zeros_like(sim.gas.Sigma)
+    for key, comp in sim.components.__dict__.items():
+        if not key.startswith("_") and comp.dust._active:
+            sig_tot += comp.dust.Sigma.sum(-1)
+            temp += comp.dust.Sigma.sum(-1)/comp.dust.pars.rhos
+
+    res = np.where(sim.dust.Sigma.sum(-1) > sim.dust.SigmaFloor.sum(-1), (sig_tot)/temp, sim.dust.rhos[:,0])
+    return res[:,None] * np.ones_like(sim.dust.rhos)
 
 def Fi_sig1smax (sim):
     """
@@ -172,6 +257,20 @@ def finalize(sim):
         p = np.log(sim.dust.s.max[2] /sim.dust.s.max[1]) / np.log(sim.grid.r[2] / sim.grid.r[1])
         sim.dust.s.max[0] = sim.dust.s.max[1] * (sim.grid.r[0] / sim.grid.r[1]) ** p
     
+
+    # sims up the dust suface density if there are active dust components if there are any
+    if sim._dust_compo:
+        temp = np.zeros_like(sim.dust.Sigma)
+        for nm, cint in sim.components.__dict__.items():
+            if(nm.startswith("_")):
+                continue
+            if(cint.dust._active):
+                has_components = True
+                temp += cint.dust.Sigma
+                cint.dust.Sigma = np.maximum(sim.dust.SigmaFloor, cint.dust.Sigma)
+        sim.dust.Sigma = np.maximum(temp, sim.dust.SigmaFloor)
+
+
     dp_dust.boundary(sim)
     dp_dust.enforce_floor_value(sim)
     enforce_f(sim)
@@ -711,6 +810,11 @@ def enforce_f(sim):
     sim.dust.s.max = np.maximum( sim.dust.s.lim*np.ones_like(sim.dust.s.max) ,sim.dust.s.max + delta * dadsig(sim))
     sim.dust.Sigma[:,1] += delta
     sim.dust.Sigma[:,0] -= delta
+    for key, comp in sim.components.__dict__.items():
+        if (not key.startswith("_")) and comp.dust._active:
+
+            comp.dust.Sigma[:,1] += delta * comp.dust.Sigma[:,1]/sim.dust.Sigma[:,1]
+            comp.dust.Sigma[:,0] -= delta * comp.dust.Sigma[:,0]/sim.dust.Sigma[:,0]
     sim.dust.qrec.update()
 
 

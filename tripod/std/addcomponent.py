@@ -1,16 +1,20 @@
 from tripod.std import compo as compo
 from tripod.std import gas as gas
+from tripod.std import dust as dust
+from tripod.std.dust import Sigma_initial
+
 from .component import Component
 from functools import partial
 from simframe import Instruction
 from dustpy.utils import Boundary
+import dustpy.std.dust as dp_dust
 from simframe import schemes
 import numpy as np
 import dustpy.constants as c
 
 
 
-def addcomponent_c(self, name, gas_value, mu, dust_value = None ,dust_active=False,dust_tracer=False, gas_active=False, gas_tracer=False, description=""):
+def addcomponent_c(self, name, gas_value, mu, dust_value = None ,dust_active=False,dust_tracer=False, gas_active=False, gas_tracer=False, description="",rhos=1.0):
      
     #check if component with name already exists
     if name in self.components.__dict__:
@@ -51,6 +55,20 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None ,dust_active=Fal
 
     if comp.dust._active:
         comp.dust.Sigma = dust_value
+        comp.dust.Fi.updater = partial(dp_dust.F_tot,Sigma=comp.dust.Sigma)
+        comp.dust.S.hyd.updater = partial(dust.S_hyd_compo,group=comp.dust)
+        comp.dust.S.coag.updater = partial(dust.S_coag,Sigma=comp.dust.Sigma)
+        comp.dust.S.tot.updater = partial(dust.S_tot_compo,group=comp.dust)
+        comp.dust.updater = ["Fi","S"]
+        comp.dust.S.updater = ["ext","hyd","coag","tot"]
+        comp.dust.pars.rhos = rhos
+        comp.dust._SigmaOld = dust_value
+
+        if not self._dust_compo:
+            self.dust.rhos.updater = dust.rhos_compo
+            self._dust_compo = True
+
+
 
 
     # Adding component to updater

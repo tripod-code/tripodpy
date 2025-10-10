@@ -40,24 +40,24 @@ def set_state_vector_components(sim):
         #dust tracer
         elif (comp.dust._tracer == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
             comp._Y = comp.dust.value.ravel()*sim.dust.Sigma.ravel() # tracer int variable = tracer * Sigma
-            comp._S = comp.dust.S.ravel()*sim.dust.Sigma.ravel() + comp.dust.value.ravel()*(sim.dust.S.ext.ravel() + sim.dust.S.compo.ravel())
+            comp._S = comp.dust.value_dot.ravel()*sim.dust.Sigma.ravel() + comp.dust.value.ravel()*(sim.dust.S.ext.ravel() + sim.dust.S.compo.ravel())
         #dust and gas
         elif (comp.dust._tracer == True) and (comp.gas._active == True):
             Nr = int(sim.grid.Nr)
             comp._Y[:Nr] = comp.gas.Sigma.ravel()
             comp._Y[Nr:] = comp.dust.value.ravel()*sim.dust.Sigma.ravel()
             comp._S[:Nr] = comp.gas.Sigma_dot
-            comp._S[Nr:] = comp.dust.S.ravel()*sim.dust.Sigma.ravel() + comp.dust.value.ravel()*(sim.dust.S.ext.ravel() + sim.dust.S.compo.ravel())
+            comp._S[Nr:] = comp.dust.value_dot.ravel()*sim.dust.Sigma.ravel() + comp.dust.value.ravel()*(sim.dust.S.ext.ravel() + sim.dust.S.compo.ravel())
 
         elif (comp.dust._active == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
-            comp._Y = comp.dust.Sigma
-            comp._S = comp.dust.Sigma_dot
+            comp._Y = comp.dust.Sigma.ravel()
+            comp._S = comp.dust.S.ext.ravel()
         elif (comp.dust._active == True) and (comp.gas._active == True):
             Nr = int(sim.grid.Nr)
             comp._Y[:Nr] = comp.gas.Sigma.ravel()
             comp._Y[Nr:] = comp.dust.Sigma.ravel()
             comp._S[:Nr] = comp.gas.Sigma_dot.ravel()
-            comp._S[Nr:] = comp.dust.Sigma_dot.ravel()
+            comp._S[Nr:] = comp.dust.S.ext.ravel()
         else:
             raise RuntimeError("Component type not recognized")
         
@@ -93,7 +93,7 @@ def finalize(sim):
             comp.gas.Sigma[...] = comp._Y[:sim.grid.Nr].reshape(comp.gas.Sigma.shape)
             comp.dust.value[...] = (comp._Y[sim.grid.Nr:]/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape)
         elif (comp.dust._active == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
-            comp.dust.Sigma[...] = comp._Y
+            comp.dust.Sigma[...] = comp._Y.reshape(comp.dust.Sigma.shape)
         elif (comp.dust._active == True) and (comp.gas._active == True):
             comp.gas.Sigma[...] = comp._Y[:sim.grid.Nr].reshape(comp.gas.Sigma.shape)
             comp.dust.Sigma[...] = comp._Y[sim.grid.Nr:].reshape(comp.dust.Sigma.shape)
@@ -482,9 +482,9 @@ def set_boundaries_component(sim,J,dx,comp):
     Nm_s = int(sim.grid._Nm_short)
 
     if(comp.dust._tracer):
-        if not sim.components._dust_updated and False:
+        if not sim.components._dust_updated and sim._dust_compo:
             # still need to update the dust surface density for the boundary conditions
-            sim.dust.Sigma[...] = np.zeros_like(cint.dust.Sigma)
+            sim.dust.Sigma[...] = np.zeros_like(sim.dust.Sigma)
             for nm, cint in sim.components.__dict__.items():
                 if(nm.startswith("_")):
                     continue
