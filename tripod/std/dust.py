@@ -572,7 +572,7 @@ def a(sim):
 
     Returns
     -------
-    a : Field
+    a : Field [a0, fudge * a1, a1, fudge * amax, amax]
         Particle sizes"""
     # interpolate between drift and turbulence dominated pre-factor
     return dust_f.calculate_a(sim.dust.s.min, sim.dust.s.max, sim.dust.qrec, sim.dust.f.dv, sim.grid._Nm_long)
