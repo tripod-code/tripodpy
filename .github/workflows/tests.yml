@@ -3,20 +3,36 @@ name: Run Duffle on Push
 
 on:
   workflow_dispatch:  # 👈 This enables manual runs from GitHub UI
+    inputs:
+      run_duffle:
+        description: 'Run Duffle tests'
+        required: false
+        default: true
+        type: boolean
+      run_smooth:
+        description: 'Run Smooth tests'
+        required: false
+        default: true
+        type: boolean
+      run_unit_tests:
+        description: 'Run unit tests'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   run-duffle:
-    if: False  # Set to true if you want to run this job on every push
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_duffle }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'  # Adjust if needed
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
@@ -28,16 +44,17 @@ jobs:
         run: python ./tests/Duffle.py
 
   run-smooth:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_smooth }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'  # Adjust if needed
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
@@ -47,3 +64,25 @@ jobs:
 
       - name: Run Duffle.py
         run: python ./tests/Smooth.py
+  unit_tests:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_unit_tests }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Optional: only if you use a requirements file
+          pip install .
+
+      - name: Run unit tests
+        run: |
+          pytest unit_tests/ --cov=tripod --cov-report=xml

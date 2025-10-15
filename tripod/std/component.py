@@ -73,13 +73,13 @@ class DustComponent(Group):
             
     @property
     def S_Sigma(self):
-        if self._tracer:
+        if self._active:
             return self._S_Sigma
         return 0. * self._S_Sigma
     
     @S_Sigma.setter
     def S_Sigma(self, value):
-        if self._tracer:
+        if self._active:
             self._S_Sigma = value
         else:
             raise RuntimeError("Do not set Sigma source for inactive dust species.")

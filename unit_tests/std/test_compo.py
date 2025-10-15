@@ -1,3 +1,4 @@
+from unittest import mock
 import pytest
 import numpy as np
 from unittest.mock import Mock, MagicMock, patch
@@ -31,7 +32,6 @@ class TestStateVectorManagement:
 
     def test_set_state_vector_components_gas_active(self,sim,Sigma_gas):
         """Test state vector setup for gas active component"""
-
         sim.addcomponent_c(name="water", gas_value=Sigma_gas, mu=18.0, gas_active=True)
         comp_gas = sim.components.__dict__["water"]
         set_state_vector_components(sim)
@@ -80,7 +80,37 @@ class TestStateVectorManagement:
         expected_dust_Y = (comp_mixed.dust.Sigma).ravel()
         np.testing.assert_array_equal(comp_mixed._Y[Nr:], expected_dust_Y)
 
+    def test_tracer_active_component(self,sim,Sigma_gas,Sigma_dust):
+        """Test error raised when component is both tracer and active"""
+        sim.addcomponent_c(name="comp_mixed", gas_value=Sigma_gas, mu=18.0, dust_value=Sigma_dust, dust_tracer=True, gas_active=True)
+        comp_mixed = sim.components.__dict__["comp_mixed"]
+        set_state_vector_components(sim)
+        Nr = sim.grid.Nr
+
+        np.testing.assert_array_equal(comp_mixed._Y[:Nr], comp_mixed.gas.Sigma)
+        np.testing.assert_array_equal(comp_mixed._S[:Nr], comp_mixed.gas.Sigma_dot)
+
+        np.testing.assert_array_equal(comp_mixed._Y[Nr:], (comp_mixed.dust.value * sim.dust.Sigma).ravel())
+        np.testing.assert_array_equal(comp_mixed._S[Nr:],  comp_mixed.dust.value_dot.ravel()*sim.dust.Sigma.ravel() + comp_mixed.dust.value.ravel()*(sim.dust.S.ext.ravel() + sim.dust.S.compo.ravel()))
     
+    def test_invalid_component(self,sim):
+        """Test error raised for component with no active or tracer flags"""
+        comp = Mock()
+        comp.name = "invalid_compo"
+        comp.gas._active = True
+        comp.gas._tracer = True
+        comp.dust._active = True
+        comp.dust._tracer = True
+        sim.components.__dict__["invalid_compo"] = comp
+        with pytest.raises(RuntimeError, match="Component type not recognized"):
+            set_state_vector_components(sim)
+
+        comp.gas._active = False
+        comp.gas._tracer = False
+        comp.dust._active = False
+        comp.dust._tracer = False
+        with pytest.raises(RuntimeError, match="Component type not recognized"):
+            set_state_vector_components(sim)
 class TestFinalization:
     @pytest.fixture
     def sim(self):
@@ -118,7 +148,59 @@ class TestFinalization:
         assert sim.components._gas_updated == False
         assert sim.components._dust_updated == False
 
+    def test_finalize_tracer_mixed(self, sim):
+        """Test finalization updates mixed components correctly"""
+        sim.addcomponent_c(name="mixed_compo", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_active=True, gas_active=True)
+        sim.update()
+        sim.run()
 
+        Nr = sim.grid.Nr
+        # assert gas part is updated correctly
+        np.testing.assert_array_almost_equal(sim.components.mixed_compo.gas.Sigma,sim.components.mixed_compo._Y[:Nr])
+        
+        # assert dust part is updated correctly
+        np.testing.assert_array_almost_equal(sim.components.mixed_compo.dust.Sigma,sim.components.mixed_compo._Y[Nr:].reshape(sim.components.mixed_compo.dust.Sigma.shape))
+
+        #assert flags are reset
+        assert sim.components._gas_updated == False
+        assert sim.components._dust_updated == False
+
+    def test_finalize_mixed(self, sim):
+        """Test finalization updates mixed components correctly"""
+        sim.addcomponent_c(name="mixed_compo", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_tracer=True, gas_active=True)
+        sim.update()
+        sim.run()
+
+        comp = sim.components.mixed_compo
+        Nr = sim.grid.Nr
+        # assert gas part is updated correctly
+        np.testing.assert_array_almost_equal(sim.components.mixed_compo.gas.Sigma,sim.components.mixed_compo._Y[:Nr])
+        
+        # assert dust part is updated correctly
+        np.testing.assert_array_almost_equal(sim.components.mixed_compo.dust.value, (comp._Y[sim.grid.Nr:]/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape))
+
+        #assert flags are reset
+        assert sim.components._gas_updated == False
+        assert sim.components._dust_updated == False
+
+    def test_invalid_component(self,sim):
+        """Test error raised for component with no active or tracer flags"""
+        comp = Mock()
+        comp.name = "invalid_compo"
+        comp.gas._active = True
+        comp.gas._tracer = True
+        comp.dust._active = True
+        comp.dust._tracer = True
+        sim.components.__dict__["invalid_compo"] = comp
+        with pytest.raises(RuntimeError, match="Component type not recognized"):
+            finalize(sim)
+
+        comp.gas._active = False
+        comp.gas._tracer = False
+        comp.dust._active = False
+        comp.dust._tracer = False
+        with pytest.raises(RuntimeError, match="Component type not recognized"):
+            finalize(sim)
 class TestJacobianCalculations:
     def test_Y_jacobian_basic(self, monkeypatch):
         """Test Y Jacobian calculation"""
@@ -190,6 +272,21 @@ class TestJacobianCalculations:
         
         assert isinstance(result, sp.csc_matrix)
         assert result.shape == (9, 9)  # (Nr * Nm_s) + Nr
+
+
+    def test_impl_direct_basic(self):
+        """Test implicit direct function"""
+        Jac = sp.csc_matrix(np.eye(9))
+        Y0 = np.ones(9)
+        dx = 0.1
+        x0 = 1 
+        
+        result = _f_impl_1_direct_compo(x0 = x0,Y0=Y0, dx=dx, jac=Jac)
+        
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (9,)
+        expcted_result = np.ones(9)/9.
+        np.testing.assert_array_almost_equal(result, expcted_result)
 
 class TestPhysicalProcesses:
     def test_A_grains_q_minus_4(self):
@@ -473,3 +570,351 @@ class TestBoundaryConditions:
         assert comp._Y_rhs[0] == 150.0
         assert comp._Y_rhs[2] == 50.0  # Nr-1
 
+
+class TestBoundaryComponents:
+    @pytest.fixture
+    def sim(self):
+        sim = Simulation()
+        sim.ini.grid.Nr = 5
+        sim.initialize()
+
+        return sim
+    
+    def test_set_boundaries_component_gas_active(self, sim):
+        """Test boundary conditions for gas active component"""
+        sim.addcomponent_c(name="water", gas_value=np.array([100.0, 200.0, 300.0,400.0,500.0]), mu=18.0, gas_active=True)
+        comp = sim.components.__dict__["water"]
+        J = sp.csc_matrix(np.eye(5))
+        dt = 0.1
+
+        #val
+        comp.gas.boundary.inner.setcondition("val", value=150.0)
+        comp.gas.boundary.outer.setcondition("val", value=50.0)
+
+        result = set_boundaries_component(sim, J, dt, comp)
+        assert comp._Y_rhs[0] == 150.0
+        assert comp._Y_rhs[-1] == 50.0  # Nr-1
+
+        #const_val
+        comp._Y_rhs = comp.gas.Sigma
+        comp.gas.boundary.inner.setcondition("const_val")
+        comp.gas.boundary.outer.setcondition("const_val")
+
+        result = set_boundaries_component(sim, J, dt, comp)
+        assert comp._Y_rhs[0] == 0.0
+        assert comp._Y_rhs[-1] == 0.0  # Nr-1
+        assert result[0,1] == 10. # 1./dt
+
+        #grad
+        comp._Y_rhs = comp.gas.Sigma
+        comp.gas.boundary.inner.setcondition("grad", value=1.0)
+        comp.gas.boundary.outer.setcondition("grad", value=-1.0)
+
+        result = set_boundaries_component(sim, J, dt, comp)
+        K1 = -sim.grid.r[1]/sim.grid.r[0]
+        Km1 = -sim.grid.r[-2]/sim.grid.r[-1]
+        np.testing.assert_almost_equal(result[0,1],  (-K1/dt))
+        np.testing.assert_almost_equal(result[-1,-2], (-Km1/dt))
+
+        #const_grad
+        comp.gas.boundary.inner.setcondition("const_grad")
+        comp.gas.boundary.outer.setcondition("const_grad")
+
+        result = set_boundaries_component(sim, J, dt, comp)
+
+        assert result[0,0] == 0
+        assert result[-1,-1] == 0
+        assert comp._Y_rhs[0] == 0.0
+        assert comp._Y_rhs[-1] == 0.0  # Nr-1
+        assert result[0,1] != 0
+        assert result[0,2] != 0
+        assert result[-1,-2] != 0
+        assert result[-1,-3] != 0
+
+
+        #pow 
+        comp._Y_rhs = comp.gas.Sigma
+        p_inner = 2.
+        p_outer = 0.5
+        comp.gas.boundary.inner.setcondition("pow", value=p_inner)
+        comp.gas.boundary.outer.setcondition("pow", value=p_outer)
+
+        result = set_boundaries_component(sim, J, dt, comp)
+
+        expected_inner = (sim.grid.r[0]/sim.grid.r[1])**p_inner
+        expected_outer = (sim.grid.r[-1]/sim.grid.r[-2])**p_outer
+        assert comp._Y_rhs[0] == expected_inner*comp._Y_rhs[1]
+        assert comp._Y_rhs[-1] == expected_outer*comp._Y_rhs[-2]
+
+        #const_pow
+        comp._Y_rhs = comp.gas.Sigma
+        comp.gas.boundary.inner.setcondition("const_pow")
+        comp.gas.boundary.outer.setcondition("const_pow")
+
+        result = set_boundaries_component(sim, J, dt, comp)
+        assert result[0,0] == 0
+        assert result[-1,-1] == 0
+        assert comp._Y_rhs[0] == 0.0
+        assert comp._Y_rhs[-1] == 0.0  # Nr-1
+        assert result[0,1] != 0
+        assert result[-1,-2] != 0
+
+
+        
+
+
+    def test_set_boundaries_component_dust_active(self, sim):
+        """Test boundary conditions for dust active component"""
+        sim.addcomponent_c("water",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_active=True)
+        comp = sim.components.__dict__["water"]
+        Nm = sim.grid._Nm_short
+        Nr = sim.grid.Nr
+        J = sp.csc_matrix(np.eye(Nm*Nr))
+        dt = 0.1
+
+
+        #val
+        comp.dust.boundary.inner.setcondition("val", value=150.0)
+        comp.dust.boundary.outer.setcondition("val", value=50.0)
+
+        result = set_boundaries_component(sim, J, dt, comp)
+        assert comp._Y_rhs[0] == 150.0
+        assert comp._Y_rhs[-1] == 50.0  # Nr-1
+
+        #const_val
+        comp._Y_rhs = comp.dust.Sigma.ravel()
+        comp.dust.boundary.inner.setcondition("const_val")
+        comp.dust.boundary.outer.setcondition("const_val")
+        result = set_boundaries_component(sim, J, dt, comp)
+        assert all(comp._Y_rhs[:Nm] == 0.0)
+        assert all(comp._Y_rhs[-Nm:] == 0.0)  # Nr-1
+        for k in range(Nm):
+            assert result[k,k+Nm] == 10. # 1./dt
+            assert result[-Nm+k,-2*Nm+k] == 10. # 1./dt
+
+
+        #grad
+        comp._Y_rhs = comp.dust.Sigma.ravel()
+        comp.dust.boundary.inner.setcondition("grad", value=1.0)
+        comp.dust.boundary.outer.setcondition("grad", value=-1.0)
+        result = set_boundaries_component(sim, J, dt, comp)
+        K1 = -sim.grid.r[1]/sim.grid.r[0]
+        Km1 = -sim.grid.r[-2]/sim.grid.r[-1]
+        for k in range(Nm):
+            np.testing.assert_almost_equal(result[k,k+Nm],  (-K1/dt))
+            np.testing.assert_almost_equal(result[-Nm+k,-2*Nm+k], (-Km1/dt))
+        
+        #const_grad
+        comp._Y_rhs = comp.dust.Sigma.ravel()
+        comp.dust.boundary.inner.setcondition("const_grad")
+        comp.dust.boundary.outer.setcondition("const_grad")
+        result = set_boundaries_component(sim, J, dt, comp)
+        for k in range(Nm):
+            assert result[k,k] == 0
+            assert result[-Nm+k,-Nm+k] == 0
+            assert comp._Y_rhs[k] == 0.0
+            assert comp._Y_rhs[-Nm+k] == 0.0  # Nr-1
+            assert result[k,k+Nm] != 0
+            assert result[k,k+2*Nm] != 0
+            assert result[-Nm+k,-2*Nm+k] != 0
+            assert result[-Nm+k,-3*Nm+k] != 0
+
+
+        #pow
+        comp._Y_rhs = comp.dust.Sigma.ravel()
+        p_inner = 2.
+        p_outer = 0.5
+        comp.dust.boundary.inner.setcondition("pow", value=p_inner)
+        comp.dust.boundary.outer.setcondition("pow", value=p_outer)
+        result = set_boundaries_component(sim, J, dt, comp)
+        for k in range(Nm):
+            expected_inner = (sim.grid.r[0]/sim.grid.r[1])**p_inner
+            expected_outer = (sim.grid.r[-1]/sim.grid.r[-2])**p_outer
+            assert comp._Y_rhs[k] == expected_inner*comp._Y_rhs[k+Nm]
+            assert comp._Y_rhs[-Nm+k] == expected_outer*comp._Y_rhs[-2*Nm+k]
+
+
+        #const_pow
+        comp._Y_rhs = comp.dust.Sigma.ravel()
+        comp.dust.boundary.inner.setcondition("const_pow")
+        comp.dust.boundary.outer.setcondition("const_pow")
+        result = set_boundaries_component(sim, J, dt, comp)
+        for k in range(Nm):
+            assert result[k,k] == 0
+            assert result[-Nm+k,-Nm+k] == 0
+            assert comp._Y_rhs[k] == 0.0
+            assert comp._Y_rhs[-Nm+k] == 0.0  # Nr-1
+            assert result[k,k+Nm] != 0
+            assert result[-Nm+k,-2*Nm+k] != 0
+
+    def test_set_boundaries_component_mixed(self, sim):
+        """Test boundary conditions for mixed dust and gas component"""
+        sim.addcomponent_c(name="mixed_compo", gas_value=np.array([100.0, 200.0, 300.0,400.0,500.0]), mu=18.0, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_active=True, gas_active=True)
+        comp = sim.components.__dict__["mixed_compo"]
+        Nm = sim.grid._Nm_short
+        Nr = sim.grid.Nr
+        J = sp.csc_matrix(np.eye(Nr + Nm*Nr))
+        dt = 0.1
+
+        #val
+        comp.gas.boundary.inner.setcondition("val", value=150.0)
+        comp.gas.boundary.outer.setcondition("val", value=50.0)
+        comp.dust.boundary.inner.setcondition("val", value=250.0)
+        comp.dust.boundary.outer.setcondition("val", value=75.0)
+
+        result = set_boundaries_component(sim, J, dt, comp)
+        assert comp._Y_rhs[0] == 150.0
+        assert comp._Y_rhs[Nr-1] == 50.0  # Nr-1
+        assert comp._Y_rhs[Nr] == 250.0
+        assert comp._Y_rhs[-1] == 75.0  # Nr-1
+
+        #const_val
+        comp._Y_rhs = np.concatenate((comp.gas.Sigma, comp.dust.Sigma.ravel()))
+        comp.gas.boundary.inner.setcondition("const_val")
+        comp.gas.boundary.outer.setcondition("const_val")
+        comp.dust.boundary.inner.setcondition("const_val")
+        comp.dust.boundary.outer.setcondition("const_val")
+        result = set_boundaries_component(sim, J, dt, comp)
+        assert (comp._Y_rhs[0] == 0.0)
+        assert (comp._Y_rhs[Nr-1:Nr] == 0.0)  # Nr-1
+        assert all(comp._Y_rhs[Nr:Nr+Nm] == 0.0)
+        assert all(comp._Y_rhs[-Nm:] == 0.0)  # Nr-1
+        for k in range(Nm):
+            assert result[Nr+k,Nr+k+Nm] == 10. # 1./dt
+            assert result[-Nm+k,-2*Nm+k] == 10. # 1./dt
+        assert result[0,1] == 10. # 1./dt
+        assert result[Nr-1,Nr-2] == 10. # 1./dt
+
+        #grad
+        comp._Y_rhs = np.concatenate((comp.gas.Sigma, comp.dust.Sigma.ravel()))
+        comp.gas.boundary.inner.setcondition("grad", value=1.0)
+        comp.gas.boundary.outer.setcondition("grad", value=-1.0)
+        comp.dust.boundary.inner.setcondition("grad", value=1.0)
+        comp.dust.boundary.outer.setcondition("grad", value=-1.0)
+        result = set_boundaries_component(sim, J, dt, comp)
+        K1 = -sim.grid.r[1]/sim.grid.r[0]
+        Km1 = -sim.grid.r[-2]/sim.grid.r[-1]
+        for k in range(Nm):
+            np.testing.assert_almost_equal(result[Nr+k,Nr+k+Nm],  (-K1/dt))
+            np.testing.assert_almost_equal(result[-Nm+k,-2*Nm+k], (-Km1/dt))
+
+        np.testing.assert_almost_equal(result[0,1],  (-K1/dt))
+        np.testing.assert_almost_equal(result[Nr-1,Nr-2], (-Km1/dt))
+
+        #const_grad
+        comp._Y_rhs = np.concatenate((comp.gas.Sigma, comp.dust.Sigma.ravel()))
+        comp.gas.boundary.inner.setcondition("const_grad")
+        comp.gas.boundary.outer.setcondition("const_grad")
+        comp.dust.boundary.inner.setcondition("const_grad")
+        comp.dust.boundary.outer.setcondition("const_grad")
+        result = set_boundaries_component(sim, J, dt, comp)
+        for k in range(Nm):
+            assert result[Nr+k,Nr+k] == 0
+            assert result[-Nm+k,-Nm+k] == 0
+            assert comp._Y_rhs[Nr+k] == 0.0
+            assert comp._Y_rhs[-Nm+k] == 0.0  # Nr-1
+            assert result[Nr+k,Nr+k+Nm] != 0
+            assert result[Nr+k,Nr+k+2*Nm] != 0
+            assert result[-Nm+k,-2*Nm+k] != 0
+            assert result[-Nm+k,-3*Nm+k] != 0
+        assert result[0,0] == 0
+        assert result[Nr-1,Nr-1] == 0
+        assert comp._Y_rhs[0] == 0.0
+        assert comp._Y_rhs[Nr-1] == 0.0  # Nr
+        assert result[0,1] != 0
+        assert result[0,2] != 0
+        assert result[Nr-1,Nr-2] != 0
+        assert result[Nr-1,Nr-3] != 0
+
+        #pow
+        comp._Y_rhs = np.concatenate((comp.gas.Sigma, comp.dust.Sigma.ravel()))
+        p_inner = 2.
+        p_outer = 0.5
+        comp.gas.boundary.inner.setcondition("pow", value=p_inner)
+        comp.gas.boundary.outer.setcondition("pow", value=p_outer)
+        comp.dust.boundary.inner.setcondition("pow", value=p_inner)
+        comp.dust.boundary.outer.setcondition("pow", value=p_outer)
+        result = set_boundaries_component(sim, J, dt, comp)
+        for k in range(Nm):
+            expected_inner = (sim.grid.r[0]/sim.grid.r[1])**p_inner
+            expected_outer = (sim.grid.r[-1]/sim.grid.r[-2])**p_outer
+            assert comp._Y_rhs[Nr+k] == expected_inner*comp._Y_rhs[Nr+k+Nm]
+            assert comp._Y_rhs[-Nm+k] == expected_outer*comp._Y_rhs[-2*Nm+k]
+        expected_inner = (sim.grid.r[0]/sim.grid.r[1])**p_inner
+        expected_outer = (sim.grid.r[-1]/sim.grid.r[-2])**p_outer
+        assert comp._Y_rhs[0] == expected_inner*comp._Y_rhs[1]
+        assert comp._Y_rhs[Nr-1] == expected_outer*comp._Y_rhs[Nr-2]
+
+        #const_pow
+        comp._Y_rhs = np.concatenate((comp.gas.Sigma, comp.dust.Sigma.ravel()))
+        comp.gas.boundary.inner.setcondition("const_pow")
+        comp.gas.boundary.outer.setcondition("const_pow")
+        comp.dust.boundary.inner.setcondition("const_pow")
+        comp.dust.boundary.outer.setcondition("const_pow")
+        result = set_boundaries_component(sim, J, dt, comp)
+        for k in range(Nm):
+            assert result[Nr+k,Nr+k] == 0
+            assert result[-Nm+k,-Nm+k] == 0
+            assert comp._Y_rhs[Nr+k] == 0.0
+            assert comp._Y_rhs[-Nm+k] == 0.0  # Nr-1
+            assert result[Nr+k,Nr+k+Nm] != 0
+            assert result[-Nm+k,-2*Nm+k] != 0
+        assert result[0,0] == 0
+        assert result[Nr-1,Nr-1] == 0
+        assert comp._Y_rhs[0] == 0.0
+        assert comp._Y_rhs[Nr-1] == 0.0  # Nr-1
+        assert result[0,1] != 0
+        assert result[Nr-1,Nr-2] != 0
+
+
+    def test_boundary_gas_tracer(self, sim):
+        """Test boundary conditions for gas tracer component"""
+        sim.addcomponent_c(name="gas_tracer", gas_value=np.array([100.0, 200.0, 300.0,400.0,500.0]), mu=18.0, gas_tracer=True)
+        comp = sim.components.__dict__["gas_tracer"]
+        J = sp.csc_matrix(np.eye(5))
+        dt = 0.1
+
+        #val
+        comp.gas.boundary.inner.setcondition("val", value=150.0)
+        comp.gas.boundary.outer.setcondition("val", value=50.0)
+
+        result = set_boundaries_component(sim, J, dt, comp)
+        assert comp._Y_rhs[0] == 150.0 * sim.gas.Sigma[0]
+        assert comp._Y_rhs[-1] == 50.0 * sim.gas.Sigma[-1] # Nr-1
+    
+    def test_boundary_dust_tracer_no_compo(self, sim):
+        """Test boundary conditions for dust tracer component"""
+        sim.addcomponent_c("dust_tracer",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_tracer=True)
+        comp = sim.components.__dict__["dust_tracer"]
+        Nm = sim.grid._Nm_short
+        Nr = sim.grid.Nr
+        J = sp.csc_matrix(np.eye(Nm*Nr))
+        dt = 0.1
+
+        #val
+        comp.dust.boundary.inner.setcondition("val", value=150.0)
+        comp.dust.boundary.outer.setcondition("val", value=50.0)
+
+        result = set_boundaries_component(sim, J, dt, comp)
+        for k in range(Nm):
+            assert comp._Y_rhs[k] == 150.0 * sim.dust.Sigma[0,k]
+            assert comp._Y_rhs[-Nm+k] == 50.0 * sim.dust.Sigma[-1,k] # Nr-1
+
+    def test_boundary_dust_tracer_no_compo(self, sim):
+        """Test boundary conditions for dust tracer component"""
+        sim.addcomponent_c("dust_background",None,None, dust_value=sim.dust.Sigma*0.5, dust_active=True)
+        sim.addcomponent_c("dust_tracer",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_tracer=True)
+        comp = sim.components.__dict__["dust_tracer"]
+        Nm = sim.grid._Nm_short
+        Nr = sim.grid.Nr
+        J = sp.csc_matrix(np.eye(Nm*Nr))
+        dt = 0.1
+
+        #val
+        comp.dust.boundary.inner.setcondition("val", value=150.0)
+        comp.dust.boundary.outer.setcondition("val", value=50.0)
+
+        result = set_boundaries_component(sim, J, dt, comp)
+        for k in range(Nm):
+            assert comp._Y_rhs[k] == 150.0 * sim.dust.Sigma[0,k]
+            assert comp._Y_rhs[-Nm+k] == 50.0 * sim.dust.Sigma[-1,k] # Nr-1

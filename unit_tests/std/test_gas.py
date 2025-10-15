@@ -1,7 +1,8 @@
 import pytest
-import numpy as np
 from unittest.mock import Mock, MagicMock, patch
-from dustpy.std import gas_f
+import warnings
+warnings.filterwarnings("ignore", message=".*NumPy module was reloaded.*")
+import numpy as np
 
 from tripod.std.gas import (
     enforce_floor_value, prepare, finalize, set_implicit_boundaries_compo,
@@ -286,8 +287,8 @@ class TestMolecularWeight:
         
         sim.components = Mock()
         sim.components.__dict__ = {'water': comp}
-        
-        result = mu(sim)
+        with pytest.warns(RuntimeWarning):
+            result = mu(sim)
         
         # First element should be 0/0 which is handled by numpy (nan or inf)
         assert np.isnan(result[0]) or np.isinf(result[0])
@@ -602,11 +603,13 @@ class TestEdgeCases:
         sim.components.__dict__ = {'water': comp}
         
         if expected_behavior == "zero_division":
-            result = mu(sim)
+            with pytest.warns(RuntimeWarning):
+                result = mu(sim)
             # With zero Sigma, mu should be nan or inf
             assert np.isnan(result[0]) or np.isinf(result[0])
         elif expected_behavior == "infinity_handling":
-            result = mu(sim)
+            with pytest.warns(RuntimeWarning):
+                result = mu(sim)
             assert np.isinf(result[0]) or np.isnan(result[0])
             np.testing.assert_array_equal(result[1:], [18.0, 18.0])
         elif expected_behavior == "nan_handling":

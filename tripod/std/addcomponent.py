@@ -73,7 +73,7 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None ,dust_active=Fal
 
     # Adding component to updater
     self.components.__dict__[name] = comp
-    if self.components.updater is None:
+    if self.components.updateorder is None:
         self.components.updater = [name]
     else:
         lst = list(self.components.updateorder)

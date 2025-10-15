@@ -59,7 +59,7 @@ def dt_Sigma(sim):
         dt = np.ones_like(sim.dust.Sigma)*1e100
         dt[mask] = np.abs(sim.dust.Sigma[mask] / sim.dust.S.tot[mask])
         dt[mask2,1] = np.minimum(dt[mask2,1],dt_pred)
-        return dt.min()
+        return dt.min(initial=1e100)
     return 1e100
 
 def dt_compo(sim):
@@ -77,7 +77,7 @@ def dt_compo(sim):
     dt = 1e100
     for key,comp in sim.components.__dict__.items():
         if not key.startswith("_") and comp.dust._active:
-            if np.any(sim.dust.S.tot[1:-1, ...] < 0.):
+            if np.any(comp.dust.S.tot[1:-1, ...] < 0.):
                 mask = np.logical_and(
                     comp.dust.Sigma > sim.dust.SigmaFloor,
                     comp.dust.S.tot < 0.)
@@ -86,7 +86,7 @@ def dt_compo(sim):
                 dt_int = np.ones_like(sim.dust.Sigma)*1e100
                 dt_int[mask] = np.abs(comp.dust.Sigma[mask] / comp.dust.S.tot[mask])
 
-                dt = min(dt,dt_int.min())
+                dt = min(dt,dt_int.min(initial=1e100))
     return dt
 
 
@@ -193,7 +193,7 @@ def dt_smax(sim):
     smax_dot = np.minimum(np.abs(sim.dust.s.sdot_coag[1:-1]) , np.abs(sim.dust.s.sdot_coag[1:-1]+smax_dot_hyd[1:-1]))
     dt = sim.dust.s.max[1:-1] / (smax_dot + 1e-100)
     dt[mask2[1:-1]] = 1e100
-    return dt.min()
+    return dt.min(initial=1e100)
 
 
 def prepare(sim):
@@ -247,10 +247,6 @@ def finalize(sim):
     sim.dust.s.max = np.maximum(
         1.5 * sim.dust.s.min, sim.dust._Y[Nr * Nm_s:] / sim.dust.Sigma[..., 1])
 
-    if sim.dust.s.boundary.inner.condition == "const_pow":
-        p = np.log(sim.dust.s.max[2] /sim.dust.s.max[1]) / np.log(sim.grid.r[2] / sim.grid.r[1])
-        sim.dust.s.max[0] = sim.dust.s.max[1] * (sim.grid.r[0] / sim.grid.r[1]) ** p
-    
 
     # sims up the dust suface density if there are active dust components if there are any
     if sim._dust_compo:
@@ -368,6 +364,10 @@ def Sigma_initial(sim):
 
     Sigma = sim.ini.dust.d2gRatio * \
         sim.gas.Sigma[:, None] * np.where(q[:, None] == -4., S_4, S)
+    
+    Sigma = np.where(Sigma <= sim.dust.SigmaFloor,
+                    0.1 * sim.dust.SigmaFloor,
+                    Sigma)
 
     return Sigma
 
@@ -503,7 +503,7 @@ def jacobian(sim, x, dx=None, *args, **kwargs):
     col2 = np.arange(int(Nm_s)) - 2. * Nm_s
     offset = (Nr - 1) * Nm_s
     row_out = np.concatenate((row0, row0, row0)) + offset
-    col_out = np.concatenate((col0, col1, col2)) + offset
+    col_out = np.concatenate((col2, col1, col0)) + offset
 
     # Filling data vector depending on boundary condition
     if sim.dust.boundary.outer is not None:

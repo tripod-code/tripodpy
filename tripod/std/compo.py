@@ -42,7 +42,7 @@ def set_state_vector_components(sim):
             comp._Y = comp.dust.value.ravel()*sim.dust.Sigma.ravel() # tracer int variable = tracer * Sigma
             comp._S = comp.dust.value_dot.ravel()*sim.dust.Sigma.ravel() + comp.dust.value.ravel()*(sim.dust.S.ext.ravel() + sim.dust.S.compo.ravel())
         #dust and gas
-        elif (comp.dust._tracer == True) and (comp.gas._active == True):
+        elif (comp.dust._tracer == True) and (comp.dust._active == False) and (comp.gas._active == True) and (comp.gas._tracer == False):
             Nr = int(sim.grid.Nr)
             comp._Y[:Nr] = comp.gas.Sigma.ravel()
             comp._Y[Nr:] = comp.dust.value.ravel()*sim.dust.Sigma.ravel()
@@ -52,7 +52,7 @@ def set_state_vector_components(sim):
         elif (comp.dust._active == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
             comp._Y = comp.dust.Sigma.ravel()
             comp._S = comp.dust.S.ext.ravel()
-        elif (comp.dust._active == True) and (comp.gas._active == True):
+        elif (comp.dust._active == True) and (comp.dust._tracer == False)  and (comp.gas._active == True) and (comp.gas._tracer == False):
             Nr = int(sim.grid.Nr)
             comp._Y[:Nr] = comp.gas.Sigma.ravel()
             comp._Y[Nr:] = comp.dust.Sigma.ravel()
@@ -78,23 +78,22 @@ def finalize(sim):
         if(name.startswith("_")):
             continue
 
-        if (comp.dust._tracer == False) and (comp.gas._active == True):
+        if (comp.dust._tracer == False) and (comp.dust._tracer == False) and (comp.gas._active == True) and (comp.gas._tracer == False):
             comp.gas.Sigma[...] = comp._Y[:Nr]
 
-    sim.gas.Sigma.update()
     for name, comp in sim.components.__dict__.items():
         if(name.startswith("_") or ((comp.dust._active == False) and (comp.dust._tracer == False) and (comp.gas._active == True))):
             continue
-        elif comp.dust._active == False and (comp.dust._tracer == False) and (comp.gas._tracer == True):
+        elif (comp.dust._active == False) and (comp.dust._tracer == False) and (comp.gas._active == False) and (comp.gas._tracer == True):
             comp.gas.value[...] = (comp._Y/ sim.gas.Sigma)
-        elif (comp.dust._tracer == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
+        elif (comp.dust._active == False) and (comp.dust._tracer == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
             comp.dust.value[...] = (comp._Y/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape)
-        elif (comp.dust._tracer == True) and (comp.gas._active == True):
+        elif (comp.dust._active == False) and (comp.dust._tracer == True) and (comp.gas._active == True) and (comp.gas._tracer == False):
             comp.gas.Sigma[...] = comp._Y[:sim.grid.Nr].reshape(comp.gas.Sigma.shape)
             comp.dust.value[...] = (comp._Y[sim.grid.Nr:]/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape)
-        elif (comp.dust._active == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
+        elif (comp.dust._active == True) and (comp.dust._tracer == False) and (comp.gas._active == False) and (comp.gas._tracer == False):
             comp.dust.Sigma[...] = comp._Y.reshape(comp.dust.Sigma.shape)
-        elif (comp.dust._active == True) and (comp.gas._active == True):
+        elif (comp.dust._active == True) and (comp.dust._tracer == False) and (comp.gas._active == True) and (comp.gas._tracer == False):
             comp.gas.Sigma[...] = comp._Y[:sim.grid.Nr].reshape(comp.gas.Sigma.shape)
             comp.dust.Sigma[...] = comp._Y[sim.grid.Nr:].reshape(comp.dust.Sigma.shape)
         else:
@@ -503,8 +502,8 @@ def set_boundaries_component(sim,J,dx,comp):
             offset = 0
         
         #assure jacobian is empty for boundaries
-        comp._Y_rhs[offset:offset+Nm_s] = comp.dust.boundary.inner.value * sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[0,:]
-        comp._Y_rhs[offset+Nm_s*(Nr-1):offset+Nm_s*Nr] = comp.dust.boundary.outer.value * sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[-1,:]
+        comp._Y_rhs[offset:offset+Nm_s] = comp.dust.boundary.inner.value * sim.dust.Sigma[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[0,:]
+        comp._Y_rhs[offset+Nm_s*(Nr-1):offset+Nm_s*Nr] = comp.dust.boundary.outer.value * sim.dust.Sigma[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[-1,:]
 
         # Set source term to zero at the boundaries
         comp._S[offset] = 0.
@@ -605,6 +604,7 @@ def set_boundaries_component(sim,J,dx,comp):
                     comp.gas.boundary.outer._r[0]-comp.gas.boundary.outer._r[1]) / (comp.gas.boundary.outer._r[1]-comp.gas.boundary.outer._r[2])
                 KNrm2 = - comp.gas.boundary.outer._r[1]/comp.gas.boundary.outer._r[0] * (1. + Do)
                 KNrm3 = comp.gas.boundary.outer._r[2]/comp.gas.boundary.outer._r[0] * Do
+                J[Nr-1,Nr-3:Nr] = 0.
                 J[Nr-1,Nr-2] = -KNrm2/dx
                 J[Nr-1,Nr-3] = -KNrm3/dx
                 comp._Y_rhs[Nr-1] = 0.
@@ -641,7 +641,7 @@ def set_boundaries_component(sim,J,dx,comp):
             elif comp.dust.boundary.inner.condition == "grad":
                 K1 = - comp.dust.boundary.inner._r[1] / comp.dust.boundary.inner._r[0]
                 for k in range(Nm_s):
-                    J[offset+k,offset+Nm_s+k] = 1. / dx
+                    J[offset+k,offset+Nm_s+k] = -K1 / dx
                 comp._Y_rhs[offset:offset+Nm_s] = - comp.dust.boundary.inner._ri[1] / comp.dust.boundary.inner._r[0] * \
                     (comp.dust.boundary.inner._r[1] - comp.dust.boundary.inner._r[0]) * comp.dust.boundary.inner.value
             # Constant gradient
@@ -664,7 +664,7 @@ def set_boundaries_component(sim,J,dx,comp):
                         comp.dust.Sigma[1]) / np.log(comp.dust.boundary.inner._r[2] / comp.dust.boundary.inner._r[1])
                 K1 = - (comp.dust.boundary.inner._r[0] / comp.dust.boundary.inner._r[1]) ** p
                 for k in range(Nm_s):
-                    J[offset+k,offset+Nm_s+k] = -K1 / dx
+                    J[offset+k,offset+Nm_s+k] = -K1[k] / dx
                 comp._Y_rhs[offset:offset+Nm_s] = 0.
 
         if comp.dust.boundary.outer is not None:
@@ -703,7 +703,7 @@ def set_boundaries_component(sim,J,dx,comp):
                         comp.dust.Sigma[-3]) / np.log(comp.dust.boundary.outer._r[1] / comp.dust.boundary.outer._r[2])
                 KNrm2 = - (comp.dust.boundary.outer._r[0] / comp.dust.boundary.outer._r[1]) ** p
                 for k in range(Nm_s):
-                    J[-Nm_s+k,-2 * Nm_s+k] = -KNrm2 / dx
+                    J[-Nm_s+k,-2 * Nm_s+k] = -KNrm2[k] / dx
                 comp._Y_rhs[-Nm_s:]= 0.
 
 

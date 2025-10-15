@@ -185,19 +185,6 @@ class Simulation(dp.Simulation):
 
         self._makeradialgrid()
 
-    def _timestep_accounting(self):
-        shape1 = (int(self.grid.Nr))
-        # Radial grid and long particle grid
-        shape2 = (int(self.grid.Nr), int(self.grid._Nm_long))
-
-        self.addgroup("timestep",description="timesteps accounting for different processes")
-        self.timestep.addfield(
-                "Sigma", np.zeros(shape2), description="timestep due to changes in Sigma")
-        self.timestep.addfield(
-                "smax_coag", np.zeros(shape1), description="timestep due to growth of smax")
-        self.timestep.addfield(
-                "smax_shrink", np.zeros(shape1), description="timestep due to shikage of smax")
-
     def _makeradialgrid(self):
         '''Function sets the mass grid using the parameters set in ``Simulation.ini``.'''
         if self.grid.ri is None:
@@ -586,9 +573,6 @@ class Simulation(dp.Simulation):
         # Surface density, if not set
         if self.dust.Sigma is None:
             Sigma = std.dust.Sigma_initial(self)
-            Sigma = np.where(Sigma <= self.dust.SigmaFloor,
-                             0.1 * self.dust.SigmaFloor,
-                             Sigma)
             self.dust.addfield(
                 "Sigma", Sigma, description="Surface density per mass bin [g/cm²]"
             )

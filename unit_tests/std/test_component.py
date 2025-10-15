@@ -75,6 +75,40 @@ class TestDustComponent:
         dust.Sigma = test_value
         assert np.allclose(dust.Sigma, test_value)
 
+    def test_hidden_properties_active(self, sim):
+        """Test that hidden properties return zeros when inactive"""
+        dust = DustComponent(sim, active=True, tracer=False)
+        
+
+        hidden_attrs = ['value', 'value_dot']
+        for attr in hidden_attrs:
+            assert np.all(getattr(dust, attr) == 0)
+            with pytest.raises(RuntimeError,match="Do not set"):
+                setattr(dust, attr, np.ones_like(sim.dust.Sigma))
+
+        hidden_active_attrs = ['Sigma', 'Sigma_dot', 'S_Sigma']
+        for attr in hidden_active_attrs:
+            assert hasattr(dust, attr)
+            setattr(dust, attr, np.ones_like(sim.dust.Sigma))
+            assert np.all(getattr(dust, attr) == np.ones_like(sim.dust.Sigma))
+
+    def test_hidden_properties_tracer(self, sim):
+        """Test that hidden properties return zeros when inactive"""
+        dust = DustComponent(sim, active=False, tracer=True)
+        
+
+        hidden_attrs = ['Sigma', 'Sigma_dot', 'S_Sigma']
+        for attr in hidden_attrs:
+            assert np.all(getattr(dust, attr) == 0)
+            with pytest.raises(RuntimeError,match="Do not set"):
+                setattr(dust, attr, np.ones_like(sim.dust.Sigma))
+
+        hidden_tracer_attrs = ['value', 'value_dot']
+        for attr in hidden_tracer_attrs:
+            assert hasattr(dust, attr)
+            setattr(dust, attr, np.ones_like(sim.dust.Sigma))
+            assert np.all(getattr(dust, attr) == np.ones_like(sim.dust.Sigma))
+
 class TestGasComponent:
     @pytest.fixture
     def sim(self):
@@ -105,3 +139,37 @@ class TestGasComponent:
         """Test that gas cannot be both active and tracer"""
         with pytest.raises(AssertionError, match="cannot be both active and tracer"):
             GasComponent(sim, active=True, tracer=True)
+
+    def test_hidden_properties_inactive(self, sim):
+        """Test that hidden properties return zeros when inactive"""
+        gas = GasComponent(sim, active=False, tracer=True)
+        
+
+        hidden_attrs = ['Sigma', 'Sigma_dot']
+        for attr in hidden_attrs:
+            assert np.all(getattr(gas, attr) == 0)
+            with pytest.raises(RuntimeError,match="Do not set"):
+                setattr(gas, attr, np.ones_like(sim.gas.Sigma))
+
+        hidden_tracer_attrs = ['value', 'value_dot']
+        for attr in hidden_tracer_attrs:
+            assert hasattr(gas, attr)
+            setattr(gas, attr, np.ones_like(sim.gas.Sigma))
+            assert np.all(getattr(gas, attr) == np.ones_like(sim.gas.Sigma))
+
+    def test_hidden_properties_active(self, sim):
+        """Test that hidden properties return zeros when inactive"""
+        gas = GasComponent(sim, active=True, tracer=False)
+        
+
+        hidden_attrs = ['value', 'value_dot']
+        for attr in hidden_attrs:
+            assert np.all(getattr(gas, attr) == 0)
+            with pytest.raises(RuntimeError,match="Do not set"):
+                setattr(gas, attr, np.ones_like(sim.gas.Sigma))
+
+        hidden_tracer_attrs = ['Sigma', 'Sigma_dot']
+        for attr in hidden_tracer_attrs:
+            assert hasattr(gas, attr)
+            setattr(gas, attr, np.ones_like(sim.gas.Sigma))
+            assert np.all(getattr(gas, attr) == np.ones_like(sim.gas.Sigma))

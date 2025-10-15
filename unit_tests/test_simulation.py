@@ -36,6 +36,17 @@ class TestSimulation:
         assert hasattr(sim.components, "test_tracer")
         assert sim.components.test_tracer.gas._tracer == True
 
+    def test_verbosity(self):
+        """Test verbosity setting"""
+        sim = Simulation()
+        sim.ini.grid.Nr = 5
+        sim.verbosity = 2
+        sim.initialize()
+        sim.writer = None 
+        sim.t.snapshots = [1]
+        sim.run()
+        assert sim.verbosity == 2
+
 class TestSimulationGrids:
     def test_makegrids_basic(self):
         """Test basic grid creation"""
@@ -344,6 +355,18 @@ class TestSimulationFieldDeletion:
         # These dust fields should not exist
         assert not hasattr(sim.dust, 'coagulation')
         assert not hasattr(sim.dust, 'kernel')
+
+    def test_eclude_form_dustpy(self):
+        """Test that exclude_from_dustpy works correctly"""
+        sim = Simulation()
+        sim.ini.grid.Nr = 5
+        sim.initialize()
+
+        for attr in sim._excludefromdustpy:
+            with pytest.raises(AttributeError):
+                getattr(sim, attr)
+        
+
 
 class TestSimulationUpdateOrders:
     def test_dust_update_order_modification(self):

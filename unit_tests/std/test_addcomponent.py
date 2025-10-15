@@ -109,6 +109,20 @@ class TestAddComponentBasic:
         assert mock_comp.dust.boundary.inner.condition == "val"
         assert mock_comp.dust.boundary.outer.condition == "val"
 
+    def test_addcomponent_no_updaters(self, mock_sim):
+        """Test adding a component when no updaters exist yet"""
+        gas_value = np.ones(3) * 100.0
+        mu = 18.0
+
+        del mock_sim.components
+        mock_sim.addgroup("components")
+        print("Initial updater:", mock_sim.components.updateorder)
+        addcomponent_c(mock_sim, 'tracer', gas_value, mu, gas_tracer=True)
+        
+        # Verify component was added to updater list
+        assert 'tracer' in mock_sim.components.updateorder
+        assert mock_sim.components.updateorder == ['tracer']
+
 class TestAddComponentMixed:
     @pytest.fixture
     def mock_sim(self):
