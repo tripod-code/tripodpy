@@ -495,6 +495,7 @@ def set_boundaries_component(sim,J,dx,comp):
                 if cint.dust._active:
                     cint.dust.Sigma[...] += cint._Y[offset:].reshape(sim.dust.Sigma.shape)
             sim.components._dust_updated = True
+
         # Given value
         if comp.gas._active or comp.gas._tracer:
             offset = Nr
@@ -502,8 +503,8 @@ def set_boundaries_component(sim,J,dx,comp):
             offset = 0
         
         #assure jacobian is empty for boundaries
-        comp._Y_rhs[offset:offset+Nm_s] = comp.dust.boundary.inner.value * sim.dust.Sigma[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[0,:]
-        comp._Y_rhs[offset+Nm_s*(Nr-1):offset+Nm_s*Nr] = comp.dust.boundary.outer.value * sim.dust.Sigma[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[-1,:]
+        comp._Y_rhs[offset:offset+Nm_s] = comp.dust.boundary.inner.value * sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[0,:]
+        comp._Y_rhs[offset+Nm_s*(Nr-1):offset+Nm_s*Nr] = comp.dust.boundary.outer.value * sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)[-1,:]
 
         # Set source term to zero at the boundaries
         comp._S[offset] = 0.
