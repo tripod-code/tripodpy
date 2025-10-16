@@ -1096,19 +1096,21 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
             dat_in[1] = -K1 / dt
             dat_in[2] = -K2 / dt
             smaxSig_rhs[0] = 0.     
+        elif sim.dust.s.boundary.inner.condition == "grad":
+            K1 = -r[1] / r[0]
+            dat_in[1] = -K1 / dt
+            smaxSig_rhs[0] = ri[1] / r[0] * \
+                (r[1] - r[0]) * sim.dust.s.boundary.inner.value
         elif sim.dust.s.boundary.inner.condition == "val":
             #dust value times the maximal size at the time
             smaxSig_rhs[0] =  sim.dust.s.boundary.inner.value
-
         elif sim.dust.s.boundary.inner.condition == "const_val":
             # const_val
             dat_in[1] = 1. / dt
             smaxSig_rhs[0] = 0.
         elif sim.dust.s.boundary.inner.condition == "pow":
             p = sim.dust.s.boundary.inner.value
-            dat_in[1] =  (r[0]/r[1])**p/dt
-            smaxSig_rhs[0] = 0.
-
+            smaxSig_rhs[0] = smaxSig_rhs[1]*  (r[0]/r[1])**p
         elif sim.dust.s.boundary.inner.condition == "const_pow":
             p = np.log(smaxSig[2] / smaxSig[1]) / \
                 np.log(r[2]/r[1])
@@ -1132,12 +1134,25 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
             dat_out[1] = -KNrm2 / dt
             dat_out[2] = -KNrm3 / dt
             smaxSig_rhs[-1] = 0.    
+        elif sim.dust.s.boundary.outer.condition == "grad":
+            KNrm2 = -r[-2] / r[-1]
+            dat_out[1] = -KNrm2 / dt
+            smaxSig_rhs[-1] = ri[-2] / r[-1] * \
+                (r[-1] - r[-2]) * sim.dust.s.boundary.outer.value
+         # Given value
         elif sim.dust.s.boundary.outer.condition == "val":
-            #dust value times the maximal size at the time
             smaxSig_rhs[-1] =  sim.dust.s.boundary.outer.value
         elif sim.dust.s.boundary.outer.condition == "const_val":
-            #const_val
             dat_out[1] = 1. / dt
+            smaxSig_rhs[-1] = 0.
+        elif sim.dust.s.boundary.outer.condition == "pow":
+            p = sim.dust.s.boundary.outer.value
+            smaxSig_rhs[-1] = smaxSig_rhs[-2]* (r[-1]/r[-2])**p
+        elif sim.dust.s.boundary.outer.condition == "const_pow":
+            p = np.log(smaxSig[-2] / smaxSig[-3]) / \
+                np.log(r[-2]/r[-3])
+            KNrm2 = -(r[-1]/r[-2])**p
+            dat_out[1] = -KNrm2/dt
             smaxSig_rhs[-1] = 0.
         # to do pow and const_pow
 

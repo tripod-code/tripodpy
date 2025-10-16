@@ -1,4 +1,5 @@
 from unittest import mock
+from matplotlib.image import resample
 import pytest
 import numpy as np
 from unittest.mock import Mock, MagicMock, patch
@@ -14,7 +15,7 @@ from tripod.std.dust import (
     m, p_frag, p_stick, H, rho_midplane, smax_deriv, S_coag,
     S_tot_ext, enforce_f, dadsig, dsigda, S_tot, S_compo,
     vrel_brownian_motion, q_eff, q_frag, q_rec, p_frag_trans,
-    p_drift_frag, D_mod, vrad_mod, Y_jacobian
+    p_drift_frag, D_mod, vrad_mod, Y_jacobian,_f_impl_1_direct
 )
 
 class TestDustTimesteps:
@@ -583,6 +584,15 @@ class TestJacobianAndIntegration:
         result = Y_jacobian(mock_sim, x)
         assert isinstance(result, sp.csc_matrix)
 
+    def test_f_impl_1_direct_empty(self, mock_sim):
+        """Test implicit function with empty _Y"""
+        dx = 0.1 # Example step size
+        x0 = 200 
+        
+        result = _f_impl_1_direct(x0,mock_sim.dust._Y,dx)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (mock_sim.grid.Nr * mock_sim.grid._Nm_short + mock_sim.grid.Nr,)
+
 
 class TestMissingFunctions:
     @pytest.fixture
@@ -599,12 +609,55 @@ class TestMissingFunctions:
     def test_prepare(self, mock_sim):
         """Test prepare function"""
         # Should not raise an error
+        Nr = mock_sim.grid.Nr
+        Nm_s = mock_sim.grid._Nm_short
         prepare(mock_sim)
+
+        #check if _Y is correctly populated
+        np.testing.assert_array_equal(mock_sim.dust._Y[:Nm_s * Nr], mock_sim.dust.Sigma.ravel())
+        np.testing.assert_array_equal(mock_sim.dust._Y[Nm_s * Nr:], mock_sim.dust.s.max * mock_sim.dust.Sigma[:, 1])
+
+        #seet source terms to zero at boundaries
+        np.testing.assert_array_equal(mock_sim.dust.S.coag[0], np.zeros(mock_sim.dust.S.coag.shape[1]))
+        np.testing.assert_array_equal(mock_sim.dust.S.coag[-1], np.zeros(mock_sim.dust.S.coag.shape[1]))
+        np.testing.assert_array_equal(mock_sim.dust._SigmaOld[...],mock_sim.dust.Sigma[...])
         
     def test_finalize(self, mock_sim):
         """Test finalize function"""
-        # Should not raise an error
-        finalize(mock_sim)
+        Nr = mock_sim.grid.Nr
+        Nm_s = mock_sim.grid._Nm_short
+
+        with mock.patch("dustpy.std.dust.boundary") as mock_boundary:
+            mock_boundary.side_effect = lambda sim: None  # Do nothing
+            finalize(mock_sim)  # Should not raise an error
+            # Check if _Y is correctly unpacked
+            np.testing.assert_array_almost_equal(mock_sim.dust.Sigma.ravel(), mock_sim.dust._Y[:Nm_s * Nr])
+            smax_expected = np.maximum(1.5 * mock_sim.dust.s.min, mock_sim.dust._Y[Nr * Nm_s:] / mock_sim.dust.Sigma[..., 1])
+            np.testing.assert_array_almost_equal(mock_sim.dust.s.max,smax_expected)
+
+
+        with mock.patch('tripod.std.dust.enforce_f') as mock_enforce_f:
+            mock_enforce_f.side_effect = lambda sim: None  # Do nothing
+
+            # Modify _Y to simulate an update
+            mock_sim.dust._Y[:Nm_s * Nr] = np.random.rand(Nr * Nm_s)
+            mock_sim.dust._Y[Nm_s * Nr:] = np.random.rand(Nr) * 1e-2
+
+            finalize(mock_sim)
+            # Check if enforce_f was called
+            mock_enforce_f.assert_called_once_with(mock_sim)
+        
+        with mock.patch('dustpy.std.dust.enforce_floor_value') as mock_enforce_floor:
+
+            # Modify _Y to simulate an update
+            mock_sim.dust._Y[:Nm_s * Nr] = np.random.rand(Nr * Nm_s) * 1e-5  # Some values below floor
+            mock_sim.dust._Y[Nm_s * Nr:] = np.random.rand(Nr) * 1e-5  # Some values below floor
+
+            finalize(mock_sim)
+            # Check if enforce_floor_value was called
+            mock_enforce_floor.assert_called_once_with(mock_sim)
+
+        
 
     def test_finalize_with_compo(self):
         sim = Simulation()
@@ -1374,4 +1427,94 @@ class TestBoundaries:
             assert result[-Nm_s+k,-2*Nm_s+k] != 0
 
     def test_smax_boundaries(self,mock_sim):
-        pass
+        """Test smax boundary conditions"""
+        x = Mock()
+        x.stepsize = 0.1
+        Nr = mock_sim.grid.Nr
+        Nm_s = mock_sim.grid._Nm_short
+        Ndust = Nr*Nm_s
+
+
+        #override jacobianator to avoid errors
+        create_zero_arrays = lambda x,dx: (np.zeros(mock_sim.grid.Nr), np.zeros(mock_sim.grid.Nr), np.zeros(mock_sim.grid.Nr))
+        mock_sim.dust.Sigma.jacobianator = create_zero_arrays
+
+        #value boundaries
+        val_inner = 1e-3
+        val_outer = 5e-3
+        mock_sim.dust.s.boundary.inner.setcondition('val',value=val_inner)
+        mock_sim.dust.s.boundary.outer.setcondition('val',value=val_outer)
+
+        result = Y_jacobian(mock_sim,x)
+
+        assert mock_sim.dust._Y_rhs[Ndust] == val_inner
+        assert mock_sim.dust._Y_rhs[-1] == val_outer
+
+        #const_val boundaries
+        mock_sim.dust._Y[:Nm_s * Nr] = mock_sim.dust.Sigma.ravel()
+        mock_sim.dust._Y[Nm_s * Nr:] = mock_sim.dust.s.max * mock_sim.dust.Sigma[:, 1]
+        mock_sim.dust.s.boundary.inner.setcondition('const_val')
+        mock_sim.dust.s.boundary.outer.setcondition('const_val')
+
+        result = Y_jacobian(mock_sim,x)
+
+        assert mock_sim.dust._Y_rhs[Ndust] == 0.0
+        assert mock_sim.dust._Y_rhs[-1] == 0.0
+        assert result[Ndust,Ndust+1] == 10.0
+        assert result[-1,-2] == 10.0
+
+        #grad
+        grad_inner = 1e-4
+        grad_outer = 2e-4
+        mock_sim.dust._Y[:Nm_s * Nr] = mock_sim.dust.Sigma.ravel()
+        mock_sim.dust._Y[Nm_s * Nr:] = mock_sim.dust.s.max * mock_sim.dust.Sigma[:, 1]
+        mock_sim.dust.s.boundary.inner.setcondition('grad',value=grad_inner)
+        mock_sim.dust.s.boundary.outer.setcondition('grad',value=grad_outer)
+        result = Y_jacobian(mock_sim,x)
+        K1 = - mock_sim.grid.r[1]/mock_sim.grid.r[0]
+        Km1 = - mock_sim.grid.r[-2]/mock_sim.grid.r[-1]
+
+        assert result[Ndust,Ndust+1] == -K1/x.stepsize
+        assert result[-1,-2] == -Km1/x.stepsize
+        assert mock_sim.dust._Y_rhs[Ndust] != 0.0
+        assert mock_sim.dust._Y_rhs[-1] != 0.0
+
+
+        #const_grad
+        mock_sim.dust._Y[:Nm_s * Nr] = mock_sim.dust.Sigma.ravel()
+        mock_sim.dust._Y[Nm_s * Nr:] = mock_sim.dust.s.max * mock_sim.dust.Sigma[:, 1]
+        mock_sim.dust.s.boundary.inner.setcondition('const_grad')
+        mock_sim.dust.s.boundary.outer.setcondition('const_grad')
+        result = Y_jacobian(mock_sim,x)
+
+        assert mock_sim.dust._Y_rhs[Ndust] == 0.0
+        assert mock_sim.dust._Y_rhs[-1] == 0.0
+        assert result[Ndust,Ndust+1] != 0.0
+        assert result[-1,-2] != 0.0
+        assert result[Ndust,Ndust+2] != 0.0
+        assert result[-1,-3] != 0.0
+
+        #pow
+        power_inner = 2.0
+        power_outer = 3.0
+        mock_sim.dust._Y[:Nm_s * Nr] = mock_sim.dust.Sigma.ravel()
+        mock_sim.dust._Y[Nm_s * Nr:] = mock_sim.dust.s.max * mock_sim.dust.Sigma[:, 1]
+        mock_sim.dust.s.boundary.inner.setcondition('pow',value=power_inner)
+        mock_sim.dust.s.boundary.outer.setcondition('pow',value=power_outer)
+        result = Y_jacobian(mock_sim,x)
+        ratio = (mock_sim.grid.r[0]/mock_sim.grid.r[1])**power_inner
+        ratio_outer = (mock_sim.grid.r[-1]/mock_sim.grid.r[-2])**power_outer
+        assert mock_sim.dust._Y_rhs[Ndust] == ratio*mock_sim.dust._Y_rhs[Ndust+1]
+        assert mock_sim.dust._Y_rhs[-1] == ratio_outer*mock_sim.dust._Y_rhs[-2]
+
+        #const_pow
+        mock_sim.dust._Y[:Nm_s * Nr] = mock_sim.dust.Sigma.ravel()
+        mock_sim.dust._Y[Nm_s * Nr:] = mock_sim.dust.s.max * mock_sim.dust.Sigma[:, 1]
+        mock_sim.dust.s.boundary.inner.setcondition('const_pow')
+        mock_sim.dust.s.boundary.outer.setcondition('const_pow')
+        result = Y_jacobian(mock_sim,x)
+
+        assert mock_sim.dust._Y_rhs[Ndust] == 0.0
+        assert mock_sim.dust._Y_rhs[-1] == 0.0
+        assert result[Ndust,Ndust+1] != 0
+        assert result[-1,-2] != 0
