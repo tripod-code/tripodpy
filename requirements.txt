@@ -1,3 +1,3 @@
 dustpy
-simfame>=1.0.5
+simfame
 meson-python

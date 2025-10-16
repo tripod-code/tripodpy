@@ -82,7 +82,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt  # Optional: only if you use a requirements file
           pip install .
+          pip install pytest pytest-cov
 
       - name: Run unit tests
         run: |
-          pytest unit_tests/ --cov=tripod --cov-report=xml
+          pytest unit_tests/
