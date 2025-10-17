@@ -59,6 +59,7 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None ,dust_active=Fal
         comp.dust.S.hyd.updater = partial(dust.S_hyd_compo,group=comp.dust)
         comp.dust.S.coag.updater = partial(dust.S_coag,Sigma=comp.dust.Sigma)
         comp.dust.S.tot.updater = partial(dust.S_tot_compo,group=comp.dust)
+        comp.dust.S.ext.updater = lambda sim: comp.dust.Sigma_dot
         comp.dust.updater = ["Fi","S"]
         comp.dust.S.updater = ["ext","hyd","coag","tot"]
         comp.dust.pars.rhos = rhos
