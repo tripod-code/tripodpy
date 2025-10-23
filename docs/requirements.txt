@@ -2,6 +2,7 @@ dustpy
 numpy
 numpydoc
 simframe
+nbsphinx
 sphinx
 sphinx_rtd_theme
 sphinx-automodapi
