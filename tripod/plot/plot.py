@@ -15,7 +15,7 @@ import warnings
 def panel(data,
           filename="data", extension="hdf5",
           ia=0, ir=0, it=0,
-          show_limits=False, show_St1=False
+          show_limits=True, show_St1=False
           ):
     """Simple plotting script for data files or simulation objects.
 

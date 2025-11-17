@@ -32,7 +32,7 @@ class TestStateVectorManagement:
 
     def test_set_state_vector_components_gas_active(self,sim,Sigma_gas):
         """Test state vector setup for gas active component"""
-        sim.addcomponent_c(name="water", gas_value=Sigma_gas, mu=18.0, gas_active=True)
+        sim.addcomponent(name="water", gas_value=Sigma_gas, mu=18.0, gas_active=True)
         comp_gas = sim.components.__dict__["water"]
         set_state_vector_components(sim)
         
@@ -43,7 +43,7 @@ class TestStateVectorManagement:
     def test_set_state_vector_components_dust_tracer(self,sim,Sigma_dust):
         """Test state vector setup for dust tracer component"""
 
-        sim.addcomponent_c(name="silicate_tracer", gas_value=0.0, mu=0.0, dust_value=Sigma_dust, dust_tracer=True)
+        sim.addcomponent(name="silicate_tracer", gas_value=0.0, mu=0.0, dust_value=Sigma_dust, dust_tracer=True)
         comp_dust_tracer = sim.components.__dict__["silicate_tracer"]
         set_state_vector_components(sim)
         
@@ -54,7 +54,7 @@ class TestStateVectorManagement:
     def test_set_state_vector_components_dust_active(self,sim,Sigma_dust):
         """Test state vector setup for active dust component"""
         
-        sim.addcomponent_c(name="carbon_dust", gas_value=0.0, mu=0.0, dust_value=Sigma_dust, dust_active=True)
+        sim.addcomponent(name="carbon_dust", gas_value=0.0, mu=0.0, dust_value=Sigma_dust, dust_active=True)
         comp_dust = sim.components.__dict__["carbon_dust"]
         set_state_vector_components(sim)
         
@@ -66,7 +66,7 @@ class TestStateVectorManagement:
     def test_set_state_vector_components_mixed_dust_gas(self,sim,Sigma_gas,Sigma_dust):
         """Test state vector setup for mixed dust and gas component"""
 
-        sim.addcomponent_c(name="mixed_compo", gas_value=Sigma_gas, mu=18.0, dust_value=Sigma_dust, dust_active=True, gas_active=True)
+        sim.addcomponent(name="mixed_compo", gas_value=Sigma_gas, mu=18.0, dust_value=Sigma_dust, dust_active=True, gas_active=True)
         comp_mixed = sim.components.__dict__["mixed_compo"]
 
         set_state_vector_components(sim)
@@ -82,7 +82,7 @@ class TestStateVectorManagement:
 
     def test_tracer_active_component(self,sim,Sigma_gas,Sigma_dust):
         """Test error raised when component is both tracer and active"""
-        sim.addcomponent_c(name="comp_mixed", gas_value=Sigma_gas, mu=18.0, dust_value=Sigma_dust, dust_tracer=True, gas_active=True)
+        sim.addcomponent(name="comp_mixed", gas_value=Sigma_gas, mu=18.0, dust_value=Sigma_dust, dust_tracer=True, gas_active=True)
         comp_mixed = sim.components.__dict__["comp_mixed"]
         set_state_vector_components(sim)
         Nr = sim.grid.Nr
@@ -124,8 +124,8 @@ class TestFinalization:
 
     def test_finalize_updates_tracer(self, sim):
         """Test finalization updates tracer components correctly"""
-        sim.addcomponent_c(name="tracer_dust", gas_value=0.0, mu=0.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_tracer=True)
-        sim.addcomponent_c(name="tracer_gas", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, gas_tracer=True)
+        sim.addcomponent(name="tracer_dust", gas_value=0.0, mu=0.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_tracer=True)
+        sim.addcomponent(name="tracer_gas", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, gas_tracer=True)
         sim.update()
         sim.run()
 
@@ -135,8 +135,8 @@ class TestFinalization:
 
     def test_finalize_updates_active(self, sim):
         """Test finalization updates active components correctly"""
-        sim.addcomponent_c(name="active_dust", gas_value=0.0, mu=0.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_active=True)
-        sim.addcomponent_c(name="active_gas", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, gas_active=True)
+        sim.addcomponent(name="active_dust", gas_value=0.0, mu=0.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_active=True)
+        sim.addcomponent(name="active_gas", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, gas_active=True)
         sim.update()
         sim.run()
 
@@ -150,7 +150,7 @@ class TestFinalization:
 
     def test_finalize_tracer_mixed(self, sim):
         """Test finalization updates mixed components correctly"""
-        sim.addcomponent_c(name="mixed_compo", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_active=True, gas_active=True)
+        sim.addcomponent(name="mixed_compo", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_active=True, gas_active=True)
         sim.update()
         sim.run()
 
@@ -167,7 +167,7 @@ class TestFinalization:
 
     def test_finalize_mixed(self, sim):
         """Test finalization updates mixed components correctly"""
-        sim.addcomponent_c(name="mixed_compo", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_tracer=True, gas_active=True)
+        sim.addcomponent(name="mixed_compo", gas_value=np.array([10.0, 20.0, 30.0]), mu=18.0, dust_value=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), dust_tracer=True, gas_active=True)
         sim.update()
         sim.run()
 
@@ -582,7 +582,7 @@ class TestBoundaryComponents:
     
     def test_set_boundaries_component_gas_active(self, sim):
         """Test boundary conditions for gas active component"""
-        sim.addcomponent_c(name="water", gas_value=np.array([100.0, 200.0, 300.0,400.0,500.0]), mu=18.0, gas_active=True)
+        sim.addcomponent(name="water", gas_value=np.array([100.0, 200.0, 300.0,400.0,500.0]), mu=18.0, gas_active=True)
         comp = sim.components.__dict__["water"]
         J = sp.csc_matrix(np.eye(5))
         dt = 0.1
@@ -665,7 +665,7 @@ class TestBoundaryComponents:
 
     def test_set_boundaries_component_dust_active(self, sim):
         """Test boundary conditions for dust active component"""
-        sim.addcomponent_c("water",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_active=True)
+        sim.addcomponent("water",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_active=True)
         comp = sim.components.__dict__["water"]
         Nm = sim.grid._Nm_short
         Nr = sim.grid.Nr
@@ -749,7 +749,7 @@ class TestBoundaryComponents:
 
     def test_set_boundaries_component_mixed(self, sim):
         """Test boundary conditions for mixed dust and gas component"""
-        sim.addcomponent_c(name="mixed_compo", gas_value=np.array([100.0, 200.0, 300.0,400.0,500.0]), mu=18.0, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_active=True, gas_active=True)
+        sim.addcomponent(name="mixed_compo", gas_value=np.array([100.0, 200.0, 300.0,400.0,500.0]), mu=18.0, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_active=True, gas_active=True)
         comp = sim.components.__dict__["mixed_compo"]
         Nm = sim.grid._Nm_short
         Nr = sim.grid.Nr
@@ -869,7 +869,7 @@ class TestBoundaryComponents:
 
     def test_boundary_gas_tracer(self, sim):
         """Test boundary conditions for gas tracer component"""
-        sim.addcomponent_c(name="gas_tracer", gas_value=np.array([100.0, 200.0, 300.0,400.0,500.0]), mu=18.0, gas_tracer=True)
+        sim.addcomponent(name="gas_tracer", gas_value=np.array([100.0, 200.0, 300.0,400.0,500.0]), mu=18.0, gas_tracer=True)
         comp = sim.components.__dict__["gas_tracer"]
         J = sp.csc_matrix(np.eye(5))
         dt = 0.1
@@ -884,7 +884,7 @@ class TestBoundaryComponents:
     
     def test_boundary_dust_tracer_no_compo(self, sim):
         """Test boundary conditions for dust tracer component"""
-        sim.addcomponent_c("dust_tracer",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_tracer=True)
+        sim.addcomponent("dust_tracer",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_tracer=True)
         comp = sim.components.__dict__["dust_tracer"]
         Nm = sim.grid._Nm_short
         Nr = sim.grid.Nr
@@ -902,8 +902,8 @@ class TestBoundaryComponents:
 
     def test_boundary_dust_tracer_no_compo(self, sim):
         """Test boundary conditions for dust tracer component"""
-        sim.addcomponent_c("dust_background",None,None, dust_value=sim.dust.Sigma*0.5, dust_active=True)
-        sim.addcomponent_c("dust_tracer",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_tracer=True)
+        sim.addcomponent("dust_background",None,None, dust_value=sim.dust.Sigma*0.5, dust_active=True)
+        sim.addcomponent("dust_tracer",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_tracer=True)
         comp = sim.components.__dict__["dust_tracer"]
         Nm = sim.grid._Nm_short
         Nr = sim.grid.Nr

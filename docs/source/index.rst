@@ -30,7 +30,7 @@ Welcome to TripodPy's documentation!
    3_advanced_customization
    4_standard_model
    5_compositional_tracking
-   6_evaporation_condensation
+   Example_disk_composition
    api
 
 

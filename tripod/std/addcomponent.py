@@ -14,7 +14,7 @@ import dustpy.constants as c
 
 
 
-def addcomponent_c(self, name, gas_value, mu, dust_value = None ,dust_active=False,dust_tracer=False, gas_active=False, gas_tracer=False, description="",rhos=1.0):
+def addcomponent(self, name, gas_value, mu, dust_value = None ,dust_active=False,dust_tracer=False, gas_active=False, gas_tracer=False, description="",rhos=1.0):
      
     #check if component with name already exists
     if name in self.components.__dict__:
@@ -126,7 +126,7 @@ def addcomponent_c(self, name, gas_value, mu, dust_value = None ,dust_active=Fal
     inst = Instruction(
                     compo._f_impl_1_direct_compo,
                     self.components.__dict__[name]._Y,
-                    description="{}: implicit 1st-order direct solver for tracers".format(name),
+                    description="{}: implicit 1st-order direct solver for components".format(name),
                     controller={"boundary": self.components.__dict__[name].boundary,
                     "Sext": self.components.__dict__[name]._S,
                     "rhs": self.components.__dict__[name]._Y_rhs,

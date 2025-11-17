@@ -8,7 +8,7 @@ from dustpy.utils import Boundary
 import dustpy.constants as c
 from tripod import Simulation
 
-from tripod.std.addcomponent import addcomponent_c
+from tripod.std.addcomponent import addcomponent
 
 class TestAddComponentBasic:
     @pytest.fixture
@@ -25,7 +25,7 @@ class TestAddComponentBasic:
         mu = 18.0
         
 
-        addcomponent_c(mock_sim, 'water', gas_value, mu, gas_active=True)
+        addcomponent(mock_sim, 'water', gas_value, mu, gas_active=True)
         mock_comp = mock_sim.components.__dict__['water']
         
         assert 'water' in mock_sim.components.__dict__
@@ -49,7 +49,7 @@ class TestAddComponentBasic:
         mu = 28.0
         
         
-        addcomponent_c(mock_sim, 'CO', gas_value, mu, gas_tracer=True)
+        addcomponent(mock_sim, 'CO', gas_value, mu, gas_tracer=True)
         mock_comp = mock_sim.components.__dict__['CO']
         
         # Verify tracer value was set
@@ -71,7 +71,7 @@ class TestAddComponentBasic:
         mu = 18.0
         rhos = 1
         
-        addcomponent_c(mock_sim, 'ice', gas_value, mu, 
+        addcomponent(mock_sim, 'ice', gas_value, mu, 
                         dust_value=dust_value, dust_active=True, rhos=rhos)
         mock_comp = mock_sim.components.__dict__['ice']
 
@@ -98,7 +98,7 @@ class TestAddComponentBasic:
         mu = 18.0
         
         
-        addcomponent_c(mock_sim, 'water_ice', gas_value, mu,
+        addcomponent(mock_sim, 'water_ice', gas_value, mu,
                         dust_value=dust_value, dust_tracer=True)
         mock_comp = mock_sim.components.__dict__['water_ice']
         
@@ -117,7 +117,7 @@ class TestAddComponentBasic:
         del mock_sim.components
         mock_sim.addgroup("components")
         print("Initial updater:", mock_sim.components.updateorder)
-        addcomponent_c(mock_sim, 'tracer', gas_value, mu, gas_tracer=True)
+        addcomponent(mock_sim, 'tracer', gas_value, mu, gas_tracer=True)
         
         # Verify component was added to updater list
         assert 'tracer' in mock_sim.components.updateorder
@@ -139,7 +139,7 @@ class TestAddComponentMixed:
         mu = 18.0
         num_inst = len(mock_sim.integrator.instructions)
                     
-        addcomponent_c(mock_sim, 'water', gas_value, mu,
+        addcomponent(mock_sim, 'water', gas_value, mu,
                         dust_value=dust_value, gas_active=True, dust_active=True)
         
         mock_comp = mock_sim.components.__dict__['water']
@@ -181,7 +181,7 @@ class TestAddComponentErrorHandling:
         mu = 18.0
         
         with pytest.raises(RuntimeError, match="Component with name water already exists"):
-            addcomponent_c(mock_sim, 'water', gas_value, mu, gas_active=True)
+            addcomponent(mock_sim, 'water', gas_value, mu, gas_active=True)
     
     def test_dust_tracer_without_dust_value(self, mock_sim):
         """Test error when dust_tracer is True but dust_value is None"""
@@ -197,7 +197,7 @@ class TestAddComponentErrorHandling:
             MockComponent.return_value = mock_comp
             
             with pytest.raises(RuntimeError, match="Dust value must be provided if dust_tracer is True"):
-                addcomponent_c(mock_sim, 'ice', gas_value, mu, 
+                addcomponent(mock_sim, 'ice', gas_value, mu, 
                              dust_tracer=True, dust_value=None)
     
     def test_dust_tracer_and_active_conflict(self, mock_sim):
@@ -215,7 +215,7 @@ class TestAddComponentErrorHandling:
             MockComponent.return_value = mock_comp
             
             with pytest.raises(AssertionError, match="Dust component cannot be both active and tracer"):
-                addcomponent_c(mock_sim, 'conflicted', gas_value, mu,
+                addcomponent(mock_sim, 'conflicted', gas_value, mu,
                              dust_value=dust_value, dust_tracer=True, dust_active=True)
     
     def test_gas_tracer_and_active_conflict(self, mock_sim):
@@ -232,7 +232,7 @@ class TestAddComponentErrorHandling:
             MockComponent.return_value = mock_comp
             
             with pytest.raises(AssertionError, match="Gas component cannot be both active and tracer"):
-                addcomponent_c(mock_sim, 'conflicted', gas_value, mu,
+                addcomponent(mock_sim, 'conflicted', gas_value, mu,
                              gas_tracer=True, gas_active=True)
 
 class TestAddComponentUpdaters:
@@ -249,7 +249,7 @@ class TestAddComponentUpdaters:
         gas_value = np.ones(3) * 100.0
         mu = 18.0
         
-        mock_sim.addcomponent_c('water', gas_value, mu, gas_active=True)
+        mock_sim.addcomponent('water', gas_value, mu, gas_active=True)
         mock_comp = mock_sim.components.__dict__['water']
 
         # Verify updaters were set
@@ -268,7 +268,7 @@ class TestAddComponentUpdaters:
         dust_value = np.ones((3, 2)) * 10.0
         mu = 18.0
 
-        mock_sim.addcomponent_c('ice', gas_value, mu,dust_value=dust_value, dust_active=True)
+        mock_sim.addcomponent('ice', gas_value, mu,dust_value=dust_value, dust_active=True)
         mock_comp = mock_sim.components.__dict__['ice']
         
         # Verify update lists
@@ -281,11 +281,11 @@ class TestAddComponentUpdaters:
         mu = 18.0
         
         initial_updater = mock_sim.components.updater
-        addcomponent_c(mock_sim, 'water', gas_value, mu, gas_tracer=True)
+        addcomponent(mock_sim, 'water', gas_value, mu, gas_tracer=True)
         assert 'water' in mock_sim.components.updateorder
         
         # Test second component (updater exists)
-        addcomponent_c(mock_sim, 'co', gas_value, mu, gas_tracer=True)
+        addcomponent(mock_sim, 'co', gas_value, mu, gas_tracer=True)
         assert 'co' in mock_sim.components.updateorder
         assert 'water' in mock_sim.components.updateorder
 
@@ -303,7 +303,7 @@ class TestAddComponentJacobianAndInstructions:
         gas_value = np.ones(3) * 100.0
         mu = 18.0
         
-        mock_sim.addcomponent_c('tracer', gas_value, mu, gas_tracer=True)
+        mock_sim.addcomponent('tracer', gas_value, mu, gas_tracer=True)
         mock_comp = mock_sim.components.__dict__['tracer']
         # Verify jacobinator was assigned
         assert mock_comp._Y.jacobinator is not None
@@ -315,7 +315,7 @@ class TestAddComponentJacobianAndInstructions:
         mu = 18.0
 
         integrator_len = len(mock_sim.integrator.instructions)        
-        mock_sim.addcomponent_c('water', gas_value, mu, gas_active=True)
+        mock_sim.addcomponent('water', gas_value, mu, gas_active=True)
         
 
         # Check that instructions were added (real simulation may have existing instructions)

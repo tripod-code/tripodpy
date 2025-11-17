@@ -21,12 +21,13 @@ class Simulation(dp.Simulation):
     For initialization use ``Simulation.initialize()``,
     For running simulations use ``Simulation.run()``.
     Please have a look at the documentation of ``simframe`` for further details."""
-
     # Exclude the following functions from the from DustPy inherited object
     _excludefromdustpy = [
         "checkmassconservation",
         "setdustintegrator"
     ]
+
+    __name__ = "Tripod"
 
     def __init__(self, **kwargs):
 
@@ -258,8 +259,8 @@ class Simulation(dp.Simulation):
         #self.addgascomponent("default", self.gas.Sigma[...], self.ini.gas.mu, tracer=False, description="Molecular hydrogen")
 
         # Add component for H2
-        self.addcomponent_c = types.MethodType(std.addcomponent_c, self)
-        std.addcomponent_c(self,"Default",  self.gas.Sigma, self.ini.gas.mu, gas_active=True, description="Default gas component")
+        self.addcomponent = types.MethodType(std.addcomponent, self)
+        std.addcomponent(self,"Default",  self.gas.Sigma, self.ini.gas.mu, gas_active=True, description="Default gas component")
         
         # Adding dust surface density updater to gas updater
         self.gas.updater = ["Sigma"] + self.gas.updateorder

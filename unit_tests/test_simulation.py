@@ -30,7 +30,7 @@ class TestSimulation:
         sim.initialize()
         
         tr = np.ones_like(sim.grid.r) * 1e-5
-        sim.addcomponent_c("test_tracer", tr, 0.32, 
+        sim.addcomponent("test_tracer", tr, 0.32, 
                           dust_active=False, gas_active=False, gas_tracer=True)
         
         assert hasattr(sim.components, "test_tracer")
@@ -314,15 +314,15 @@ class TestSimulationMethods:
         assert hasattr(sim, 'run')
         assert callable(sim.run)
     
-    def test_addcomponent_c_method_binding(self):
-        """Test that addcomponent_c method is properly bound"""
+    def test_addcomponent_method_binding(self):
+        """Test that addcomponent method is properly bound"""
         sim = Simulation()
         sim.ini.grid.Nr = 5
         sim.initialize()
         
-        assert hasattr(sim, 'addcomponent_c')
-        assert callable(sim.addcomponent_c)
-        assert isinstance(sim.addcomponent_c, types.MethodType)
+        assert hasattr(sim, 'addcomponent')
+        assert callable(sim.addcomponent)
+        assert isinstance(sim.addcomponent, types.MethodType)
     
     @patch('dustpy.std.gas.enforce_floor_value')
     def test_initialization_floor_enforcement(self, mock_enforce_floor):
@@ -430,9 +430,9 @@ class TestSimulationComponentIntegration:
         gas_tracer = np.ones(10) * 0.01
         dust_tracer = np.ones((10, 2)) * 0.001
         
-        sim.addcomponent_c("water_vapor", gas_tracer, 18.0, gas_tracer=True)
-        sim.addcomponent_c("co_vapor", gas_tracer, 28.0, gas_tracer=True)
-        sim.addcomponent_c("water_ice", gas_tracer, 18.0, 
+        sim.addcomponent("water_vapor", gas_tracer, 18.0, gas_tracer=True)
+        sim.addcomponent("co_vapor", gas_tracer, 28.0, gas_tracer=True)
+        sim.addcomponent("water_ice", gas_tracer, 18.0, 
                           dust_value=dust_tracer, dust_tracer=True)
         
         # Check all components exist

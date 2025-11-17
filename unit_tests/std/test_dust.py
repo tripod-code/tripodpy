@@ -68,7 +68,7 @@ class TestDustTimesteps:
     def test_dt_compo(self,mock_sim):
         """Test component time step calculation"""
         #add a dust component with negative source terms
-        mock_sim.addcomponent_c("background",None,1,dust_value=mock_sim.dust.Sigma,dust_active=True)
+        mock_sim.addcomponent("background",None,1,dust_value=mock_sim.dust.Sigma,dust_active=True)
         mock_sim.components.background.dust.S.tot = - abs(mock_sim.components.background.dust.S.tot)-1 # Ensure some negative values
 
         result = dt_compo(mock_sim)
@@ -666,8 +666,8 @@ class TestMissingFunctions:
         sim.initialize()
         sim.writer = None
         sim.t.snapshot = [1]
-        sim.addcomponent_c("comp1", None, 1, dust_value=sim.dust.Sigma, dust_active=True)
-        sim.addcomponent_c("comp2", None, 1, dust_value=sim.dust.SigmaFloor*0.1, dust_active=True)
+        sim.addcomponent("comp1", None, 1, dust_value=sim.dust.Sigma, dust_active=True)
+        sim.addcomponent("comp2", None, 1, dust_value=sim.dust.SigmaFloor*0.1, dust_active=True)
         sim.run()
 
 
@@ -752,7 +752,7 @@ class TestAdditionalCoverage:
     def test_dt_compo_no_active_components(self, mock_sim):
         """Test dt_compo when no active components exist"""
         # Add inactive component
-        mock_sim.addcomponent_c("inactive", None, 1, dust_value=mock_sim.dust.Sigma, dust_tracer=True)
+        mock_sim.addcomponent("inactive", None, 1, dust_value=mock_sim.dust.Sigma, dust_tracer=True)
         
         result = dt_compo(mock_sim)
         assert result == 1e100
@@ -760,7 +760,7 @@ class TestAdditionalCoverage:
     def test_S_compo_with_private_attributes(self, mock_sim):
         """Test S_compo ignores private attributes"""
         # Add component with private attribute
-        mock_sim.addcomponent_c("comp1", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=True)
+        mock_sim.addcomponent("comp1", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=True)
         mock_sim.components.comp1.dust.S_Sigma = np.ones_like(mock_sim.dust.Sigma) * 0.5
         
         # Add private attribute that should be ignored
@@ -775,12 +775,12 @@ class TestAdditionalCoverage:
     def test_rhos_compo_with_inactive_and_active(self, mock_sim):
         """Test rhos_compo with mix of active and inactive components"""
         # Add active component
-        mock_sim.addcomponent_c("active", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=True)
+        mock_sim.addcomponent("active", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=True)
         mock_sim.components.active.dust.Sigma = np.ones_like(mock_sim.dust.Sigma) * 5.0
         mock_sim.components.active.dust.pars.rhos = 2500.0
         
         # Add inactive component
-        mock_sim.addcomponent_c("inactive", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=False)
+        mock_sim.addcomponent("inactive", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=False)
         
         result = rhos_compo(mock_sim)
         # Should only consider active component
@@ -890,7 +890,7 @@ class TestEdgeCases:
     def test_dt_with_zero_timesteps(self, mock_sim, monkeypatch):
         """Test dt when component timesteps are zero"""
         # Add a component with zero timestep
-        mock_sim.addcomponent_c("test_comp", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=True)
+        mock_sim.addcomponent("test_comp", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=True)
         
         # Mock dt_compo to return zero
         monkeypatch.setattr('tripod.std.dust.dt_compo', lambda _: 0.0)
@@ -978,7 +978,7 @@ class TestEdgeCases:
     def test_S_compo_inactive_components(self, mock_sim):
         """Test S_compo with inactive components"""
         # Create inactive component
-        mock_sim.addcomponent_c("comp1", None, 1, dust_value=mock_sim.dust.Sigma, dust_tracer=False)
+        mock_sim.addcomponent("comp1", None, 1, dust_value=mock_sim.dust.Sigma, dust_tracer=False)
         
         
         result = S_compo(mock_sim)
@@ -1225,7 +1225,7 @@ class TestFinalCoverage:
         mock_sim.dust.S.coag = np.ones_like(mock_sim.dust.Sigma) * 0.3
         
         # Add component source terms
-        mock_sim.addcomponent_c("comp1", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=True)
+        mock_sim.addcomponent("comp1", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=True)
         mock_sim.components.comp1.dust.S_Sigma = np.ones_like(mock_sim.dust.Sigma) * 0.4
         mock_sim.dust.S.compo.update()
         result = S_tot(mock_sim)
