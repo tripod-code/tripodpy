@@ -12,6 +12,8 @@ authors:
   - name: Thomas Pfeil
     orcid: 0000-0002-4171-7302
     affiliation: 2
+  - name: Sandro Christian Paetzold
+    affiliation: 1
   - name: Til Birnstiel
     orcid: 0000-0002-1899-8783
     affiliation: "1, 3"
