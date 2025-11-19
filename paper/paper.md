@@ -1,5 +1,5 @@
 ---
-title: 'TriPoDPy: Twopoppys cooler brother'
+title: 'TriPoDPy: 1D Tri-Population size distributions for Dust evolution in protoplanetary disks'
 tags:
   - dust evolution
   - protoplanetary disks
