@@ -46,4 +46,4 @@ classifiers = [
 dependencies = ["dustpy"]
 
 [project.urls]
-Repository = "https://github.com/tripod-code/tripod"
+Repository = "https://github.com/tripod-code/tripodpy"
