@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # Simulation with Mstar = 1 Msun
     ##########################################################################
 
-    sim = tripod.Simulation()
+    sim = tripodpy.Simulation()
 
     # Grid Configuration
     ri = np.geomspace(2.0, 250, 400) * c.au

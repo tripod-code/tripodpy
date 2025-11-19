@@ -4,22 +4,22 @@ Module Reference
 .. automodapi:: tripod
     :no-inheritance-diagram:
 
-.. automodapi:: tripod.simulation
+.. automodapi:: tripodpy.simulation
     :no-inheritance-diagram:
 
-.. automodapi:: tripod.std
+.. automodapi:: tripodpy.std
     :no-inheritance-diagram:
 
-.. automodapi:: tripod.std.dust
+.. automodapi:: tripodpy.std.dust
     :no-inheritance-diagram:
 
-.. automodapi:: tripod.std.gas
+.. automodapi:: tripodpy.std.gas
     :no-inheritance-diagram:
 
-.. automodapi:: tripod.std.compo
+.. automodapi:: tripodpy.std.compo
     :no-inheritance-diagram:
 
-.. automodapi:: tripod.std.sim
+.. automodapi:: tripodpy.std.sim
     :no-inheritance-diagram:
 
 .. automodapi:: dustpy.utils

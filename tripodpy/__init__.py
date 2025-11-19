@@ -1,16 +1,16 @@
-# from tripod import plot
-from tripod.simulation import Simulation
-from tripod import constants
-from tripod import plot
-from tripod import utils
+# from tripodpy import plot
+from tripodpy.simulation import Simulation
+from tripodpy import constants
+from tripodpy import plot
+from tripodpy import utils
 
 from simframe.io.dump import readdump
 from simframe.io.writers import hdf5writer
 
 from importlib import metadata as _md
 
-__name__ = "TriPoD"
-__version__ = _md.version("tripod")
+__name__ = "tripodpy"
+__version__ = _md.version("tripodpy")
 
 Simulation.__version__ = __version__
 utils.__version__ = __version__

@@ -4,9 +4,9 @@ import numpy as np
 from unittest.mock import Mock, MagicMock, patch
 import scipy.sparse as sp
 import dustpy.constants as c
-from tripod import Simulation
+from tripodpy import Simulation
 
-from tripod.std.compo import (
+from tripodpy.std.compo import (
     prepare, set_state_vector_components, finalize, Y_jacobian,
     _f_impl_1_direct_compo, jacobian_compo, A_grains, L_condensation,
     L_sublimation, c_jacobian, set_boundaries_component
@@ -219,7 +219,7 @@ class TestJacobianCalculations:
         sim.dust.Sigma.jacobian = Mock(return_value=mock_dust_jac)
         
         monkeypatch.setattr('dustpy.std.gas.jacobian', lambda *args, **kwargs: mock_gas_jac)
-        monkeypatch.setattr('tripod.std.compo.jacobian_compo', lambda *args, **kwargs: mock_compo_jac)
+        monkeypatch.setattr('tripodpy.std.compo.jacobian_compo', lambda *args, **kwargs: mock_compo_jac)
         
         x = Mock()
         x.stepsize = 0.1
@@ -243,7 +243,7 @@ class TestJacobianCalculations:
         sim.dust.Sigma.jacobian = Mock(return_value=mock_dust_jac)
         
         monkeypatch.setattr('dustpy.std.gas.jacobian', lambda *args, **kwargs: mock_gas_jac)
-        monkeypatch.setattr('tripod.std.compo.jacobian_compo', lambda *args, **kwargs: mock_compo_jac)
+        monkeypatch.setattr('tripodpy.std.compo.jacobian_compo', lambda *args, **kwargs: mock_compo_jac)
         
         x = Mock()
         x.stepsize = 0.1
@@ -260,9 +260,9 @@ class TestJacobianCalculations:
         comp = Mock()
         
         # Mock sublimation and condensation functions
-        monkeypatch.setattr('tripod.std.compo.L_sublimation', 
+        monkeypatch.setattr('tripodpy.std.compo.L_sublimation', 
                            lambda sim, comp: np.ones((3, 2)) * 0.1)
-        monkeypatch.setattr('tripod.std.compo.L_condensation', 
+        monkeypatch.setattr('tripodpy.std.compo.L_condensation', 
                            lambda sim, comp, **kwargs: np.ones((3, 2)) * 0.2)
         
         x = Mock()
@@ -340,7 +340,7 @@ class TestPhysicalProcesses:
         comp = Mock()
         comp.gas.pars.mu = 18.0  # Water molecular weight
         
-        monkeypatch.setattr('tripod.std.compo.A_grains', 
+        monkeypatch.setattr('tripodpy.std.compo.A_grains', 
                            lambda sim: np.ones((3, 2)) * 1e-4)
         
         result = L_condensation(sim, comp, Pstick=1.0)
@@ -357,7 +357,7 @@ class TestPhysicalProcesses:
         comp = Mock()
         comp.gas.pars.mu = 18.0
         
-        monkeypatch.setattr('tripod.std.compo.A_grains', 
+        monkeypatch.setattr('tripodpy.std.compo.A_grains', 
                            lambda sim: np.ones((3, 2)) * 1e-4)
         
         result_full = L_condensation(sim, comp, Pstick=1.0)
@@ -378,7 +378,7 @@ class TestPhysicalProcesses:
         comp.gas.pars.nu = 1e13
         comp.gas.pars.Tsub = 100.0
         
-        monkeypatch.setattr('tripod.std.compo.A_grains', 
+        monkeypatch.setattr('tripodpy.std.compo.A_grains', 
                            lambda sim: np.ones((3, 2)) * 1e-4)
         
         result = L_sublimation(sim, comp, N_bind=1e15)
@@ -394,7 +394,7 @@ class TestPhysicalProcesses:
         comp.dust._tracer = False
         comp.dust._active = False  # Invalid combination
         
-        monkeypatch.setattr('tripod.std.compo.A_grains', 
+        monkeypatch.setattr('tripodpy.std.compo.A_grains', 
                            lambda sim: np.ones((3, 2)) * 1e-4)
         
         with pytest.raises(RuntimeError, match="Component dust type not recognized"):
@@ -414,7 +414,7 @@ class TestPhysicalProcesses:
         comp.gas.pars.nu = 1e13
         comp.gas.pars.Tsub = 100.0
         
-        monkeypatch.setattr('tripod.std.compo.A_grains', 
+        monkeypatch.setattr('tripodpy.std.compo.A_grains', 
                            lambda sim: np.ones((3, 2)) * 1e-4)
         
         result = L_sublimation(sim, comp, N_bind=1e15)
@@ -435,7 +435,7 @@ class TestComponentJacobians:
         mock_jac = sp.csc_matrix(np.eye(3))
         
         monkeypatch.setattr('dustpy.std.gas.jacobian', lambda *args, **kwargs: mock_jac)
-        monkeypatch.setattr('tripod.std.compo.set_boundaries_component', 
+        monkeypatch.setattr('tripodpy.std.compo.set_boundaries_component', 
                            lambda sim, J, dt, comp: J)
         
         x = Mock()
@@ -458,7 +458,7 @@ class TestComponentJacobians:
         mock_jac = sp.csc_matrix(np.eye(3))
         
         monkeypatch.setattr('dustpy.std.gas.jacobian', lambda *args, **kwargs: mock_jac)
-        monkeypatch.setattr('tripod.std.compo.set_boundaries_component', 
+        monkeypatch.setattr('tripodpy.std.compo.set_boundaries_component', 
                            lambda sim, J, dt, comp: J)
         
         x = Mock()
@@ -479,8 +479,8 @@ class TestComponentJacobians:
         
         mock_jac = sp.csc_matrix(np.eye(6))
         
-        monkeypatch.setattr('tripod.std.dust.jacobian', lambda *args, **kwargs: mock_jac)
-        monkeypatch.setattr('tripod.std.compo.set_boundaries_component', 
+        monkeypatch.setattr('tripodpy.std.dust.jacobian', lambda *args, **kwargs: mock_jac)
+        monkeypatch.setattr('tripodpy.std.compo.set_boundaries_component', 
                            lambda sim, J, dt, comp: J)
         
         x = Mock()
@@ -499,8 +499,8 @@ class TestComponentJacobians:
         
         mock_jac = sp.csc_matrix(np.eye(9))
         
-        monkeypatch.setattr('tripod.std.compo.Y_jacobian', lambda *args, **kwargs: mock_jac)
-        monkeypatch.setattr('tripod.std.compo.set_boundaries_component', 
+        monkeypatch.setattr('tripodpy.std.compo.Y_jacobian', lambda *args, **kwargs: mock_jac)
+        monkeypatch.setattr('tripodpy.std.compo.set_boundaries_component', 
                            lambda sim, J, dt, comp: J)
         
         x = Mock()

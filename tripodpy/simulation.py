@@ -14,7 +14,7 @@ import types
 
 class Simulation(dp.Simulation):
     """The main simulation class for running dust evolution simulations.
-    `tripod.Simulation`` is a child of ``dustpy.Simulation``,
+    `tripodpy.Simulation`` is a child of ``dustpy.Simulation``,
     which is in turn a child of ``simframe.Frame``.
     For setting simple initial conditions use ``Simulation.ini``,
     For making the simulation grids use ``Simulation.makegrids()``,
@@ -27,7 +27,7 @@ class Simulation(dp.Simulation):
         "setdustintegrator"
     ]
 
-    __name__ = "Tripod"
+    __name__ = "tripodpy"
 
     def __init__(self, **kwargs):
 
@@ -135,7 +135,7 @@ class Simulation(dp.Simulation):
 
     def __getattribute__(self, name):
         '''This function raises an attribute error for elements that should not be inherited from DustPy if they
-        were not manually set in TriPoD.'''
+        were not manually set in tripodpy.'''
         in_tp = name in super(
             dp.Simulation, self).__getattribute__("__dict__")
         in_dp = name in dp.Simulation.__dict__
@@ -150,7 +150,7 @@ class Simulation(dp.Simulation):
         # Print welcome message
         if self.verbosity > 0:
             msg = ""
-            msg += "\nTriPoD v{}".format(self.__version__)
+            msg += "\ntripodpy v{}".format(self.__version__)
             msg += "\n"
             print(msg)
         # Actually run the simulation

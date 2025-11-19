@@ -20,7 +20,7 @@ Constants
 
 import numpy as _np
 
-import tripod.constants._constants_f as _c
+import tripodpy.constants._constants_f as _c
 
 au = float(_c.constants.au)
 G = float(_c.constants.g)

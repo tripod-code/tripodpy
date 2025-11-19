@@ -6,9 +6,9 @@ from functools import partial
 from simframe import Instruction
 from dustpy.utils import Boundary
 import dustpy.constants as c
-from tripod import Simulation
+from tripodpy import Simulation
 
-from tripod.std.addcomponent import addcomponent
+from tripodpy.std.addcomponent import addcomponent
 
 class TestAddComponentBasic:
     @pytest.fixture
@@ -188,7 +188,7 @@ class TestAddComponentErrorHandling:
         gas_value = np.ones(3) * 100.0
         mu = 18.0
         
-        with patch('tripod.std.addcomponent.Component') as MockComponent:
+        with patch('tripodpy.std.addcomponent.Component') as MockComponent:
             mock_comp = Mock()
             mock_comp.dust._tracer = True
             mock_comp.dust._active = False
@@ -206,7 +206,7 @@ class TestAddComponentErrorHandling:
         dust_value = np.ones((3, 2)) * 10.0
         mu = 18.0
         
-        with patch('tripod.std.addcomponent.Component') as MockComponent:
+        with patch('tripodpy.std.addcomponent.Component') as MockComponent:
             mock_comp = Mock()
             mock_comp.dust._tracer = True
             mock_comp.dust._active = True  # Conflict!
@@ -223,7 +223,7 @@ class TestAddComponentErrorHandling:
         gas_value = np.ones(3) * 100.0
         mu = 18.0
         
-        with patch('tripod.std.addcomponent.Component') as MockComponent:
+        with patch('tripodpy.std.addcomponent.Component') as MockComponent:
             mock_comp = Mock()
             mock_comp.dust._tracer = False
             mock_comp.dust._active = False

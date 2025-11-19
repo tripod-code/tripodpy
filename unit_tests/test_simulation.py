@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from unittest.mock import Mock, patch, MagicMock
-from tripod import Simulation
+from tripodpy import Simulation
 import dustpy.constants as c
 import types
 

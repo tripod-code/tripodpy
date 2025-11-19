@@ -4,11 +4,11 @@ import pytest
 import numpy as np
 from unittest.mock import Mock, MagicMock, patch
 from simframe.integration import Scheme
-from tripod import Simulation
+from tripodpy import Simulation
 import scipy.sparse as sp
 import dustpy.constants as c
 
-from tripod.std.dust import (
+from tripodpy.std.dust import (
     dt, dt_Sigma, dt_smax, S_smax_hyd, S_hyd_compo, S_tot_compo,
     rhos_compo, Fi_sig1smax, dt_compo, prepare, finalize, 
     smax_initial, Sigma_initial, jacobian, a, F_adv, F_diff,
@@ -36,8 +36,8 @@ class TestDustTimesteps:
         sim = Mock()
         
         # Mock dt_Sigma and dt_smax
-        monkeypatch.setattr('tripod.std.dust.dt_Sigma', lambda _: 100.0)
-        monkeypatch.setattr('tripod.std.dust.dt_smax', lambda _: 50.0)
+        monkeypatch.setattr('tripodpy.std.dust.dt_Sigma', lambda _: 100.0)
+        monkeypatch.setattr('tripodpy.std.dust.dt_smax', lambda _: 50.0)
         
         result = dt(sim)
         assert result == 50.0
@@ -163,7 +163,7 @@ class TestFluxCalculations:
         sim.grid.r = np.array([1.0, 2.0, 3.0])
         sim.grid.ri = np.array([0.5, 1.5, 2.5, 3.5])
         
-        monkeypatch.setattr('tripod.std.dust_f.fi_diff_no_limit', 
+        monkeypatch.setattr('tripodpy.std.dust_f.fi_diff_no_limit', 
                            lambda D, Sigma, gas_Sigma, St_drift, cs_term, r, ri: np.ones((4, 2)))
         
         result = F_diff(sim)
@@ -186,7 +186,7 @@ class TestSourceTerms:
         sim.dust.q.eff = np.ones(3) * (-3.5)
         sim.dust.SigmaFloor = np.ones((3, 2)) * 1e-10
         
-        monkeypatch.setattr('tripod.std.dust_f.s_coag', 
+        monkeypatch.setattr('tripodpy.std.dust_f.s_coag', 
                            lambda cross_sec, v_rel, H, m, Sigma, smin, smax, q_eff, SigmaFloor: np.ones((3, 2)))
         
         result = S_coag(sim)
@@ -200,7 +200,7 @@ class TestSourceTerms:
         sim.dust.S.hyd = np.ones((3, 2))
         sim.grid.ri = np.array([0.5, 1.5, 2.5, 3.5])
         
-        monkeypatch.setattr('tripod.std.dust.Fi_sig1smax', lambda s: np.ones(4))
+        monkeypatch.setattr('tripodpy.std.dust.Fi_sig1smax', lambda s: np.ones(4))
         with patch('dustpy.std.dust_f.s_hyd') as mock_s_hyd:
             mock_s_hyd.return_value = np.ones((3, 2))
             result = S_smax_hyd(sim)
@@ -258,7 +258,7 @@ class TestProbabilities:
         sim.dust.v.rel.tot = np.ones((3, 5, 5)) * 10.0
         sim.dust.v.frag = np.ones(3) * 5.0
         
-        monkeypatch.setattr('tripod.std.dust_f.pfrag', 
+        monkeypatch.setattr('tripodpy.std.dust_f.pfrag', 
                            lambda v_rel, v_frag: np.ones(3) * 0.5)
         
         result = p_frag(sim)
@@ -280,7 +280,7 @@ class TestProbabilities:
         sim.gas.Sigma = np.ones(3)
         sim.gas.mu = np.ones(3)
         
-        monkeypatch.setattr('tripod.std.dust_f.pfrag_trans', 
+        monkeypatch.setattr('tripodpy.std.dust_f.pfrag_trans', 
                            lambda St, alpha, Sigma, mu: np.ones(3) * 0.4)
         
         result = p_frag_trans(sim)
@@ -298,7 +298,7 @@ class TestProbabilities:
         sim.gas.cs = np.ones(3)
         sim.dust.p.fragtrans = np.ones(3)
         
-        monkeypatch.setattr('tripod.std.dust_f.pdriftfrag', 
+        monkeypatch.setattr('tripodpy.std.dust_f.pdriftfrag', 
                            lambda v_rad, v_azi, St, alpha, Sigma, mu, cs, p_trans: np.ones(3) * 0.6)
         
         result = p_drift_frag(sim)
@@ -378,7 +378,7 @@ class TestBoundaryEnforcement:
         sim.components = Mock()
         sim.components.__dict__ = {'comp1': comp1}
         
-        monkeypatch.setattr('tripod.std.dust.dadsig', lambda s: np.ones(3))
+        monkeypatch.setattr('tripodpy.std.dust.dadsig', lambda s: np.ones(3))
         
         # Should not raise an error
         enforce_f(sim)
@@ -394,7 +394,7 @@ class TestBoundaryEnforcement:
         sim.dust.s.min = np.ones(3) * 0.1
         sim.dust.Sigma = np.ones((3, 2))
         
-        monkeypatch.setattr('tripod.std.dust_f.dadsig', 
+        monkeypatch.setattr('tripodpy.std.dust_f.dadsig', 
                            lambda s_lim, qrec, f_crit, s_max, s_min, Sigma: np.ones(3))
         
         result = dadsig(sim)
@@ -410,7 +410,7 @@ class TestBoundaryEnforcement:
         sim.dust.s.min = np.ones(3) * 0.1
         sim.dust.Sigma = np.ones((3, 2))
         
-        monkeypatch.setattr('tripod.std.dust_f.dsigda', 
+        monkeypatch.setattr('tripodpy.std.dust_f.dsigda', 
                            lambda s_lim, qrec, f_crit, s_max, s_min, Sigma: np.ones(3))
         
         result = dsigda(sim)
@@ -442,7 +442,7 @@ class TestPhysicalQuantities:
         sim.gas.Sigma = np.ones(3)
         sim.gas.mu = np.ones(3)
         
-        monkeypatch.setattr('tripod.std.dust_f.qfrag', 
+        monkeypatch.setattr('tripodpy.std.dust_f.qfrag', 
                            lambda p_drift, v_rel, v_frag, St, q_turb1, q_turb2, q_drfrag, alpha, Sigma, mu: np.ones(3) * (-3.0))
         
         result = q_frag(sim)
@@ -466,7 +466,7 @@ class TestPhysicalQuantities:
         sim.dust.m = np.ones((3, 5))
         sim.gas.T = np.ones(3)
         
-        monkeypatch.setattr('tripod.std.dust_f.vrel_brownian_motion', 
+        monkeypatch.setattr('tripodpy.std.dust_f.vrel_brownian_motion', 
                            lambda cs, m, T: np.ones((3, 5)))
         
         result = vrel_brownian_motion(sim)
@@ -554,9 +554,9 @@ class TestCompositionFunctions:
         sim.dust.s.max = np.ones(3) * 2.0
         
         # Mock F_diff and F_adv to return proper shapes
-        monkeypatch.setattr('tripod.std.dust.F_diff', 
+        monkeypatch.setattr('tripodpy.std.dust.F_diff', 
                            lambda sim, Sigma: np.ones((4, 2)) * 0.1)
-        monkeypatch.setattr('tripod.std.dust.F_adv', 
+        monkeypatch.setattr('tripodpy.std.dust.F_adv', 
                            lambda sim, Sigma: np.ones((4, 2)) * 0.2)
         
         result = Fi_sig1smax(sim)
@@ -636,7 +636,7 @@ class TestMissingFunctions:
             np.testing.assert_array_almost_equal(mock_sim.dust.s.max,smax_expected)
 
 
-        with mock.patch('tripod.std.dust.enforce_f') as mock_enforce_f:
+        with mock.patch('tripodpy.std.dust.enforce_f') as mock_enforce_f:
             mock_enforce_f.side_effect = lambda sim: None  # Do nothing
 
             # Modify _Y to simulate an update
@@ -743,8 +743,8 @@ class TestAdditionalCoverage:
         if hasattr(mock_sim, 'components'):
             delattr(mock_sim, 'components')
         
-        monkeypatch.setattr('tripod.std.dust.dt_Sigma', lambda _: 100.0)
-        monkeypatch.setattr('tripod.std.dust.dt_smax', lambda _: 50.0)
+        monkeypatch.setattr('tripodpy.std.dust.dt_Sigma', lambda _: 100.0)
+        monkeypatch.setattr('tripodpy.std.dust.dt_smax', lambda _: 50.0)
         
         result = dt(mock_sim)
         assert result == 50.0
@@ -797,7 +797,7 @@ class TestAdditionalCoverage:
             mock_sim.components = Mock()
         mock_sim.components.__dict__ = {'comp1': comp1}
         
-        monkeypatch.setattr('tripod.std.dust.dadsig', lambda s: np.ones(mock_sim.grid.Nr))
+        monkeypatch.setattr('tripodpy.std.dust.dadsig', lambda s: np.ones(mock_sim.grid.Nr))
         
         # Should handle missing dust attribute gracefully
         try:
@@ -851,7 +851,7 @@ class TestAdditionalCoverage:
         """Test vrel_brownian_motion properly delegates"""
         expected_result = np.ones((mock_sim.grid.Nr, 1)) * 2.71828
         
-        monkeypatch.setattr('tripod.std.dust_f.vrel_brownian_motion',
+        monkeypatch.setattr('tripodpy.std.dust_f.vrel_brownian_motion',
                            lambda cs, m, T: expected_result)
         
         result = vrel_brownian_motion(mock_sim)
@@ -866,8 +866,8 @@ class TestAdditionalCoverage:
         F_diff_result = np.ones((mock_sim.grid.Nr + 1, 2)) * 10.0
         F_adv_result = np.ones((mock_sim.grid.Nr + 1, 2)) * 5.0
         
-        monkeypatch.setattr('tripod.std.dust.F_diff', lambda sim, Sigma: F_diff_result)
-        monkeypatch.setattr('tripod.std.dust.F_adv', lambda sim, Sigma: F_adv_result)
+        monkeypatch.setattr('tripodpy.std.dust.F_diff', lambda sim, Sigma: F_diff_result)
+        monkeypatch.setattr('tripodpy.std.dust.F_adv', lambda sim, Sigma: F_adv_result)
         
         result = Fi_sig1smax(mock_sim)
         
@@ -893,9 +893,9 @@ class TestEdgeCases:
         mock_sim.addcomponent("test_comp", None, 1, dust_value=mock_sim.dust.Sigma, dust_active=True)
         
         # Mock dt_compo to return zero
-        monkeypatch.setattr('tripod.std.dust.dt_compo', lambda _: 0.0)
-        monkeypatch.setattr('tripod.std.dust.dt_Sigma', lambda _: 100.0)
-        monkeypatch.setattr('tripod.std.dust.dt_smax', lambda _: 50.0)
+        monkeypatch.setattr('tripodpy.std.dust.dt_compo', lambda _: 0.0)
+        monkeypatch.setattr('tripodpy.std.dust.dt_Sigma', lambda _: 100.0)
+        monkeypatch.setattr('tripodpy.std.dust.dt_smax', lambda _: 50.0)
         
         # this is the dt in dust -> should ignore zero from component
         result = dt(mock_sim)
@@ -922,7 +922,7 @@ class TestEdgeCases:
             mock_sim.components = Mock()
             mock_sim.components.__dict__ = {}
         
-        monkeypatch.setattr('tripod.std.dust.dadsig', lambda s: np.ones(mock_sim.grid.Nr))
+        monkeypatch.setattr('tripodpy.std.dust.dadsig', lambda s: np.ones(mock_sim.grid.Nr))
         
         # Should not raise an error
         enforce_f(mock_sim)
@@ -931,7 +931,7 @@ class TestEdgeCases:
         """Test fragmentation probability with zero fragmentation velocity"""
         mock_sim.dust.v.frag = np.zeros(mock_sim.grid.Nr)
         
-        monkeypatch.setattr('tripod.std.dust_f.pfrag', 
+        monkeypatch.setattr('tripodpy.std.dust_f.pfrag', 
                            lambda v_rel, v_frag: np.ones(mock_sim.grid.Nr))
         
         result = p_frag(mock_sim)
@@ -999,7 +999,7 @@ class TestBoundaryConditions:
     
     def test_F_diff_boundary_conditions(self, mock_sim, monkeypatch):
         """Test diffusive flux boundary conditions"""
-        monkeypatch.setattr('tripod.std.dust_f.fi_diff_no_limit', 
+        monkeypatch.setattr('tripodpy.std.dust_f.fi_diff_no_limit', 
                            lambda *args: np.ones((mock_sim.grid.Nr + 1, mock_sim.grid._Nm_short)) * 5.0)
         
         result = F_diff(mock_sim)
@@ -1078,8 +1078,8 @@ class TestCoverageCompleteness:
         if hasattr(mock_sim, 'components'):
             delattr(mock_sim, 'components')
         
-        monkeypatch.setattr('tripod.std.dust.dt_Sigma', lambda _: 100.0)
-        monkeypatch.setattr('tripod.std.dust.dt_smax', lambda _: 50.0)
+        monkeypatch.setattr('tripodpy.std.dust.dt_Sigma', lambda _: 100.0)
+        monkeypatch.setattr('tripodpy.std.dust.dt_smax', lambda _: 50.0)
         
         result = dt(mock_sim)
         assert result == 50.0
@@ -1128,7 +1128,7 @@ class TestCoverageCompleteness:
         mock_sim.components = Mock()
         mock_sim.components.__dict__ = {'comp1': comp1}
         
-        monkeypatch.setattr('tripod.std.dust.dadsig', lambda s: np.ones(mock_sim.grid.Nr))
+        monkeypatch.setattr('tripodpy.std.dust.dadsig', lambda s: np.ones(mock_sim.grid.Nr))
         
         # Should handle missing _active attribute gracefully
         try:
@@ -1171,7 +1171,7 @@ class TestCoverageCompleteness:
         """Test F_diff when diffusivity is zero everywhere"""
         mock_sim.dust.D = np.zeros_like(mock_sim.dust.D)
         
-        monkeypatch.setattr('tripod.std.dust_f.fi_diff_no_limit',
+        monkeypatch.setattr('tripodpy.std.dust_f.fi_diff_no_limit',
                            lambda *args: np.zeros((mock_sim.grid.Nr + 1, mock_sim.grid._Nm_short)))
         
         result = F_diff(mock_sim)
@@ -1184,7 +1184,7 @@ class TestCoverageCompleteness:
         
         Nr = mock_sim.grid.Nr
         Nm_s = mock_sim.grid._Nm_short
-        monkeypatch.setattr('tripod.std.dust_f.jacobian_coagulation_generator',
+        monkeypatch.setattr('tripodpy.std.dust_f.jacobian_coagulation_generator',
                            lambda *args: (np.ones(5), np.arange(5), np.arange(5)))
         
         with patch('dustpy.std.dust_f.jacobian_hydrodynamic_generator') as mock_hyd_gen:
@@ -1239,7 +1239,7 @@ class TestFinalCoverage:
         mock_sim.dust.S.hyd = np.ones_like(mock_sim.dust.Sigma) * 0.5
         
         # Mock Fi_sig1smax to return proper flux values
-        monkeypatch.setattr('tripod.std.dust.Fi_sig1smax', 
+        monkeypatch.setattr('tripodpy.std.dust.Fi_sig1smax', 
                            lambda sim: np.ones(mock_sim.grid.Nr + 1) * 2.0)
         
         # Mock s_hyd calculation

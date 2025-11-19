@@ -1,9 +1,9 @@
 import numpy as np
 from simframe.io.writers import hdf5writer
-from tripod import Simulation
-from tripod.utils.size_distribution import get_q
-from tripod.utils.size_distribution import get_rhos_simple
-from tripod.utils.size_distribution import get_size_distribution
+from tripodpy import Simulation
+from tripodpy.utils.size_distribution import get_q
+from tripodpy.utils.size_distribution import get_rhos_simple
+from tripodpy.utils.size_distribution import get_size_distribution
 from types import SimpleNamespace
 from scipy.interpolate import interp1d
 import warnings
@@ -20,7 +20,7 @@ def read_data(data, filename="data", extension="hdf5", Na=50):
 
     Parameters
     ----------
-    data : str | tripod.Simulation
+    data : str | tripodpy.Simulation
         Either a path to the data directory or a TriPoD
         simulation frame
     filename : str, optional, default: "data"

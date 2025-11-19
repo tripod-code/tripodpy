@@ -3,8 +3,8 @@ build-backend = 'mesonpy'
 requires = ['meson-python', 'numpy']
 
 [project]
-name = 'TriPoD'
-version = '0.0.1'
+name = 'tripodpy'
+version = '1.0.0'
 description = 'Tri-population method for dust evolution in protoplanetary disks'
 readme = { file = 'README.md', content-type = 'text/markdown' }
 keywords = [
@@ -16,18 +16,20 @@ keywords = [
     "astronomy",
 ]
 authors = [
+    { name = "Nicolas Kaufmann", email = "n.kaufmann@usm.lmu.de" },
     { name = "Thomas Pfeil", email = "tpfeil@usm.lmu.de" },
     { name = "Sebastian Stammler", email = "sebastian.stammler@gmail.com" },
     { name = "Til Birnstiel", email = "til.birnstiel@lmu.de" },
     { name = "Sandro Paetzold" },
 ]
 maintainers = [
+    { name = "Nicolas Kaufmann", email = "n.kaufmann@usm.lmu.de" },
     { name = "Sebastian Stammler", email = "sebastian.stammler@gmail.com" },
     { name = "Tilman Birnstiel", email = "til.birnstiel@lmu.de" },
 ]
 license = { text = "GPLv3" }
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
@@ -44,4 +46,4 @@ classifiers = [
 dependencies = ["dustpy"]
 
 [project.urls]
-Repository = "https://github.com/birnstiel/twopoppy3/"
+Repository = "https://github.com/tripod-code/tripod"

@@ -8,7 +8,7 @@ python_sources = [
     'addcomponent.py'
 ]
 
-py3.install_sources(python_sources, subdir: 'tripod/std')
+py3.install_sources(python_sources, subdir: 'tripodpy/std')
 
 dust_fortran_sources = [
     '../constants/constants.f90',
@@ -29,7 +29,7 @@ dust_source = custom_target(
         '--lower',
         '-m', 'dust_f',
         '@INPUT@',
-        '--build-dir', 'tripod/std',
+        '--build-dir', 'tripodpy/std',
     ],
 )
 
@@ -40,5 +40,5 @@ py3.extension_module(
     include_directories: inc_np,
     dependencies: py_dep,
     install: true,
-    subdir: 'tripod/std',
+    subdir: 'tripodpy/std',
 )

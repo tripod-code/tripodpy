@@ -4,4 +4,4 @@ python_sources = [
     'size_distribution.py',
 ]
 
-py3.install_sources(python_sources, subdir: 'tripod/utils')
+py3.install_sources(python_sources, subdir: 'tripodpy/utils')

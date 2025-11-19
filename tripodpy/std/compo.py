@@ -1,7 +1,7 @@
 
 """Module containing standard functions for the composition"""
 import dustpy.constants as c
-from tripod.std import dust as tridust
+from tripodpy.std import dust as tridust
 import dustpy as dp
 import numpy as np
 import scipy.sparse as sp

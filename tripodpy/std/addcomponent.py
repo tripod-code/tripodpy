@@ -1,7 +1,7 @@
-from tripod.std import compo as compo
-from tripod.std import gas as gas
-from tripod.std import dust as dust
-from tripod.std.dust import Sigma_initial
+from tripodpy.std import compo as compo
+from tripodpy.std import gas as gas
+from tripodpy.std import dust as dust
+from tripodpy.std.dust import Sigma_initial
 
 from .component import Component
 from functools import partial

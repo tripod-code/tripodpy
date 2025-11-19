@@ -1,4 +1,4 @@
-project('tripod', 'c')
+project('tripodpy', 'c')
 add_languages('fortran')
 
 py_mod = import('python')
@@ -25,4 +25,4 @@ incdir_f2py = run_command(
 
 inc_np = include_directories(incdir_numpy, incdir_f2py)
 
-subdir('tripod')
+subdir('tripodpy')

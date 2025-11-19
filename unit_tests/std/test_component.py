@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
-from tripod import Simulation
-from tripod.std.component import Component, DustComponent, GasComponent
+from tripodpy import Simulation
+from tripodpy.std.component import Component, DustComponent, GasComponent
 import dustpy.constants as c
 
 class TestComponent:

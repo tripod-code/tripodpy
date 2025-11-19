@@ -1,6 +1,6 @@
-import tripod.constants as c
-from tripod.simulation import Simulation
-from tripod.utils.read_data import read_data
+import tripodpy.constants as c
+from tripodpy.simulation import Simulation
+from tripodpy.utils.read_data import read_data
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,7 +37,7 @@ def panel(data,
     show_St1 : boolean, optional, default : True
         If True St=1 line is plotted"""
 
-    from tripod import __version__
+    from tripodpy import __version__
 
     data = read_data(data, filename=filename, extension=extension)
 
@@ -186,7 +186,7 @@ def panel(data,
     fig.text(0.99, 0.2,"%.2e Myr it = %i"%(data.t[it]/c.year/1e6, it),horizontalalignment="right",
              verticalalignment="bottom")
 
-    fig.text(0.99, 0.01, "TriPoD v"+__version__, horizontalalignment="right",
+    fig.text(0.99, 0.01, "tripodpy v"+__version__, horizontalalignment="right",
              verticalalignment="bottom")
 
     plt.show()
@@ -216,7 +216,7 @@ def ipanel(data,
     show_St1 : boolean, optional, default : True
         If True St=1 line is plotted"""
 
-    from tripod.plot import __version__
+    from tripodpy.plot import __version__
 
     data = read_data(data, filename=filename, extension=extension)
 
@@ -492,7 +492,7 @@ def ipanel(data,
     sliderSize.on_changed(update)
     sliderDist.on_changed(update)
 
-    fig.text(0.99, 0.01, "TriPoD v"+__version__, horizontalalignment="right",
+    fig.text(0.99, 0.01, "tripodpy v"+__version__, horizontalalignment="right",
              verticalalignment="bottom")
 
     plt.show()

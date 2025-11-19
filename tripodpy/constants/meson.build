@@ -1,5 +1,5 @@
 python_sources = ['__init__.py']
-py3.install_sources(python_sources, subdir: 'tripod/constants')
+py3.install_sources(python_sources, subdir: 'tripodpy/constants')
 
 constants_source = custom_target(
     '_constants_fmodule.c',
@@ -11,7 +11,7 @@ constants_source = custom_target(
         '--lower',
         '-m', '_constants_f',
         '@INPUT@',
-        '--build-dir', 'tripod/constants',
+        '--build-dir', 'tripodpy/constants',
     ],
 )
 
@@ -22,5 +22,5 @@ py3.extension_module(
     include_directories: inc_np,
     dependencies: py_dep,
     install: true,
-    subdir: 'tripod/constants',
+    subdir: 'tripodpy/constants',
 )

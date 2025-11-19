@@ -4,7 +4,7 @@ import warnings
 warnings.filterwarnings("ignore", message=".*NumPy module was reloaded.*")
 import numpy as np
 
-from tripod.std.gas import (
+from tripodpy.std.gas import (
     enforce_floor_value, prepare, finalize, set_implicit_boundaries_compo,
     set_implicit_boundaries, Sigma_tot, mu, dt_compo, Fi_compo,
     S_hyd_compo, S_tot_compo, S_ext_total
@@ -106,8 +106,8 @@ class TestPrepareFinalize:
         sim.gas.S.hyd.update = Mock()
         
         # Mock the functions called by finalize
-        monkeypatch.setattr('tripod.std.gas.enforce_floor_value', Mock())
-        monkeypatch.setattr('tripod.std.gas.set_implicit_boundaries_compo', Mock())
+        monkeypatch.setattr('tripodpy.std.gas.enforce_floor_value', Mock())
+        monkeypatch.setattr('tripodpy.std.gas.set_implicit_boundaries_compo', Mock())
         
         finalize(sim)
         
