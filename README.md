@@ -1,12 +1,15 @@
 # TriPoDPy
 
-### Dust Coagulation and Evolution in Protoplanetary Disks
+## Dust Coagulation and Evolution in Protoplanetary Disks
 
 `TriPoDPy` is a Python package to simulate the evolution of dust in protoplanetary disks using a parametric dust evolution model.
 
 `TriPoDPy` simulates the radial evolution of gas and dust in a protoplanetary disk, involving viscous evolution of the gas disk, advection and diffusion of the dust disk, as well as dust growth via the TriPoD method [Pfeil+ 2024](https://ui.adsabs.harvard.edu/abs/2024A&A...691A..45P).
 
 Please read the [documentation](https://tripodpy.readthedocs.io/en/latest/) for a detailed description.
+
+`TriPoDPy` has been submitted to the Journal of Open Source Software(JOSS) and is awaiting review. There are currently a number of planned publications using `TriPoDPy` in the works, so if you plan on using `TriPoDPy` in your work, consider contacting us to avoid conflicts/duplication of work. We are always happy to collaborate/add new features.
+
 By using any version of `TriPoDPy` you agree to these terms of usage.
 
 ## Installation
