@@ -734,7 +734,7 @@ subroutine dadsig(alim, q,  f_crit, amax,amin, Sig, dadsig1, nr, nm)
     where (xi .eq. 0d0 .or. Sig(:, 2) .ge. Sig_crit .or. amax .le. alim)
         dsig1da = 0.0d0
     elsewhere
-        dsig1da = abs(sig_tot * xi * (0.5d0 * amin**xi * dum1 + amax**xi * (0.5d0 * (dum1 - amin**xi))) &
+        dsig1da = abs(sig_tot * xi * (0.5d0 * amin**xi * dum1 + amax**xi * ((0.5d0 * dum1 - amin**xi))) &
         / (amax * (amax**xi - amin**xi)**2))
     end where
 
@@ -797,7 +797,7 @@ subroutine dsigda(alim, q,  f_crit, amax,amin, Sig, dsig1da, nr, nm)
     where (xi .eq. 0d0 .or. amax .le. alim)
         dsig1da = 0.0d0
     elsewhere
-        dsig1da = (sig_tot * xi * (0.5d0 * amin**xi * dum1 + amax**xi * (0.5d0 * (dum1 - amin**xi))) &
+        dsig1da = (sig_tot * xi * (0.5d0 * amin**xi * dum1 + amax**xi * ((0.5d0 * dum1 - amin**xi))) &
         / (amax * (amax**xi - amin**xi)**2))
     end where
 

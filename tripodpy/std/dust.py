@@ -53,6 +53,7 @@ def dt_Sigma(sim):
                 /(sim.dust.S.tot[mask2, 1] *(sim.dust.f.crit - 1.) + sim.dust.f.crit * sim.dust.S.tot[mask2, 0] + dsig_da[mask2] * sim.dust.s.sdot_coag[mask2] +sim.dust.S.smax_hyd[mask2]*dsig_da[mask2])
         dt_pred = np.where(dt_pred != dt_pred, 1e100, dt_pred)  
         dt_pred = np.abs(dt_pred)
+        dt_pred = np.where(sim.dust.s.max[mask2] <= 1.1 * sim.dust.s.lim, 1e100, dt_pred)
         dt_pred = np.where(dt_pred == np.inf, 1e100, dt_pred)
 
         dt = np.ones_like(sim.dust.Sigma)*1e100
@@ -312,7 +313,7 @@ def smax_initial(sim):
         gamma *= sim.grid.r / P
         # Maximum drift limited particle size with safety margin
         ad = 5e-3 * 2. / np.pi * sim.ini.dust.d2gRatio * sim.gas.Sigma / sim.dust.fill[:, 0] \
-            * sim.dust.rhos[:, 0] * (sim.grid.OmegaK * sim.grid.r) ** 2. / sim.gas.cs ** 2. / gamma
+            / sim.dust.rhos[:, 0] * (sim.grid.OmegaK * sim.grid.r) ** 2. / sim.gas.cs ** 2. / gamma
         aIni = np.minimum(sim.ini.dust.aIniMax, ad)
 
         # Enforce initial drift limit
