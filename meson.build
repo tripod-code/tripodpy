@@ -1,5 +1,10 @@
 project('tripodpy', 'c')
-add_languages('fortran')
+if not add_languages('fortran', required: false)
+    error(
+        'No Fortran compiler found. TriPoDPy needs a Fortran compiler (e.g. gfortran) to be installed. ' +
+        'See https://tripodpy.readthedocs.io/en/latest/installation.html',
+    )
+endif
 
 py_mod = import('python')
 py3 = py_mod.find_installation(pure: false)

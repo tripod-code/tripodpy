@@ -1,5 +1,6 @@
 include README.md
 include LICENSE
+include environment.yml
 include examples/*.ipynb
 include docs/Makefile
 include docs/make.bat

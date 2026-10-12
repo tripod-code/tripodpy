@@ -1,0 +1,22 @@
+# Conda environment for building and running TriPoDPy.
+#
+#   conda env create -f environment.yml
+#   conda activate tripodpy
+#   pip install .
+#
+# The gfortran package from conda-forge provides a Fortran compiler on
+# Linux (x86_64, aarch64) and macOS (Intel and Apple Silicon), so no
+# system-wide compiler is needed.
+name: tripodpy
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - gfortran
+  - numpy
+  - meson-python
+  - ninja
+  - pip
+  - pip:
+      - simframe
+      - dustpy

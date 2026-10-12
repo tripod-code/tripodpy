@@ -1,12 +1,13 @@
 [build-system]
 build-backend = 'mesonpy'
-requires = ['meson-python', 'numpy']
+requires = ['meson-python', 'ninja', 'numpy']
 
 [project]
 name = 'tripodpy'
 version = '1.0.0'
 description = 'Tri-population method for dust evolution in protoplanetary disks'
 readme = { file = 'README.md', content-type = 'text/markdown' }
+requires-python = '>=3.10'
 keywords = [
     "numerical",
     "simulation",
@@ -38,6 +39,10 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Fortran",
     "Topic :: Education",
     "Topic :: Scientific/Engineering",

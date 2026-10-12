@@ -12,25 +12,31 @@ Please read the [documentation](https://tripodpy.readthedocs.io/en/latest/) for 
 
 By using any version of `TriPoDPy` you agree to these terms of usage.
 
-## Installation
-
-Clone the repository, then it can be installed via
-
-`pip install .`
-
-or
-
-`pip install --no-build-isolation --editable .`
-
-for editable installation. In the latter case you need to have `meson-python` and `ninja` installed.
-
-`pip install meson-python ninja`
-
-__Note that currently the instalation with the GitHub repository versions of [`Dustpy`](https://github.com/stammler/dustpy) and [`Simframe`](https://github.com/stammler/simframe) is recomended to ensure full compatibility__.
-
 ## Requirements
 
-`TriPoDPy` needs a Python3 distribution and a Fortran compiler installed on your system.
+- Python 3.10 or newer (tested with 3.10 – 3.13)
+- A Fortran compiler, e.g. `gfortran` (GCC 9 or newer). It is needed to compile `TriPoDPy`'s Fortran routines during installation.
+- Linux or macOS (Intel and Apple Silicon). On Windows, please use [WSL](https://learn.microsoft.com/windows/wsl/install).
+
+## Installation
+
+First install a Fortran compiler (`sudo apt install gfortran` on Debian/Ubuntu, `brew install gcc` on macOS) and check that it can be found with `gfortran --version`. Then install `TriPoDPy` into a fresh virtual environment:
+
+```bash
+git clone https://github.com/tripod-code/tripodpy.git
+cd tripodpy
+python3 -m venv .venv
+source .venv/bin/activate
+pip install .
+```
+
+Alternatively, conda users can use the provided `environment.yml`, which also includes a Fortran compiler: `conda env create -f environment.yml`, `conda activate tripodpy`, `pip install .`.
+
+For an editable installation, use `pip install --no-build-isolation --editable .`. In this case `meson-python`, `ninja` and `numpy` need to be installed in your environment.
+
+See the [installation guide](https://tripodpy.readthedocs.io/en/latest/installation.html) for detailed instructions and troubleshooting.
+
+__Note that currently the installation with the GitHub repository versions of [`Dustpy`](https://github.com/stammler/dustpy) and [`Simframe`](https://github.com/stammler/simframe) is recommended to ensure full compatibility__.
 
 ## Framework
 
