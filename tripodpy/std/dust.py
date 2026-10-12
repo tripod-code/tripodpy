@@ -53,6 +53,7 @@ def dt_Sigma(sim):
                 /(sim.dust.S.tot[mask2, 1] *(sim.dust.f.crit - 1.) + sim.dust.f.crit * sim.dust.S.tot[mask2, 0] + dsig_da[mask2] * sim.dust.s.sdot_coag[mask2] +sim.dust.S.smax_hyd[mask2]*dsig_da[mask2])
         dt_pred = np.where(dt_pred != dt_pred, 1e100, dt_pred)  
         dt_pred = np.abs(dt_pred)
+        dt_pred = np.where(sim.dust.s.max[mask2] <= 1.1 * sim.dust.s.lim, 1e100, dt_pred)
         dt_pred = np.where(dt_pred == np.inf, 1e100, dt_pred)
 
         dt = np.ones_like(sim.dust.Sigma)*1e100

@@ -304,6 +304,12 @@ def jacobian_compo(sim, x, dx=None, *args, **kwargs):
     condensation[0] = 0
     condensation[Nr] = 0
 
+    # set source terms to zero for floored cells
+    
+    floor = ((comp.gas.Sigma < 10.*sim.gas.SigmaFloor)[:,None] | (comp.dust.Sigma == sim.dust.SigmaFloor)).ravel("F")
+    sublimation[floor] = 0.
+    condensation[floor] = 0.
+
 
 
     #Gas affecting terms 
