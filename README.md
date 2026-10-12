@@ -14,7 +14,8 @@ By using any version of `TriPoDPy` you agree to these terms of usage.
 
 ## Requirements
 
-- Python 3.10 or newer (tested with 3.10 – 3.13)
+- Python 3.11 or newer (tested with 3.11 – 3.13)
+- [DustPy](https://github.com/stammler/dustpy) 1.0.8 or newer (installed automatically by `pip`)
 - A Fortran compiler, e.g. `gfortran` (GCC 9 or newer). It is needed to compile `TriPoDPy`'s Fortran routines during installation.
 - Linux or macOS (Intel and Apple Silicon). On Windows, please use [WSL](https://learn.microsoft.com/windows/wsl/install).
 

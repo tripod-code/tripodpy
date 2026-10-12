@@ -10,7 +10,7 @@ Welcome to TripodPy's documentation!
 | The ``TriPoD`` method has been published in `Pfeil et al. 2024 <https://ui.adsabs.harvard.edu/abs/2024A&A...691A..45P>`_.
 | ``TriPoDPy`` has been submitted to the Journal of Open Source Software(JOSS) and is awaiting review. There are currently a number of planned publications using ``TriPoDPy`` in the works, so if you plan on using ``TriPoDPy`` in your work, consider contacting us to avoid conflicts/duplication of work. We are always happy to collaborate/add new features.
 
-| ``TripodPy`` requires Python 3.10 or newer and a Fortran compiler (e.g. ``gfortran``).
+| ``TripodPy`` requires Python 3.11 or newer and a Fortran compiler (e.g. ``gfortran``).
 | Please see the :doc:`installation` page for detailed instructions.
 
 | ``TripodPy`` is based on the ``Simframe`` framework for scientific simulation (`Stammler & Birnstiel 2022 <https://joss.theoj.org/papers/10.21105/joss.03882>`_).

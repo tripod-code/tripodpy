@@ -7,7 +7,8 @@ You therefore need a **Fortran compiler** in addition to Python.
 Requirements
 ------------
 
-* **Python** 3.10 or newer (tested with 3.10 – 3.13)
+* **Python** 3.11 or newer (tested with 3.11 – 3.13)
+* **DustPy** 1.0.8 or newer (installed automatically by ``pip``)
 * **Fortran compiler**: ``gfortran`` (GCC) 9 or newer is recommended and is the compiler used in our tests.
   Other compilers supported by `Meson <https://mesonbuild.com/>`_ (e.g. ``flang``, ``ifx``) may work but are not tested.
 * **Operating systems**: Linux and macOS (Intel and Apple Silicon). On Windows, please use the

@@ -19,4 +19,4 @@ dependencies:
   - pip
   - pip:
       - simframe
-      - dustpy
+      - dustpy>=1.0.8
