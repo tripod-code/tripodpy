@@ -627,7 +627,10 @@ class TestMissingFunctions:
         Nr = mock_sim.grid.Nr
         Nm_s = mock_sim.grid._Nm_short
 
-        with mock.patch("dustpy.std.dust.boundary") as mock_boundary:
+        # enforce_f and enforce_floor_value modify Sigma and smax after unpacking and are tested below
+        with mock.patch("dustpy.std.dust.boundary") as mock_boundary, \
+                mock.patch("tripodpy.std.dust.enforce_f"), \
+                mock.patch("dustpy.std.dust.enforce_floor_value"):
             mock_boundary.side_effect = lambda sim: None  # Do nothing
             finalize(mock_sim)  # Should not raise an error
             # Check if _Y is correctly unpacked
@@ -1037,10 +1040,11 @@ class TestIntegrationHelpers:
         
         # Test that all columns have expected relationships
         for i in range(mock_sim.grid.Nr):
-            # a0 should be smallest
-            assert result[i, 0] <= result[i, 1]  # a0 <= fudge*a1
+            # fudge*a1 can be smaller than a0 for narrow distributions, so it is not compared to a0
             assert result[i, 0] <= result[i, 2]  # a0 <= a1
+            assert result[i, 1] <= result[i, 2]  # fudge*a1 <= a1
             assert result[i, 2] <= result[i, 4]  # a1 <= amax
+            assert result[i, 3] <= result[i, 4]  # fudge*amax <= amax
             # Check that the array is properly ordered
             assert result[i, 0] > 0
             assert result[i, 4] > result[i, 0]

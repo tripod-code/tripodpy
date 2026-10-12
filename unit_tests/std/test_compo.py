@@ -256,8 +256,12 @@ class TestJacobianCalculations:
         sim = Mock()
         sim.grid.Nr = 3
         sim.grid._Nm_short = 2
+        sim.gas.SigmaFloor = 1e-100
+        sim.dust.SigmaFloor = 1e-100
         
         comp = Mock()
+        comp.gas.Sigma = np.ones(3)
+        comp.dust.Sigma = np.ones((3, 2))
         
         # Mock sublimation and condensation functions
         monkeypatch.setattr('tripodpy.std.compo.L_sublimation', 
