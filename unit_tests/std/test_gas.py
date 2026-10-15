@@ -7,7 +7,7 @@ import numpy as np
 from tripodpy.std.gas import (
     enforce_floor_value, prepare, finalize, set_implicit_boundaries_compo,
     set_implicit_boundaries, Sigma_tot, mu, dt_compo, Fi_compo,
-    S_hyd_compo, S_tot_compo, S_ext_total
+    S_hyd_compo, S_tot_compo, S_ext_total, Fi_implicit_interface
 )
 
 class TestFloorValueEnforcement:
@@ -123,24 +123,29 @@ class TestBoundaryConditions:
         sim.t.prevstepsize = 0.1
         sim.grid.ri = np.array([0.5, 1.5, 2.5, 3.5])
         
+        sim.gas.Fi = np.zeros(4)
+        sim.gas.S.tot = np.zeros(3)
+        sim.gas.S.hyd = np.zeros(3)
+
         # Mock component
         comp = Mock()
+        comp.gas._active = False
         comp.gas.Fi = np.zeros(4)
         comp.gas.Sigma = np.ones(3)
         comp.gas._SigmaOld = np.ones(3) * 0.9
         comp.gas.S.tot = np.zeros(3)
         comp.gas.S.hyd = np.zeros(3)
-        
+
         sim.components = Mock()
         sim.components.__dict__ = {'water': comp, '_private': Mock()}
-        
+
         # Mock implicit_boundaries function
-        mock_return = [0.1, 0.2, 0.05, 0.15]  # [S_inner, S_outer, Fi_inner, Fi_outer]
+        mock_return = np.array([0.1, 0.2, 0.05, 0.15])  # [S_inner, S_outer, Fi_inner, Fi_outer]
         monkeypatch.setattr('dustpy.std.gas_f.implicit_boundaries',
                            lambda *args: mock_return)
-        
+
         set_implicit_boundaries_compo(sim)
-        
+
         # Verify boundary conditions were set
         assert comp.gas.S.tot[0] == 0.1   # Inner source
         assert comp.gas.S.hyd[0] == 0.1   # Inner hydrodynamic source
@@ -148,7 +153,62 @@ class TestBoundaryConditions:
         assert comp.gas.S.hyd[-1] == 0.2  # Outer hydrodynamic source
         assert comp.gas.Fi[0] == 0.05     # Inner flux
         assert comp.gas.Fi[-1] == 0.15    # Outer flux
-    
+
+    def test_set_implicit_boundaries_compo_active_stores_and_sums(self, monkeypatch):
+        """Active gas components: fluxes are refreshed before the boundaries
+        are computed, the boundary fluxes are stored for the Fi updater, and
+        the boundary values of the total gas fields are the component sums"""
+        class FieldStub(np.ndarray):
+            def update(self):
+                self.updated = True
+
+        sim = Mock()
+        sim.t.prevstepsize = 0.1
+        sim.grid.ri = np.array([0.5, 1.5, 2.5, 3.5])
+        sim.gas.Fi = np.zeros(4)
+        sim.gas.S.tot = np.zeros(3)
+        sim.gas.S.hyd = np.zeros(3)
+
+        comps = {}
+        for name in ['water', 'co']:
+            comp = Mock()
+            comp.gas._active = True
+            comp.gas.Fi = np.zeros(4).view(FieldStub)
+            comp.gas.Sigma = np.ones(3)
+            comp.gas._SigmaOld = np.ones(3) * 0.9
+            comp.gas.S.tot = np.zeros(3)
+            comp.gas.S.hyd = np.zeros(3)
+            comps[name] = comp
+        sim.components = Mock()
+        sim.components.__dict__ = dict(comps, _private=Mock())
+
+        mock_return = np.array([0.1, 0.2, 0.05, 0.15])
+        received = []
+        def implicit_boundaries(dt, Fi, ri, Sigma, SigmaOld):
+            received.append(np.array(Fi))
+            return mock_return
+        monkeypatch.setattr('dustpy.std.gas_f.implicit_boundaries', implicit_boundaries)
+        # Fluxes of the implicit scheme at the first and last interior interface
+        monkeypatch.setattr('tripodpy.std.gas.Fi_implicit_interface',
+                            lambda sim, Sigma, i: 10. * i)
+
+        set_implicit_boundaries_compo(sim)
+
+        # implicit_boundaries got the implicit interface fluxes at i=1 and i=Nr-1=2
+        for Fi in received:
+            assert Fi[1] == 10. and Fi[2] == 20.
+        for comp in comps.values():
+            assert getattr(comp.gas.Fi, "updated", False)
+            np.testing.assert_array_equal(comp.gas._Fi_boundary, [0.05, 0.15])
+            np.testing.assert_array_equal(comp.gas._S_boundary, [0.1, 0.2])
+        # Totals are the sum over both components
+        assert sim.gas.Fi[0] == pytest.approx(0.1)
+        assert sim.gas.Fi[-1] == pytest.approx(0.3)
+        assert sim.gas.S.hyd[0] == pytest.approx(0.2)
+        assert sim.gas.S.hyd[-1] == pytest.approx(0.4)
+        assert sim.gas.S.tot[0] == pytest.approx(0.2)
+        assert sim.gas.S.tot[-1] == pytest.approx(0.4)
+
     def test_set_implicit_boundaries_main(self, monkeypatch):
         """Test setting implicit boundaries for main gas"""
         sim = Mock()
@@ -178,9 +238,12 @@ class TestBoundaryConditions:
     def test_set_implicit_boundaries_compo_no_components(self):
         """Test boundary setting with no components"""
         sim = Mock()
+        sim.gas.Fi = np.ones(4)
+        sim.gas.S.tot = np.ones(3)
+        sim.gas.S.hyd = np.ones(3)
         sim.components = Mock()
         sim.components.__dict__ = {}
-        
+
         # Should not raise an error
         set_implicit_boundaries_compo(sim)
 
@@ -437,6 +500,63 @@ class TestFluxCalculations:
         
         result = Fi_compo(sim, compkey='default')
         np.testing.assert_array_equal(result, expected_flux)
+
+    def test_Fi_compo_keeps_implicit_boundary_fluxes(self, monkeypatch):
+        """Stored boundary fluxes of the last implicit step replace the
+        explicit fluxes at the domain boundaries, interior is unchanged"""
+        sim = Mock()
+        sim.gas.v.rad = np.ones(3) * 0.1
+        sim.grid.r = np.array([1.0, 2.0, 3.0])
+        sim.grid.ri = np.array([0.5, 1.5, 2.5, 3.5])
+
+        group = Mock()
+        group.Sigma = np.ones(3)
+        group._Fi_boundary = np.array([-3.0, 7.0])
+
+        monkeypatch.setattr('dustpy.std.gas_f.fi',
+                            lambda sigma, v_rad, r, ri: np.ones(4))
+
+        result = Fi_compo(sim, group=group)
+        np.testing.assert_array_equal(result, [-3.0, 1.0, 1.0, 7.0])
+
+    def test_S_hyd_compo_keeps_implicit_boundary_sources(self, monkeypatch):
+        """Stored boundary source terms of the last implicit step replace the
+        source terms in the boundary cells, interior is unchanged"""
+        sim = Mock()
+        sim.grid.ri = np.array([0.5, 1.5, 2.5, 3.5])
+        group = Mock()
+        group.Fi = np.ones(4)
+        group._S_boundary = np.array([4.0, 5.0])
+        monkeypatch.setattr('dustpy.std.gas_f.s_hyd', lambda Fi, ri: np.zeros(3))
+
+        result = S_hyd_compo(sim, group=group)
+        np.testing.assert_array_equal(result, [4.0, 0.0, 5.0])
+
+    def test_Fi_implicit_interface(self):
+        """Interface flux as discretized in the implicit gas Jacobian:
+        upwind advection with the interpolated velocity plus viscous
+        diffusion of nu*Sigma*sqrt(r)"""
+        sim = Mock()
+        sim.grid.r = np.array([1.0, 2.0, 4.0])
+        sim.grid.ri = np.array([0.5, 1.5, 3.0, 5.0])
+        sim.grid.OmegaK = np.ones(3)
+        sim.gas.nu = np.array([1.0, 2.0, 3.0])
+        sim.gas.eta = np.ones(3)
+        sim.gas.torque.v = np.zeros(3)
+        sim.dust.backreaction.A = np.ones(3)
+        sim.dust.backreaction.B = np.zeros(3)
+        Sigma = np.array([4.0, 2.0, 1.0])
+
+        # No velocity: purely viscous
+        F = Fi_implicit_interface(sim, Sigma, 2)
+        G = sim.gas.nu * Sigma * np.sqrt(sim.grid.r)
+        expected = 3. * np.sqrt(3.0) * (G[1] - G[2]) / (4.0 - 2.0) / 3.0
+        assert F == pytest.approx(expected)
+
+        # Add a positive torque velocity: upwind advection of the inner cell
+        sim.gas.torque.v = np.array([0., 1., 1.])
+        F = Fi_implicit_interface(sim, Sigma, 2)
+        assert F == pytest.approx(expected + 1. * 2.0 * 2.0 / 3.0)
 
 class TestSourceTerms:
     def test_S_hyd_compo_with_group(self, monkeypatch):
