@@ -55,7 +55,7 @@ def addcomponent(self, name, gas_value, mu, dust_value = None ,dust_active=False
 
     if comp.dust._active:
         comp.dust.Sigma = dust_value
-        comp.dust.Fi.updater = partial(dp_dust.F_tot,Sigma=comp.dust.Sigma)
+        comp.dust.Fi.updater = partial(dust.Fi_compo,group=comp.dust)
         comp.dust.S.hyd.updater = partial(dust.S_hyd_compo,group=comp.dust)
         comp.dust.S.coag.updater = partial(dust.S_coag,Sigma=comp.dust.Sigma)
         comp.dust.S.tot.updater = partial(dust.S_tot_compo,group=comp.dust)

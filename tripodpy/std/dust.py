@@ -116,7 +116,13 @@ def S_hyd_compo(sim, group=None):
     Shyd : Field
         Hydrodynamic source terms"""
 
-    return dp_dust_f.s_hyd(group.Fi,sim.grid.ri)
+    S_hyd = dp_dust_f.s_hyd(group.Fi,sim.grid.ri)
+    # Source terms in the boundary cells from the last implicit integration step
+    S_boundary = getattr(group, "_S_boundary", None)
+    if isinstance(S_boundary, np.ndarray):
+        S_hyd[0] = S_boundary[0]
+        S_hyd[-1] = S_boundary[1]
+    return S_hyd
 
 def S_tot_compo(sim,group=None):
     """Function returns the external source terms for each component.
@@ -225,6 +231,9 @@ def prepare(sim):
     sim.dust.S.coag[-1] = 0.
     # Storing current surface density
     sim.dust._SigmaOld[...] = sim.dust.Sigma[...]
+    for nm, cint in sim.components.__dict__.items():
+        if not nm.startswith("_") and cint.dust._active:
+            cint.dust._SigmaOld[...] = cint.dust.Sigma[...]
     sim.dust.s._maxOld = sim.dust.s.max
     sim.dust.s._prev_sdot_coag = sim.dust.s.sdot_coag
     s_max_deriv = sim.dust.s.max.derivative()
@@ -249,6 +258,24 @@ def finalize(sim):
     
     Nm_s = int(sim.grid._Nm_short)
     Nr = int(sim.grid.Nr)
+
+    # Fluxes of the implicit scheme through the first and last interior
+    # interface, needed for the fluxes through the boundaries. They are
+    # calculated with the implicit solution (before floor values are applied)
+    # and before any field used by the Jacobian is updated below.
+    Fi_interface_compo = {}
+    if sim._dust_compo:
+        Sigma_implicit = np.zeros_like(sim.dust.Sigma)
+        for nm, cint in sim.components.__dict__.items():
+            if not nm.startswith("_") and cint.dust._active:
+                Sigma_comp = np.array(cint.dust.Sigma)
+                Sigma_implicit += Sigma_comp
+                Fi_interface_compo[nm] = (Fi_implicit_interface(sim, Sigma_comp, 1),
+                                          Fi_implicit_interface(sim, Sigma_comp, Nr-1))
+    else:
+        Sigma_implicit = np.array(sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape))
+    Fi_interface = (Fi_implicit_interface(sim, Sigma_implicit, 1),
+                    Fi_implicit_interface(sim, Sigma_implicit, Nr-1))
 
     # Copy values from state vector to fields
     sim.dust.Sigma[...] = sim.dust._Y[:Nr * Nm_s].reshape(sim.dust.Sigma.shape)
@@ -282,7 +309,170 @@ def finalize(sim):
     sim.dust.S.coag.update()
     sim.dust.S.ext.update()
     sim.dust.S.hyd.update()
-    dp_dust.set_implicit_boundaries(sim)
+    set_implicit_boundaries(sim, Fi_interface)
+    set_implicit_boundaries_compo(sim, Fi_interface_compo)
+
+
+def set_implicit_boundaries(sim, Fi_interface=None):
+    """Function calculates the fluxes at the boundaries after the implicit integration step.
+
+    The fluxes through the boundaries are reconstructed from the change of the
+    boundary cells and the fluxes through the first and last interior interface.
+    The latter are taken as discretized in the implicit dust Jacobian
+    (Fi_implicit_interface), not from sim.dust.Fi, which deviates from them
+    (e.g. the explicit diffusive flux is zero at these interfaces).
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    Fi_interface : tuple of two arrays (Nm_s,), optional, default : None
+        Fluxes of the implicit scheme through the first and last interior
+        interface. If None, they are calculated from sim.dust.Sigma with the
+        current fields."""
+    Nr = int(sim.grid.Nr)
+    ri = sim.grid.ri
+    dt = sim.t.prevstepsize
+
+    if Fi_interface is None:
+        Fi_interface = (Fi_implicit_interface(sim, sim.dust.Sigma, 1),
+                        Fi_implicit_interface(sim, sim.dust.Sigma, Nr-1))
+    F_in, F_out = Fi_interface
+
+    # Change of the boundary cells
+    S_in = (sim.dust.Sigma[0] - sim.dust._SigmaOld[0]) / (dt + 1.e-100)
+    S_out = (sim.dust.Sigma[-1] - sim.dust._SigmaOld[-1]) / (dt + 1.e-100)
+
+    # Source terms
+    sim.dust.S.tot[0] = S_in
+    sim.dust.S.hyd[0] = S_in
+    sim.dust.S.tot[-1] = S_out
+    sim.dust.S.hyd[-1] = S_out
+
+    # Fluxes through the boundaries
+    Fi0, FiN = boundary_fluxes(ri, F_in, F_out, S_in, S_out)
+    sim.dust.Fi.adv[0] = Fi0
+    sim.dust.Fi.diff[0] = 0.
+    sim.dust.Fi.tot[0] = Fi0
+    sim.dust.Fi.adv[-1] = FiN
+    sim.dust.Fi.diff[-1] = 0.
+    sim.dust.Fi.tot[-1] = FiN
+
+
+def boundary_fluxes(ri, F_in, F_out, S_in, S_out):
+    """Function returns the fluxes through the inner and outer boundary from the
+    fluxes through the first and last interior interface and the change of the
+    boundary cells (mass conservation in the boundary cells).
+
+    Parameters
+    ----------
+    ri : array (Nr+1,)
+        Radial grid cell interfaces
+    F_in, F_out : arrays
+        Fluxes through the first and last interior interface
+    S_in, S_out : arrays
+        Change of the surface density in the inner and outer boundary cell
+
+    Returns
+    -------
+    Fi0, FiN : arrays
+        Fluxes through the inner and outer boundary"""
+    Fi0 = (0.5 * S_in * (ri[1]**2 - ri[0]**2) + ri[1] * F_in) / ri[0]
+    FiN = (ri[-2] * F_out - 0.5 * S_out * (ri[-1]**2 - ri[-2]**2)) / ri[-1]
+    return Fi0, FiN
+
+
+def set_implicit_boundaries_compo(sim, Fi_interface):
+    """Function calculates the fluxes at the boundaries of the active dust
+    components after the implicit integration step, as set_implicit_boundaries
+    does for the total dust. The fluxes and source terms are stored in hidden
+    fields, so the updaters (Fi_compo, S_hyd_compo) keep them.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    Fi_interface : dict
+        Component name -> (flux through the first, flux through the last
+        interior interface) of the implicit scheme"""
+    ri = sim.grid.ri
+    dt = sim.t.prevstepsize
+    for nm, (F_in, F_out) in Fi_interface.items():
+        group = sim.components.__dict__[nm].dust
+        S_in = (group.Sigma[0] - group._SigmaOld[0]) / (dt + 1.e-100)
+        S_out = (group.Sigma[-1] - group._SigmaOld[-1]) / (dt + 1.e-100)
+        Fi0, FiN = boundary_fluxes(ri, F_in, F_out, S_in, S_out)
+        group._Fi_boundary = np.array([Fi0, FiN])
+        group._S_boundary = np.array([S_in, S_out])
+        group.Fi[0] = Fi0
+        group.Fi[-1] = FiN
+        group.S.hyd[0] = S_in
+        group.S.hyd[-1] = S_out
+
+
+def Fi_compo(sim, group):
+    """Function calculates the total dust fluxes of a dust component.
+
+    The fluxes through the domain boundaries are taken from the last implicit
+    integration step (set_implicit_boundaries_compo), if available.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    group : Group
+        Dust group of the component
+
+    Returns
+    -------
+    Fi : array (Nr+1, Nm_s)
+        Total mass fluxes through the interfaces"""
+    Fi = dp_dust.F_tot(sim, Sigma=group.Sigma)
+    Fi_boundary = getattr(group, "_Fi_boundary", None)
+    if isinstance(Fi_boundary, np.ndarray):
+        Fi[0] = Fi_boundary[0]
+        Fi[-1] = Fi_boundary[1]
+    return Fi
+
+
+def Fi_implicit_interface(sim, Sigma, i):
+    """Function returns the dust flux through a grid cell interface as it is
+    discretized in the implicit dust Jacobian
+    (dustpy.std.dust_f.jacobian_hydrodynamic_generator).
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    Sigma : array (Nr, Nm_s)
+        Dust surface densities
+    i : int
+        Index of the interface between grid cells i-1 and i (0 < i < Nr)
+
+    Returns
+    -------
+    Fi : array (Nm_s,)
+        Fluxes through the interface [g/cm/s]"""
+    r = sim.grid.r
+    ri = sim.grid.ri
+
+    # Same diffusivities and velocities as in the Jacobian
+    D = sim.dust.D[:, [0, 2]]
+    v = sim.dust.v.rad_flux[:, [0, 2]]
+    SigmaGas = sim.gas.Sigma
+
+    # Linear interpolation onto the interface
+    w = (ri[i] - r[i-1]) / (r[i] - r[i-1])
+    vi = v[i-1] + (v[i] - v[i-1]) * w
+    Di = D[i-1] + (D[i] - D[i-1]) * w
+    hi = SigmaGas[i-1] * r[i-1] + (SigmaGas[i] * r[i] - SigmaGas[i-1] * r[i-1]) * w
+
+    # Upwind advection
+    F_adv = np.maximum(vi, 0.) * r[i-1] * Sigma[i-1] + np.minimum(vi, 0.) * r[i] * Sigma[i]
+    # Diffusion of the dust-to-gas ratio
+    F_diff = Di * hi / (r[i] - r[i-1]) * (Sigma[i-1] / SigmaGas[i-1] - Sigma[i] / SigmaGas[i])
+
+    return (F_adv + F_diff) / ri[i]
 
 
 def smax_initial(sim):

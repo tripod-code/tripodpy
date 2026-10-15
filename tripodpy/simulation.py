@@ -585,8 +585,9 @@ class Simulation(dp.Simulation):
         # Hidden fields
         # We store the old values of the surface density in a hidden field
         # to calculate the fluxes through the boundaries in case of implicit integration.
+        # copy=True: without it the field shares memory with dust.Sigma
         self.dust._SigmaOld = Field(
-            self, self.dust.Sigma, description="Previous value of surface density [g/cm²]"
+            self, self.dust.Sigma, description="Previous value of surface density [g/cm²]", copy=True
         )
         self.dust.s._damp = Field(
             self, np.ones(shape1), description="Previous value of surface density [g/cm²]"

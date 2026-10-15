@@ -1522,3 +1522,98 @@ class TestBoundaries:
         assert mock_sim.dust._Y_rhs[-1] == 0.0
         assert result[Ndust,Ndust+1] != 0
         assert result[-1,-2] != 0
+
+
+class TestImplicitBoundaryFluxes:
+    """Fluxes through the domain boundaries after the implicit step"""
+
+    @pytest.fixture
+    def sim(self):
+        sim = Simulation()
+        sim.ini.grid.Nr = 10
+        sim.ini.grid.rmax = 10*c.au
+        sim.initialize()
+        sim.writer = None
+        sim.t.snapshots = [1.*c.year]
+        sim.run()
+        return sim
+
+    def test_SigmaOld_is_a_copy(self):
+        """_SigmaOld must not share memory with Sigma, otherwise the change of
+        the boundary cells is always zero"""
+        sim = Simulation()
+        sim.ini.grid.Nr = 5
+        sim.ini.grid.rmax = 10*c.au
+        sim.initialize()
+        assert not np.shares_memory(np.asarray(sim.dust._SigmaOld), np.asarray(sim.dust.Sigma))
+
+    def test_Fi_implicit_interface_matches_jacobian(self, sim):
+        """The divergence of the interface fluxes reproduces the hydrodynamic
+        part of the implicit dust Jacobian in every interior cell"""
+        from tripodpy.std.dust import Fi_implicit_interface
+        from dustpy.std import dust_f as dp_dust_f
+        Nr = int(sim.grid.Nr)
+        r, ri, area = np.asarray(sim.grid.r), np.asarray(sim.grid.ri), np.asarray(sim.grid.A)
+        Sigma = np.asarray(sim.dust.Sigma)
+        A, B, C = dp_dust_f.jacobian_hydrodynamic_generator(
+            area, sim.dust.D[:, [0, 2]], r, ri, sim.gas.Sigma, sim.dust.v.rad_flux[:, [0, 2]])
+        JS = A[1:-1] * Sigma[:-2] + B[1:-1] * Sigma[1:-1] + C[1:-1] * Sigma[2:]
+        F = np.array([Fi_implicit_interface(sim, Sigma, i) for i in range(1, Nr)])
+        div = 2. * np.pi * (ri[1:Nr-1, None] * F[:-1] - ri[2:Nr, None] * F[1:]) / area[1:-1, None]
+        np.testing.assert_allclose(div, JS, rtol=1e-10, atol=1e-12 * np.abs(JS).max())
+
+    def test_set_implicit_boundaries(self, sim):
+        """Boundary fluxes from the interface fluxes and the change of the
+        boundary cells; the boundary source terms are the change of the cells"""
+        from tripodpy.std.dust import set_implicit_boundaries
+        ri = np.asarray(sim.grid.ri)
+        dt_ = float(sim.t.prevstepsize)
+        sim.dust._SigmaOld[...] = np.asarray(sim.dust.Sigma) * 0.9
+        S_in = (np.asarray(sim.dust.Sigma[0]) - np.asarray(sim.dust._SigmaOld[0])) / dt_
+        S_out = (np.asarray(sim.dust.Sigma[-1]) - np.asarray(sim.dust._SigmaOld[-1])) / dt_
+        F1 = np.array([-2., -3.])
+        FN = np.array([5., 7.])
+
+        set_implicit_boundaries(sim, (F1, FN))
+
+        np.testing.assert_allclose(sim.dust.S.hyd[0], S_in)
+        np.testing.assert_allclose(sim.dust.S.hyd[-1], S_out)
+        # mass conservation in the boundary cells: inflow - outflow = change
+        np.testing.assert_allclose(
+            2. * np.pi * (ri[0] * sim.dust.Fi.tot[0] - ri[1] * F1), sim.grid.A[0] * S_in)
+        np.testing.assert_allclose(
+            2. * np.pi * (ri[-2] * FN - ri[-1] * sim.dust.Fi.tot[-1]), sim.grid.A[-1] * S_out)
+        np.testing.assert_array_equal(sim.dust.Fi.diff[0], 0.)
+        np.testing.assert_array_equal(sim.dust.Fi.adv[0], sim.dust.Fi.tot[0])
+
+    def test_set_implicit_boundaries_compo(self, sim):
+        """Component boundary fluxes are reconstructed like the total ones and
+        stored, so that the component updaters keep them"""
+        from tripodpy.std.dust import set_implicit_boundaries_compo, Fi_compo, S_hyd_compo
+        sim.addcomponent("comp1", None, 1, dust_value=sim.dust.Sigma, dust_active=True)
+        comp = sim.components.comp1
+        ri = np.asarray(sim.grid.ri)
+        dt_ = float(sim.t.prevstepsize)
+        comp.dust._SigmaOld[...] = np.asarray(comp.dust.Sigma) * 0.8
+        S_in = (np.asarray(comp.dust.Sigma[0]) - np.asarray(comp.dust._SigmaOld[0])) / dt_
+        F1, FN = np.array([-2., -3.]), np.array([5., 7.])
+
+        set_implicit_boundaries_compo(sim, {"comp1": (F1, FN)})
+
+        np.testing.assert_allclose(
+            2. * np.pi * (ri[0] * comp.dust.Fi[0] - ri[1] * F1), sim.grid.A[0] * S_in)
+        np.testing.assert_allclose(comp.dust.S.hyd[0], S_in)
+        # the updaters keep the boundary values of the last implicit step
+        Fi = Fi_compo(sim, comp.dust)
+        np.testing.assert_array_equal(Fi[0], comp.dust._Fi_boundary[0])
+        np.testing.assert_array_equal(Fi[-1], comp.dust._Fi_boundary[1])
+        S_hyd = S_hyd_compo(sim, comp.dust)
+        np.testing.assert_array_equal(S_hyd[0], S_in)
+
+    def test_prepare_stores_component_SigmaOld(self, sim):
+        """prepare stores the surface density of the active dust components"""
+        sim.addcomponent("comp1", None, 1, dust_value=sim.dust.Sigma * 0.5, dust_active=True)
+        comp = sim.components.comp1
+        comp.dust._SigmaOld[...] = 0.
+        prepare(sim)
+        np.testing.assert_array_equal(comp.dust._SigmaOld, comp.dust.Sigma)
