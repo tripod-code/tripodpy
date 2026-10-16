@@ -1,6 +1,7 @@
 from math import e
 from dustpy.std import gas_f
 import numpy as np
+import scipy.sparse as sp
 
 
 def enforce_floor_value(sim):
@@ -168,7 +169,9 @@ def dt_compo(sim):
     dt = 1.e100
     for key,comp in sim.components.__dict__.items():
         if not key.startswith("_") and comp.gas._active:
-            dt = min(dt,gas_f.timestep(comp.gas.Sigma_dot,comp.gas.Sigma,sim.gas.SigmaFloor))
+            # The disk wind sink is treated explicitly and has to limit the time step
+            S = comp.gas.Sigma_dot + S_diskwind_compo(sim, group=comp.gas)
+            dt = min(dt,gas_f.timestep(S,comp.gas.Sigma,sim.gas.SigmaFloor))
 
     return dt
 
@@ -231,12 +234,13 @@ def S_tot_compo(sim, compkey="default",group=None):
     -------
     S_ext : Field
         External source terms for each component"""
-    if group is not None:
-        return group.S.ext + group.S.hyd
-    else:
-        comp = sim.components.__dict__.get(compkey)
-        return  comp.gas.S.hyd + comp.gas.S.ext
-    
+    if group is None:
+        group = sim.components.__dict__.get(compkey).gas
+    ret = group.S.ext + group.S.hyd
+    # Disk wind sink only in the interior as in the integration
+    ret[1:-1] += group.S.diskwind[1:-1]
+    return ret
+
 def S_ext_total(sim):
     """Function returns the total external source terms for all components.
     
@@ -256,3 +260,181 @@ def S_ext_total(sim):
         ret += comp.gas.Sigma_dot
         
     return ret
+
+def _S_diskwind(sim, Sigma):
+    """Function calculates the disk wind mass loss for a given surface density
+    (Tabone et al. 2022, Eq. 10, last term).
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    Sigma : array-like
+        Surface density [g/cm²]
+
+    Returns
+    -------
+    S_diskwind : array-like
+        Disk wind source terms [g/cm²/s]"""
+    return -0.75 * sim.gas.diskwind.alpha * sim.gas.cs**2 * Sigma / \
+        ((sim.gas.diskwind.Lambda - 1.) * sim.grid.r**2 * sim.grid.OmegaK)
+
+
+def S_diskwind(sim):
+    """Function calculates the source (loss) terms due to disk winds.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    S_diskwind : Field
+        Disk wind source terms [g/cm²/s]"""
+    return _S_diskwind(sim, sim.gas.Sigma)
+
+
+def S_diskwind_compo(sim, compkey="default", group=None):
+    """Function calculates the disk wind source (loss) terms of a gas component.
+    The wind removes all gas components at the same rate per unit mass.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    compkey : str, optional
+        Key of the component, by default "default"
+    group : Group, optional
+        Gas group of the component
+
+    Returns
+    -------
+    S_diskwind : Field
+        Disk wind source terms of the component [g/cm²/s]"""
+    if group is None:
+        group = sim.components.__dict__.get(compkey).gas
+    return _S_diskwind(sim, group.Sigma)
+
+
+def S_tot(sim):
+    """Function calculates the total gas source terms including the disk wind.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    S_tot : Field
+        Total surface density source terms [g/cm²/s]"""
+    ret = np.array(sim.gas.S.hyd)
+    ret[1:-1] += sim.gas.S.ext[1:-1] + sim.gas.diskwind.S[1:-1]
+    return ret
+
+
+def vdiskwind(sim):
+    """Function calculates the velocity contribution from disk winds
+    (Tabone et al. 2022, Eq. 10, second term).
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    vdiskwind : Field
+        Velocity contribution from disk winds [cm/s]"""
+    return -1.5 * sim.gas.diskwind.alpha * sim.gas.cs**2 / (sim.grid.r * sim.grid.OmegaK)
+
+
+def vrad(sim):
+    """Function calculates the radial gas velocity including torque and disk wind.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    vrad : Field
+        Radial gas velocity [cm/s]"""
+    vb = 2. * sim.gas.eta * sim.grid.r * sim.grid.OmegaK
+    return sim.dust.backreaction.A * sim.gas.v.visc + sim.dust.backreaction.B * vb \
+        + sim.gas.torque.v + sim.gas.diskwind.v
+
+
+def jacobian(sim, x, *args, **kwargs):
+    """Functions calculates the Jacobian for the gas including the disk wind.
+    Same as ``dustpy.std.gas.jacobian`` with the disk wind velocity added
+    to the advection velocity.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+    x : IntVar
+        Integration variable
+    args : additional positional arguments
+    kwargs : additional keyworda arguments
+
+    Returns
+    -------
+    jac : Field
+        Jacobi matrix for gas evolution
+
+    Notes
+    -----
+    The boundaries need information about the time step, which is only available at
+    the integration stage. The boundary values are therefore meaningless and should not
+    be used to calculate the source terms via matrix-vector multiplication."""
+
+    # Parameters
+    nu = sim.gas.nu * sim.dust.backreaction.A
+    # Velocity contribution from dust back reaction
+    v = sim.dust.backreaction.B * 2. * sim.gas.eta * sim.grid.r * sim.grid.OmegaK
+    # Velocity contribution from torque
+    v += sim.gas.torque.v
+    # Velocity contribution from disk wind
+    v += sim.gas.diskwind.v
+
+    # Helper variables for convenience
+    r = sim.grid.r
+    ri = sim.grid.ri
+    area = sim.grid.A
+    Nr = int(sim.grid.Nr)
+
+    # Construct Jacobian
+    A, B, C = gas_f.jac_abc(area, nu, r, ri, v)
+    row_hyd = np.hstack(
+        (np.arange(Nr-1)+1, np.arange(Nr), np.arange(Nr-1)))
+    col_hyd = np.hstack(
+        (np.arange(Nr-1), np.arange(Nr), np.arange(Nr-1)+1))
+    dat_hyd = np.hstack((A.ravel()[1:], B.ravel(), C.ravel()[:-1]))
+
+    # Right hand side
+    sim.gas._rhs[:] = sim.gas.Sigma
+
+    # Boundaries. This is only reserving space in the sparce matrix
+    row_in = [0, 0, 0]
+    col_in = [0, 1, 2]
+    dat_in = [0., 0., 0.]
+    row_out = [Nr-1, Nr-1, Nr-1]
+    col_out = [Nr-3, Nr-2, Nr-1]
+    dat_out = [0., 0., 0.]
+
+    # Stitching together the generators
+    row = np.hstack((row_hyd, row_in, row_out))
+    col = np.hstack((col_hyd, col_in, col_out))
+    dat = np.hstack((dat_hyd, dat_in, dat_out))
+    gen = (dat, (row, col))
+    # Building sparse matrix of gas Jacobian
+    J = sp.csc_matrix(
+        gen,
+        shape=(Nr, Nr)
+    )
+
+    return J

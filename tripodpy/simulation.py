@@ -10,6 +10,7 @@ from dustpy.utils import Boundary
 from functools import partial
 from . import std
 import types
+import warnings
 
 
 class Simulation(dp.Simulation):
@@ -115,6 +116,31 @@ class Simulation(dp.Simulation):
         # Assign updateorder
         self.dust.updater = updtordr
 
+        # Disk wind parameters (Tabone et al. 2022).
+        # Same names as in the DustPy develop branch. Only added if DustPy does not provide them.
+        # DustPy's SimpleNamespace does not allow new attributes, therefore via vars().
+        if "alphaDiskwind" not in vars(self.ini.gas):
+            vars(self.ini.gas)["alphaDiskwind"] = 0.
+        if "LambdaDiskwind" not in vars(self.ini.gas):
+            vars(self.ini.gas)["LambdaDiskwind"] = 3.5
+        if not hasattr(self.gas, "diskwind"):
+            self.gas.addgroup("diskwind", description="Disk wind parameters")
+            self.gas.diskwind.alpha = None
+            self.gas.diskwind.Lambda = None
+            self.gas.diskwind.S = None
+            self.gas.diskwind.v = None
+            self.gas.diskwind.updater = ["alpha", "Lambda", "v", "S"]
+        if not hasattr(self.gas.diskwind, "dustcoupling"):
+            self.gas.diskwind.dustcoupling = None
+        updtordr = self.gas.diskwind.updateorder
+        if "dustcoupling" not in updtordr:
+            updtordr.insert(0, "dustcoupling")
+            self.gas.diskwind.updater = updtordr
+        updtordr = self.gas.updateorder
+        if "diskwind" not in updtordr:
+            addelemtafter(updtordr, "diskwind", "eta")
+            self.gas.updater = updtordr
+
         # Deleting Fields that are not needed
         del self.ini.grid.Nmbpd
         del self.ini.grid.mmax
@@ -185,6 +211,65 @@ class Simulation(dp.Simulation):
         )
 
         self._makeradialgrid()
+
+    def _initializegas(self):
+        '''Function to initialize gas quantities.
+
+        The disk wind and the gas quantities that include the disk wind
+        (radial velocity, total sources, Jacobian) are set up by TriPoDPy itself
+        before the remaining gas quantities are initialized by DustPy.'''
+
+        # Only radial grid
+        shape1 = (int(self.grid.Nr))
+
+        # Radial gas velocity including disk wind
+        if self.gas.v.rad is None:
+            self.gas.v.rad = Field(self, np.zeros(shape1),
+                                   description="Radial gas velocity [cm/s]")
+            self.gas.v.rad.updater = std.gas.vrad
+        # Total sources including disk wind
+        if self.gas.S.tot is None:
+            self.gas.S.tot = Field(self, np.zeros(shape1),
+                                   description="Total sources [g/cm²/s]")
+            self.gas.S.tot.updater = std.gas.S_tot
+        # Disk wind quantities have to exist before DustPy updates the gas
+        self._initializediskwind()
+
+        super()._initializegas()
+
+        # Gas Jacobian including disk wind
+        self.gas.Sigma.jacobinator = std.gas.jacobian
+
+    def _initializediskwind(self):
+        '''Function to initialize the disk wind quantities (Tabone et al. 2022).'''
+
+        # Only radial grid
+        shape1 = (int(self.grid.Nr))
+
+        # alpha disk wind
+        if self.gas.diskwind.alpha is None:
+            alphadw = self.ini.gas.alphaDiskwind * np.ones(shape1)
+            self.gas.diskwind.alpha = Field(self, alphadw,
+                                            description="alpha disk wind parameter")
+        # Lambda disk wind
+        if self.gas.diskwind.Lambda is None:
+            Lambdadw = self.ini.gas.LambdaDiskwind * np.ones(shape1)
+            self.gas.diskwind.Lambda = Field(self, Lambdadw,
+                                             description="Lambda disk wind parameter (magnetic lever arm)")
+        # Fraction of the disk wind velocity felt by the dust
+        if self.gas.diskwind.dustcoupling is None:
+            self.gas.diskwind.dustcoupling = Field(self, np.ones(shape1),
+                                                   description="Fraction of disk wind velocity felt by the dust")
+        # Velocity contribution of disk winds
+        if self.gas.diskwind.v is None:
+            self.gas.diskwind.v = Field(self, np.zeros(shape1),
+                                        description="Disk wind velocity contribution [cm/s]")
+            self.gas.diskwind.v.updater = std.gas.vdiskwind
+        # Disk wind source terms
+        if self.gas.diskwind.S is None:
+            self.gas.diskwind.S = Field(self, np.zeros(shape1),
+                                        description="Disk wind source terms [g/cm²/s]")
+            self.gas.diskwind.S.updater = std.gas.S_diskwind
 
     def _makeradialgrid(self):
         '''Function sets the mass grid using the parameters set in ``Simulation.ini``.'''
@@ -328,6 +413,12 @@ class Simulation(dp.Simulation):
             delta = self.ini.gas.alpha * np.ones(shape1)
             self.dust.delta.addfield(
                 "vert", delta, description="Vertical mixing parameter"
+            )
+        if np.any(self.dust.delta.turb <= 0.):
+            warnings.warn(
+                "sim.dust.delta.turb is zero in some cells, but the TriPoD fragmentation "
+                "regimes need a finite turbulence parameter. For disks with ini.gas.alpha = 0 "
+                "(e.g. pure wind-driven disks) set sim.dust.delta.* explicitly."
             )
         # Vertically integrated dust to gas ratio
         if self.dust.eps is None:
@@ -480,7 +571,7 @@ class Simulation(dp.Simulation):
             self.dust.v.addfield(
                 "rad", np.zeros(shape2), description="Radial velocity [cm/s]"
             )
-            self.dust.v.rad.updater = dp.std.dust.vrad
+            self.dust.v.rad.updater = std.dust.vrad
         if self.dust.v.rad_flux is None:
             self.dust.v.addfield(
                 "rad_flux", np.zeros(shape2), description="Radial velocity modified to claulate the proper flux[cm/s]"

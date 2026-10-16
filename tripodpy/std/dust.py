@@ -986,7 +986,7 @@ def q_frag(sim):
         sim.dust.q.turb1,
         sim.dust.q.turb2,
         sim.dust.q.drfrag,
-        sim.gas.alpha,
+        sim.dust.delta.turb,
         sim.gas.Sigma,
         sim.gas.mu)
 
@@ -1024,7 +1024,7 @@ def p_frag_trans(sim):
     """
 
     return dust_f.pfrag_trans(sim.dust.St[:, -1],
-        sim.gas.alpha,
+        sim.dust.delta.turb,
         sim.gas.Sigma,
         sim.gas.mu)
 
@@ -1043,8 +1043,8 @@ def p_drift_frag(sim):
     # where does the 0.3 come from
     st_mx    = sim.dust.St[...,-1]
     st_mn    = 0.5*st_mx
-    Re = 0.5 * sim.gas.alpha * 2e-15 * sim.gas.Sigma/ sim.gas.mu 
-    vgas     = (1.5*sim.gas.alpha)**0.5*sim.gas.cs
+    Re = 0.5 * sim.dust.delta.turb * 2e-15 * sim.gas.Sigma/ sim.gas.mu 
+    vgas     = (1.5*sim.dust.delta.turb)**0.5*sim.gas.cs
     vsmall   = vgas * ((st_mx-st_mn)/(st_mx+st_mn) * (st_mx**2./(st_mx+Re**-0.5) - st_mn**2./(st_mn+Re**-0.5)))**0.5
     vinter   = vgas * (2.292*st_mx)**0.5
     pint = p_frag_trans(sim)
@@ -1056,7 +1056,7 @@ def p_drift_frag(sim):
     # Eq. A.4
     pdr = np.where( f_dt < 1e100, 0.5 + 0.5 * ((1.0 - f_dt**6) / (f_dt**6 + 1.0)),0.0)"""
 
-    return dust_f.pdriftfrag(sim.dust.v.rel.rad[:,-1,-2],sim.dust.v.rel.azi[:,-1,-2],sim.dust.St[:,-1],sim.gas.alpha,sim.gas.Sigma,sim.gas.mu,sim.gas.cs,sim.dust.p.fragtrans)
+    return dust_f.pdriftfrag(sim.dust.v.rel.rad[:,-1,-2],sim.dust.v.rel.azi[:,-1,-2],sim.dust.St[:,-1],sim.dust.delta.turb,sim.gas.Sigma,sim.gas.mu,sim.gas.cs,sim.dust.p.fragtrans)
 
 def D_mod(sim):
     """Function calculates the dust diffusivity.
@@ -1095,7 +1095,40 @@ def vrad_mod(sim):
     -------
     vrad : Field
         Radial dust velocity"""
-    return dp_dust_f.vrad(sim.dust.St*sim.dust.f.drift, sim.dust.v.driftmax, sim.gas.v.rad)
+    return dp_dust_f.vrad(sim.dust.St*sim.dust.f.drift, sim.dust.v.driftmax, vgas_dust(sim))
+
+
+def vgas_dust(sim):
+    """Function calculates the radial gas velocity felt by the dust.
+    The fraction of the disk wind velocity felt by the dust is set by
+    ``sim.gas.diskwind.dustcoupling`` (1: full coupling, 0: the wind-driven
+    accretion happens in the disk surface layers and does not affect the dust).
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    vgas : array-like
+        Radial gas velocity felt by the dust [cm/s]"""
+    return sim.gas.v.rad - (1. - sim.gas.diskwind.dustcoupling) * sim.gas.diskwind.v
+
+
+def vrad(sim):
+    """Function calculates the radial velocity of the dust.
+
+    Parameters
+    ----------
+    sim : Frame
+        Parent simulation frame
+
+    Returns
+    -------
+    vrad : Field
+        Radial dust velocity [cm/s]"""
+    return dp_dust_f.vrad(sim.dust.St, sim.dust.v.driftmax, vgas_dust(sim))
 
 
 

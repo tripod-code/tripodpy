@@ -260,7 +260,8 @@ class TestAddComponentUpdaters:
         
         # Verify update lists
         assert mock_comp.gas.updateorder == ["Fi", "S"]
-        assert mock_comp.gas.S.updateorder == ["ext", "hyd", "tot"]
+        assert mock_comp.gas.S.diskwind.updater is not None
+        assert mock_comp.gas.S.updateorder == ["ext", "hyd", "diskwind", "tot"]
     
     def test_dust_active_updaters_set(self, mock_sim):
         """Test that dust active component updaters are properly set"""

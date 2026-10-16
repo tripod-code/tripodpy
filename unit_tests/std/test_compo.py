@@ -218,7 +218,7 @@ class TestJacobianCalculations:
         
         sim.dust.Sigma.jacobian = Mock(return_value=mock_dust_jac)
         
-        monkeypatch.setattr('dustpy.std.gas.jacobian', lambda *args, **kwargs: mock_gas_jac)
+        monkeypatch.setattr('tripodpy.std.gas.jacobian', lambda *args, **kwargs: mock_gas_jac)
         monkeypatch.setattr('tripodpy.std.compo.jacobian_compo', lambda *args, **kwargs: mock_compo_jac)
         
         x = Mock()
@@ -242,7 +242,7 @@ class TestJacobianCalculations:
         
         sim.dust.Sigma.jacobian = Mock(return_value=mock_dust_jac)
         
-        monkeypatch.setattr('dustpy.std.gas.jacobian', lambda *args, **kwargs: mock_gas_jac)
+        monkeypatch.setattr('tripodpy.std.gas.jacobian', lambda *args, **kwargs: mock_gas_jac)
         monkeypatch.setattr('tripodpy.std.compo.jacobian_compo', lambda *args, **kwargs: mock_compo_jac)
         
         x = Mock()
@@ -438,7 +438,7 @@ class TestComponentJacobians:
         
         mock_jac = sp.csc_matrix(np.eye(3))
         
-        monkeypatch.setattr('dustpy.std.gas.jacobian', lambda *args, **kwargs: mock_jac)
+        monkeypatch.setattr('tripodpy.std.gas.jacobian', lambda *args, **kwargs: mock_jac)
         monkeypatch.setattr('tripodpy.std.compo.set_boundaries_component', 
                            lambda sim, J, dt, comp: J)
         
@@ -461,7 +461,7 @@ class TestComponentJacobians:
         
         mock_jac = sp.csc_matrix(np.eye(3))
         
-        monkeypatch.setattr('dustpy.std.gas.jacobian', lambda *args, **kwargs: mock_jac)
+        monkeypatch.setattr('tripodpy.std.gas.jacobian', lambda *args, **kwargs: mock_jac)
         monkeypatch.setattr('tripodpy.std.compo.set_boundaries_component', 
                            lambda sim, J, dt, comp: J)
         

@@ -22,5 +22,8 @@ Module Reference
 .. automodapi:: tripodpy.std.sim
     :no-inheritance-diagram:
 
+.. automodapi:: tripodpy.utils
+    :no-inheritance-diagram:
+
 .. automodapi:: dustpy.utils
     :no-inheritance-diagram:

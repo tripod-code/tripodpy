@@ -152,6 +152,7 @@ class GasComponent(Group):
         self.addgroup("S", description="Gas source terms")
         self.S.addfield("ext", np.zeros_like(owner.gas.Sigma), description="External source term [g/cm²/s]")
         self.S.addfield("hyd", np.zeros_like(owner.gas.Sigma), description="Hydrodynamical source term [g/cm²/s]")
+        self.S.addfield("diskwind", np.zeros_like(owner.gas.Sigma), description="Disk wind source term [g/cm²/s]")
         self.S.addfield("tot", np.zeros_like(owner.gas.Sigma), description="Total source term [g/cm²/s]")
 
     @property

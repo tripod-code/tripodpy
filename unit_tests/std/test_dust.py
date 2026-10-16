@@ -497,6 +497,8 @@ class TestVelocityAndDiffusion:
         sim.dust.f.drift = 0.3
         sim.dust.v.driftmax = np.ones((3, 5))
         sim.gas.v.rad = np.ones(3)
+        sim.gas.diskwind.v = np.zeros(3)
+        sim.gas.diskwind.dustcoupling = np.ones(3)
         
         with patch('dustpy.std.dust_f.vrad') as mock_vrad:
             mock_vrad.return_value = np.ones((3, 5))

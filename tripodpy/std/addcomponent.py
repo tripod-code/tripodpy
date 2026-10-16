@@ -38,8 +38,9 @@ def addcomponent(self, name, gas_value, mu, dust_value = None ,dust_active=False
         comp.gas.S.ext.updater = lambda sim: comp.gas.Sigma_dot    
         comp.gas.S.tot.updater = partial(gas.S_tot_compo,group=comp.gas)
         comp.gas.S.hyd.updater = partial(gas.S_hyd_compo,group=comp.gas)
+        comp.gas.S.diskwind.updater = partial(gas.S_diskwind_compo,group=comp.gas)
         comp.gas.updater = ["Fi","S"]
-        comp.gas.S.updater = ["ext","hyd","tot"]
+        comp.gas.S.updater = ["ext","hyd","diskwind","tot"]
         # set initial gas values
         comp.gas.Sigma = gas_value
         comp.gas.pars.mu = mu

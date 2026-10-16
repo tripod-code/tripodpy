@@ -4,10 +4,12 @@ from tripodpy.utils.read_data import read_data
 from tripodpy.utils.size_distribution import get_size_distribution
 from tripodpy.utils.size_distribution import get_q
 from tripodpy.utils.size_distribution import sim_size_distribution
+from tripodpy.utils.diskwind import split_alpha
 
 __all__ = [
     "get_size_distribution",
     "sim_size_distribution",
     "read_data",
     "get_q",
+    "split_alpha",
 ]

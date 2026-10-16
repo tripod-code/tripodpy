@@ -294,10 +294,20 @@ class TestMolecularWeight:
         assert np.isnan(result[0]) or np.isinf(result[0])
         np.testing.assert_array_almost_equal(result[1:], [18.0, 18.0])
 
+def _add_diskwind(sim, n=3, alpha=0.):
+    """Adds the disk wind fields needed by the gas functions to a mock simulation."""
+    sim.gas.diskwind.alpha = alpha * np.ones(n)
+    sim.gas.diskwind.Lambda = 3.5 * np.ones(n)
+    sim.gas.cs = np.ones(n)
+    sim.grid.r = np.ones(n)
+    sim.grid.OmegaK = np.ones(n)
+    return sim
+
+
 class TestTimeStep:
     def test_dt_compo_basic(self, monkeypatch):
         """Test component time step calculation"""
-        sim = Mock()
+        sim = _add_diskwind(Mock())
         sim.gas.SigmaFloor = np.ones(3) * 1e-10
         
         # Mock active components
@@ -354,7 +364,7 @@ class TestTimeStep:
     
     def test_dt_compo_zero_derivative(self, monkeypatch):
         """Test time step with zero time derivatives"""
-        sim = Mock()
+        sim = _add_diskwind(Mock())
         sim.gas.SigmaFloor = np.ones(3) * 1e-10
         
         comp = Mock()
@@ -479,6 +489,7 @@ class TestSourceTerms:
         group = Mock()
         group.S.ext = np.ones(3) * 0.1
         group.S.hyd = np.ones(3) * 0.2
+        group.S.diskwind = np.zeros(3)
         
         result = S_tot_compo(sim, group=group)
         expected = np.ones(3) * 0.3
@@ -491,6 +502,7 @@ class TestSourceTerms:
         comp = Mock()
         comp.gas.S.hyd = np.ones(3) * 0.15
         comp.gas.S.ext = np.ones(3) * 0.25
+        comp.gas.S.diskwind = np.zeros(3)
         
         sim.components = Mock()
         sim.components.__dict__ = {'water': comp}

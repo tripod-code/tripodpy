@@ -2,6 +2,7 @@
 """Module containing standard functions for the composition"""
 import dustpy.constants as c
 from tripodpy.std import dust as tridust
+from tripodpy.std import gas as trigas
 import dustpy as dp
 import numpy as np
 import scipy.sparse as sp
@@ -35,11 +36,11 @@ def set_state_vector_components(sim):
         #gas component
         if comp.dust._active == False and (comp.dust._tracer == False) and (comp.gas._active == True) and (comp.gas._tracer == False):
             comp._Y = comp.gas.Sigma
-            comp._S = comp.gas.Sigma_dot
+            comp._S = comp.gas.Sigma_dot + trigas.S_diskwind_compo(sim, group=comp.gas)
         #gas tracer
         elif comp.dust._active == False and (comp.dust._tracer == False) and (comp.gas._tracer == True) and (comp.gas._active == False):
             comp._Y = comp.gas.value*sim.gas.Sigma # tracer int variable = tracer * Sigma
-            comp._S = comp.gas.value_dot*sim.gas.Sigma + comp.gas.value*sim.gas.S.ext
+            comp._S = comp.gas.value_dot*sim.gas.Sigma + comp.gas.value*(sim.gas.S.ext + trigas.S_diskwind(sim))
         #dust tracer
         elif (comp.dust._tracer == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
             comp._Y = comp.dust.value.ravel()*sim.dust.Sigma.ravel() # tracer int variable = tracer * Sigma
@@ -49,7 +50,7 @@ def set_state_vector_components(sim):
             Nr = int(sim.grid.Nr)
             comp._Y[:Nr] = comp.gas.Sigma.ravel()
             comp._Y[Nr:] = comp.dust.value.ravel()*sim.dust.Sigma.ravel()
-            comp._S[:Nr] = comp.gas.Sigma_dot
+            comp._S[:Nr] = comp.gas.Sigma_dot + trigas.S_diskwind_compo(sim, group=comp.gas)
             comp._S[Nr:] = comp.dust.value_dot.ravel()*sim.dust.Sigma.ravel() + comp.dust.value.ravel()*(sim.dust.S.ext.ravel() + sim.dust.S.compo.ravel())
 
         elif (comp.dust._active == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
@@ -59,7 +60,7 @@ def set_state_vector_components(sim):
             Nr = int(sim.grid.Nr)
             comp._Y[:Nr] = comp.gas.Sigma.ravel()
             comp._Y[Nr:] = comp.dust.Sigma.ravel()
-            comp._S[:Nr] = comp.gas.Sigma_dot.ravel()
+            comp._S[:Nr] = (comp.gas.Sigma_dot + trigas.S_diskwind_compo(sim, group=comp.gas)).ravel()
             comp._S[Nr:] = comp.dust.S.ext.ravel()
         else:
             raise RuntimeError("Component type not recognized")
@@ -146,7 +147,7 @@ def Y_jacobian(sim, x, dx=None, *args, **kwargs):
     J_Sigma = sim.dust.Sigma.jacobian(x, dx=dt)
 
     # Getting the Jacobian of Gas
-    J_Gas =  dp.std.gas.jacobian(sim,x, dx= dt)
+    J_Gas =  trigas.jacobian(sim,x, dx= dt)
 
     # Jacopbian for evaporation and condensation
     J_compo = jacobian_compo(sim, x, dx=dt,component=comp)
@@ -470,7 +471,7 @@ def c_jacobian(sim, x, dx=None, *args, **kwargs):
     
     #gas component only or tracrer share jacobian
     if comp.dust._active == False and comp.dust._tracer == False and (comp.gas._active == True or comp.gas._tracer == True):
-        J = dp.std.gas.jacobian(sim,x, dx=dt, *args, **kwargs)
+        J = trigas.jacobian(sim,x, dx=dt, *args, **kwargs)
         J_new = set_boundaries_component(sim,J,dt,comp)
         return J_new
     #dust tracer
