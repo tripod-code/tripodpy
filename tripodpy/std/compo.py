@@ -77,18 +77,24 @@ def finalize(sim):
 
     Nr = int(sim.grid.Nr)
     #iterate over all components and get back variable from state vector
+    Sig_gas_temp = np.zeros(Nr)
     for name, comp in sim.components.__dict__.items():
         if(name.startswith("_")):
             continue
 
         if (comp.dust._tracer == False) and (comp.dust._tracer == False) and (comp.gas._active == True) and (comp.gas._tracer == False):
             comp.gas.Sigma[...] = comp._Y[:Nr]
+        # Total gas surface density at the end of the step from all active gas
+        # components, including the ones with dust tracers
+        if (comp.gas._active == True) and (comp.gas._tracer == False):
+            Sig_gas_temp += comp._Y[:Nr]
 
     for name, comp in sim.components.__dict__.items():
         if(name.startswith("_") or ((comp.dust._active == False) and (comp.dust._tracer == False) and (comp.gas._active == True))):
             continue
         elif (comp.dust._active == False) and (comp.dust._tracer == False) and (comp.gas._active == False) and (comp.gas._tracer == True):
-            comp.gas.value[...] = (comp._Y/ sim.gas.Sigma)
+            # sim.gas.Sigma is not updated during the step, use the new total from the state vectors
+            comp.gas.value[...] = (comp._Y/ Sig_gas_temp)
         elif (comp.dust._active == False) and (comp.dust._tracer == True) and (comp.gas._active == False) and (comp.gas._tracer == False):
             comp.dust.value[...] = (comp._Y/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape)
         elif (comp.dust._active == False) and (comp.dust._tracer == True) and (comp.gas._active == True) and (comp.gas._tracer == False):
@@ -104,9 +110,6 @@ def finalize(sim):
         
     sim.dust.S.compo.update()
     sim.dust.S.tot.update()
-        
-    sim.components._gas_updated = False
-    sim.components._dust_updated = False
 
 
 
@@ -508,20 +511,6 @@ def set_boundaries_component(sim,J,dx,comp):
     Nm_s = int(sim.grid._Nm_short)
 
     if(comp.dust._tracer):
-        if not sim.components._dust_updated and sim._dust_compo:
-            # still need to update the dust surface density for the boundary conditions
-            sim.dust.Sigma[...] = np.zeros_like(sim.dust.Sigma)
-            for nm, cint in sim.components.__dict__.items():
-                if(nm.startswith("_")):
-                    continue
-                if cint.gas._active or cint.gas._tracer:
-                    offset = Nr
-                else:
-                    offset = 0
-
-                if cint.dust._active:
-                    cint.dust.Sigma[...] += cint._Y[offset:].reshape(sim.dust.Sigma.shape)
-            sim.components._dust_updated = True
 
         # Given value
         if comp.gas._active or comp.gas._tracer:
@@ -550,18 +539,18 @@ def set_boundaries_component(sim,J,dx,comp):
 
 
     if(comp.gas._tracer):
-        if not sim.components._gas_updated:
-            for nm, cint in sim.components.__dict__.items():
-                if(nm.startswith("_")):
-                    continue
-                if cint.gas._active:
-                    cint.gas.Sigma[...] = cint._Y[:sim.grid.Nr].reshape(sim.gas.Sigma.shape)
-
-            sim.gas.Sigma.update()
-            sim.components._gas_updated = True
+        # Total gas surface density at the end of the step (the active gas
+        # components are integrated before the tracers). Kept local, so that
+        # sim.gas.Sigma does not change during the integration step.
+        SigmaGas = np.zeros(Nr)
+        for nm, cint in sim.components.__dict__.items():
+            if(nm.startswith("_")):
+                continue
+            if cint.gas._active:
+                SigmaGas += cint._Y[:Nr]
         # Given value
-        comp._Y_rhs[0] = comp.gas.boundary.inner.value * sim.gas.Sigma[0]
-        comp._Y_rhs[Nr-1] = comp.gas.boundary.outer.value * sim.gas.Sigma[-1]
+        comp._Y_rhs[0] = comp.gas.boundary.inner.value * SigmaGas[0]
+        comp._Y_rhs[Nr-1] = comp.gas.boundary.outer.value * SigmaGas[-1]
 
         # Set source term to zero at the boundaries
         comp._S[0] = 0.

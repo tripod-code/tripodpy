@@ -114,8 +114,6 @@ class TestSimulationInitialization:
         sim.initialize()
         
         assert hasattr(sim, 'components')
-        assert hasattr(sim.components, '_gas_updated')
-        assert hasattr(sim.components, '_dust_updated')
         assert hasattr(sim, '_dust_compo')
         assert sim._dust_compo == False  # Initially false
         

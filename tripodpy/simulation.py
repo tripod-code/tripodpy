@@ -249,8 +249,6 @@ class Simulation(dp.Simulation):
         # setup gas_compo 
         # Adding gas components to gas group
         self.addgroup("components", description="components")
-        self.components.addfield("_gas_updated", False, description="Flag to indicate if gas has been updated in this timestep", constant=False)
-        self.components.addfield("_dust_updated", False, description="Flag to indicate if gas has been updated in this timestep", constant=False)
         self.addfield("_dust_compo",False, description="Flag to indicate if composition affects dust", constant=False)
         self.components.updater = []
         lst = self.updateorder.copy()
@@ -586,7 +584,7 @@ class Simulation(dp.Simulation):
         # We store the old values of the surface density in a hidden field
         # to calculate the fluxes through the boundaries in case of implicit integration.
         self.dust._SigmaOld = Field(
-            self, self.dust.Sigma, description="Previous value of surface density [g/cm²]"
+            self, self.dust.Sigma, description="Previous value of surface density [g/cm²]", copy=True
         )
         self.dust.s._damp = Field(
             self, np.ones(shape1), description="Previous value of surface density [g/cm²]"

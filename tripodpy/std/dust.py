@@ -827,21 +827,28 @@ def S_tot_ext(sim, Sigma=None):
 def enforce_f(sim):
     """Function enforces the minimum mass fraction in large particles.
 
+    Where the large particles hold less than f.crit of the dust mass, mass is
+    moved from the small to the large particles. Every active dust component
+    moves the same fraction of its small particles, so the mass of each
+    component is conserved and the components still add up to the total.
+
     Parameters
     ----------
     sim : Frame
         Parent simulation frame
     """
-
     delta = np.maximum( 0., sim.dust.f.crit * sim.dust.Sigma[...].sum(-1) - sim.dust.Sigma[:,1])
+    # Fraction of the small particles that is moved, calculated before Sigma
+    # is changed. delta > 0 implies Sigma[:,0] > 0.
+    frac = np.divide(delta, sim.dust.Sigma[:,0], out=np.zeros_like(delta), where=delta > 0.)
     sim.dust.s.max = np.maximum( sim.dust.s.lim*np.ones_like(sim.dust.s.max) ,sim.dust.s.max + delta * dadsig(sim))
     sim.dust.Sigma[:,1] += delta
     sim.dust.Sigma[:,0] -= delta
     for key, comp in sim.components.__dict__.items():
         if (not key.startswith("_")) and comp.dust._active:
-
-            comp.dust.Sigma[:,1] += delta * comp.dust.Sigma[:,1]/sim.dust.Sigma[:,1]
-            comp.dust.Sigma[:,0] -= delta * comp.dust.Sigma[:,0]/sim.dust.Sigma[:,0]
+            delta_comp = frac * comp.dust.Sigma[:,0]
+            comp.dust.Sigma[:,1] += delta_comp
+            comp.dust.Sigma[:,0] -= delta_comp
     sim.dust.qrec.update()
 
 

@@ -144,9 +144,6 @@ class TestFinalization:
         np.testing.assert_array_almost_equal(sim.components.active_dust.dust.Sigma,sim.components.active_dust._Y.reshape(sim.components.active_dust.dust.Sigma.shape))
         np.testing.assert_array_almost_equal(sim.components.active_gas.gas.Sigma,sim.components.active_gas._Y)
 
-        #assert flags are reset
-        assert sim.components._gas_updated == False
-        assert sim.components._dust_updated == False
 
     def test_finalize_tracer_mixed(self, sim):
         """Test finalization updates mixed components correctly"""
@@ -161,9 +158,6 @@ class TestFinalization:
         # assert dust part is updated correctly
         np.testing.assert_array_almost_equal(sim.components.mixed_compo.dust.Sigma,sim.components.mixed_compo._Y[Nr:].reshape(sim.components.mixed_compo.dust.Sigma.shape))
 
-        #assert flags are reset
-        assert sim.components._gas_updated == False
-        assert sim.components._dust_updated == False
 
     def test_finalize_mixed(self, sim):
         """Test finalization updates mixed components correctly"""
@@ -178,10 +172,6 @@ class TestFinalization:
         
         # assert dust part is updated correctly
         np.testing.assert_array_almost_equal(sim.components.mixed_compo.dust.value, (comp._Y[sim.grid.Nr:]/sim.dust._Y[:sim.grid._Nm_short*sim.grid.Nr]).reshape(comp.dust.value.shape))
-
-        #assert flags are reset
-        assert sim.components._gas_updated == False
-        assert sim.components._dust_updated == False
 
     def test_invalid_component(self,sim):
         """Test error raised for component with no active or tracer flags"""
@@ -540,8 +530,6 @@ class TestBoundaryConditions:
         sim.gas.Sigma = np.ones(3) * 100.0
         sim.dust.Sigma = np.ones((3, 2)) * 10.0
         sim.dust._Y = np.ones(6) * 5.0
-        sim.components._dust_updated = False
-        sim.components._gas_updated = False
         sim._dust_compo = True
         return sim
     
@@ -882,16 +870,23 @@ class TestBoundaryComponents:
         comp.gas.boundary.inner.setcondition("val", value=150.0)
         comp.gas.boundary.outer.setcondition("val", value=50.0)
 
+        set_state_vector_components(sim)
+        # The active gas component is integrated before the tracers -> new value in its state vector
+        sim.components.Default._Y[...] *= 2.
+        Sigma_gas = sim.gas.Sigma.copy()
+
         result = set_boundaries_component(sim, J, dt, comp)
-        assert comp._Y_rhs[0] == 150.0 * sim.gas.Sigma[0]
-        assert comp._Y_rhs[-1] == 50.0 * sim.gas.Sigma[-1] # Nr-1
-    
+        assert comp._Y_rhs[0] == 150.0 * sim.components.Default._Y[0]
+        assert comp._Y_rhs[-1] == 50.0 * sim.components.Default._Y[-1] # Nr-1
+        # sim.gas.Sigma does not change during the integration step
+        np.testing.assert_array_equal(sim.gas.Sigma, Sigma_gas)
+
     def test_boundary_dust_tracer_no_compo(self, sim):
         """Test boundary conditions for dust tracer component"""
         sim.addcomponent("dust_tracer",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_tracer=True)
         comp = sim.components.__dict__["dust_tracer"]
-        Nm = sim.grid._Nm_short
-        Nr = sim.grid.Nr
+        Nm = int(sim.grid._Nm_short)
+        Nr = int(sim.grid.Nr)
         J = sp.csc_matrix(np.eye(Nm*Nr))
         dt = 0.1
 
@@ -899,18 +894,26 @@ class TestBoundaryComponents:
         comp.dust.boundary.inner.setcondition("val", value=150.0)
         comp.dust.boundary.outer.setcondition("val", value=50.0)
 
+        set_state_vector_components(sim)
+        # The dust is integrated before the tracers -> new value in the dust state vector
+        Sigma_new = 2. * np.array(sim.dust.Sigma)
+        sim.dust._Y[:Nm*Nr] = Sigma_new.ravel()
+        Sigma_dust = sim.dust.Sigma.copy()
+
         result = set_boundaries_component(sim, J, dt, comp)
         for k in range(Nm):
-            assert comp._Y_rhs[k] == 150.0 * sim.dust.Sigma[0,k]
-            assert comp._Y_rhs[-Nm+k] == 50.0 * sim.dust.Sigma[-1,k] # Nr-1
+            assert comp._Y_rhs[k] == 150.0 * Sigma_new[0,k]
+            assert comp._Y_rhs[-Nm+k] == 50.0 * Sigma_new[-1,k] # Nr-1
+        # sim.dust.Sigma does not change during the integration step
+        np.testing.assert_array_equal(sim.dust.Sigma, Sigma_dust)
 
-    def test_boundary_dust_tracer_no_compo(self, sim):
-        """Test boundary conditions for dust tracer component"""
+    def test_boundary_dust_tracer_compo(self, sim):
+        """Test boundary conditions for dust tracer component with active dust component"""
         sim.addcomponent("dust_background",None,None, dust_value=sim.dust.Sigma*0.5, dust_active=True)
         sim.addcomponent("dust_tracer",None,None, dust_value=np.array([[10., 20.],[30., 40.],[50. ,60.],[70.,80.],[90., 100.]]), dust_tracer=True)
         comp = sim.components.__dict__["dust_tracer"]
-        Nm = sim.grid._Nm_short
-        Nr = sim.grid.Nr
+        Nm = int(sim.grid._Nm_short)
+        Nr = int(sim.grid.Nr)
         J = sp.csc_matrix(np.eye(Nm*Nr))
         dt = 0.1
 
@@ -918,7 +921,17 @@ class TestBoundaryComponents:
         comp.dust.boundary.inner.setcondition("val", value=150.0)
         comp.dust.boundary.outer.setcondition("val", value=50.0)
 
+        set_state_vector_components(sim)
+        # The dust is integrated before the tracers -> new value in the dust state vector
+        Sigma_new = 2. * np.array(sim.dust.Sigma)
+        sim.dust._Y[:Nm*Nr] = Sigma_new.ravel()
+        Sigma_dust = sim.dust.Sigma.copy()
+        Sigma_background = sim.components.dust_background.dust.Sigma.copy()
+
         result = set_boundaries_component(sim, J, dt, comp)
         for k in range(Nm):
-            assert comp._Y_rhs[k] == 150.0 * sim.dust.Sigma[0,k]
-            assert comp._Y_rhs[-Nm+k] == 50.0 * sim.dust.Sigma[-1,k] # Nr-1
+            assert comp._Y_rhs[k] == 150.0 * Sigma_new[0,k]
+            assert comp._Y_rhs[-Nm+k] == 50.0 * Sigma_new[-1,k] # Nr-1
+        # Neither the total dust nor the active components change during the integration step
+        np.testing.assert_array_equal(sim.dust.Sigma, Sigma_dust)
+        np.testing.assert_array_equal(sim.components.dust_background.dust.Sigma, Sigma_background)

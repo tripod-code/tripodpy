@@ -119,7 +119,7 @@ def addcomponent(self, name, gas_value, mu, dust_value = None ,dust_active=False
         comp.dust.boundary.inner.setcondition("const_grad")
         
         comp.dust.boundary.outer = Boundary(self.grid.r[::-1], self.grid.ri[::-1], comp.dust.Sigma[::-1])
-        comp.dust.boundary.outer.setcondition("val", self.dust.SigmaFloor[-1,:])
+        comp.dust.boundary.outer.setcondition("val", 0.1*self.dust.SigmaFloor[-1,:])
 
 
 
