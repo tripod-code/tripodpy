@@ -22,6 +22,7 @@ authors = [
     { name = "Sebastian Stammler", email = "sebastian.stammler@gmail.com" },
     { name = "Til Birnstiel", email = "til.birnstiel@lmu.de" },
     { name = "Sandro Paetzold" },
+    {name = "Anna B. T. Penzlin", email = "A.Penzlin@lmu.de"},
 ]
 maintainers = [
     { name = "Nicolas Kaufmann", email = "n.kaufmann@usm.lmu.de" },

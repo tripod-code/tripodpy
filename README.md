@@ -6,7 +6,7 @@
 
 `TriPoDPy` simulates the radial evolution of gas and dust in a protoplanetary disk, involving viscous evolution of the gas disk, advection and diffusion of the dust disk, as well as dust growth via the TriPoD method [Pfeil+ 2024](https://ui.adsabs.harvard.edu/abs/2024A&A...691A..45P).
 
-Please read the [documentation](https://tripodpy.readthedocs.io/en/latest/) for a detailed description.
+Please read the [documentation](https://tripodpy.readthedocs.io/en/latest/) for a detailed description. The exaples in the documentation can be found in the ``docs/source`` folder.
 
 `TriPoDPy` has been submitted to the Journal of Open Source Software(JOSS) and is awaiting review. There are currently a number of planned publications using `TriPoDPy` in the works, so if you plan on using `TriPoDPy` in your work, consider contacting us to avoid conflicts/duplication of work. We are always happy to collaborate/add new features.
 
@@ -42,6 +42,25 @@ __Note that currently the installation with the GitHub repository versions of [`
 ## Framework
 
 `TriPoDPy` is using the [Simframe](http://github.com/stammler/simframe/) framework for scientific simulations ([Stammler & Birnstiel 2022](https://joss.theoj.org/papers/0ef61e034c57445e846b2ec383c920a6))
+
+## Contributing
+
+We welcome contributions from users. The preferred procedure is outlined below. Before starting any significant development effort, we recommend contacting one of the maintainers (e.g. n.kaufmann@usm.lmu.de) to avoid duplicating work.
+
+### Bug Reports
+
+Bug reports are highly encouraged. They should describe specific, reproducible issues caused by the code in this repository. (We cannot guarantee that `TriPoDPy` will work out of the box with your own custom extensions.)
+
+### Code Changes / Pull Requests
+
+New contributions should be proposed using GitHub's pull request (PR) system:
+
+1. fork `TriPoDPy` (click *Fork* in the top-right of the GitHub interface),
+2. clone your fork to wherever you want to work on it,
+3. create a new branch for your additions (e.g. ``git switch -c my-contribution``),
+4. make, commit and push your changes to your fork, and
+5. open a PR against the ``main`` branch.
+
 
 ## Acknowledgements
 
