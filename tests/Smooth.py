@@ -4,7 +4,7 @@ import sys
 import numpy as np
 from scipy.interpolate import interp1d
 import dustpy
-import tripod
+import tripodpy
 from dustpy import constants as c
 from dustpy.utils import Boundary
 

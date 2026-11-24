@@ -4,7 +4,7 @@ import sys
 import numpy as np
 from scipy.interpolate import interp1d
 import dustpy
-import tripod
+import tripodpy
 from dustpy import constants as c
 from dustpy.utils import Boundary
 
@@ -14,8 +14,8 @@ amu = 1.66053886e-24
 
 # This imports the function from the other setup
 
-if '../DustPy_Icelines' not in sys.path:
-    sys.path.append('../DustPy_Icelines')
+if './DustPy_setups' not in sys.path:
+    sys.path.append('./Dustpy_setups')
 
 def vfrag(sim):
     vfrag = np.where(sim.gas.T<150., 1000., 100.)
@@ -25,7 +25,7 @@ def vfrag(sim):
 
 
 spec = importlib.util.spec_from_file_location(
-    "DustPy_Icelines", "../DustPy_Icelines/Iceline.py")
+    "Dustpy_Icelines", "./Dustpy_setups/Icelines.py")
 foo = importlib.util.module_from_spec(spec)
 sys.modules["DuffellGap"] = foo
 spec.loader.exec_module(foo)

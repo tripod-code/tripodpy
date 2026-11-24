@@ -4,9 +4,10 @@ import sys
 import numpy as np
 from scipy.interpolate import interp1d
 import dustpy
-import tripod
+import tripodpy
 from dustpy import constants as c
 from dustpy.utils import Boundary
+import DP_DuffellGap as dp_gap
 from dustpylib.substructures.gaps.gaps import duffell2020
 
 amu = 1.66053886e-24
@@ -49,7 +50,8 @@ if __name__ == '__main__':
 
     sim.initialize()
 
-    sim.t.snapshots = np.insert(np.logspace(0., 603.9912865, 30, base=1.025) * year, 0, 0)
+    # same snapshots as Dustpy_setups/DuffellGap.py (plus t = 0)
+    sim.t.snapshots = np.insert(np.logspace(0., 603.9912865, 300, base=1.025) * year, 0, 0)
     #sim.t.snapshots = sim.t.snapshots[sim.t.snapshots < 1e5*year]
 
     sim.dust.s.lim = 1e-4 
@@ -63,13 +65,14 @@ if __name__ == '__main__':
 
     a_p =  5.2*au
     q_p = 1e-3
-    f_h = interp1d(sim.grid.r, sim.gas.Hp/sim.grid.r)
-    h = f_h(a_p)
-    alpha_mod = duffell2020(sim.grid.r, a_p, q_p, h, sim.ini.gas.alpha)
-    sim.gas.Sigma[...]  /= alpha_mod/sim.ini.gas.alpha
-    sim.dust.Sigma[...] /= (alpha_mod/sim.ini.gas.alpha)[:, None]
+    HR = interp1d(sim.grid.r, sim.gas.Hp/sim.grid.r)
+    Mach = 1/HR(5.2*au)
+    # duffell2020 returns the surface density perturbation f, the equivalent alpha profile is alpha0 / f
+    Sigma_bkgrd = sim.gas.Sigma.copy()
+    sim.gas.Sigma = dp_gap.get_sigma_arr(
+        sim.grid.r, 5.2*au, 1e-3, sim.ini.gas.alpha, Mach, sim.gas.Sigma)
     sim.components.Default.gas.Sigma = sim.gas.Sigma.copy()
-
+    sim.dust.Sigma *= (sim.gas.Sigma/Sigma_bkgrd)[:, None]
     sim.gas.rho.update()
     sim.gas.P.update()
 
@@ -84,6 +87,12 @@ if __name__ == '__main__':
                 sim.grid.ri,
                 sim.dust.Sigma[...,1]*sim.dust.s.max,
                 condition="const_pow")
+    
+    sim.dust.s.boundary.outer = Boundary(
+                sim.grid.r,
+                sim.grid.ri,
+                sim.dust.Sigma[...,1]*sim.dust.s.max,
+                condition="val", value=sim.dust.Sigma[-1,1]*sim.dust.s.max[-1])
 
 
     sim.update()
