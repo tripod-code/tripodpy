@@ -148,7 +148,7 @@ if __name__ == '__main__':
     sim.gas.P.update()
 
     # Write data
-    sim.writer.datadir = "data_new"
+    sim.writer.datadir = "data_duffell_DP"
     sim.writer.overwrite = True
 
     sim.run()

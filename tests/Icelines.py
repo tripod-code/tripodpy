@@ -102,7 +102,7 @@ if __name__ == '__main__':
     sim.update()
 
     # Write data
-    sim.writer.datadir = "data"
+    sim.writer.datadir = "data_ice"
     sim.writer.overwrite = True
 
     sim.run()

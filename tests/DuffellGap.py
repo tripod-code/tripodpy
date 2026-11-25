@@ -8,7 +8,6 @@ import tripodpy
 from dustpy import constants as c
 from dustpy.utils import Boundary
 import DP_DuffellGap as dp_gap
-from dustpylib.substructures.gaps.gaps import duffell2020
 
 amu = 1.66053886e-24
 
@@ -98,7 +97,7 @@ if __name__ == '__main__':
     sim.update()
 
     # Write data
-    sim.writer.datadir = "data_duffle"
+    sim.writer.datadir = "data_duffell"
     sim.writer.overwrite = True
 
     sim.run()

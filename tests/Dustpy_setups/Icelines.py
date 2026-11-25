@@ -148,7 +148,7 @@ if __name__ == '__main__':
     sim.dust.v.frag = vfrag(sim)
 
     # Write data
-    sim.writer.datadir = "data"
+    sim.writer.datadir = "data_ice_DP"
     sim.writer.overwrite = True
 
     sim.run()

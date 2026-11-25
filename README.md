@@ -39,6 +39,21 @@ See the [installation guide](https://tripodpy.readthedocs.io/en/latest/installat
 
 __Note that currently the installation with the GitHub repository versions of [`Dustpy`](https://github.com/stammler/dustpy) and [`Simframe`](https://github.com/stammler/simframe) is recommended to ensure full compatibility__.
 
+
+## Contents
+
+- `tripodpy/` – the Python package
+  - `simulation.py` – the `Simulation` class, which sets up and runs a model
+  - `std/` – standard physics for gas, dust (TriPoD growth, drift and diffusion; Fortran kernels in `dust.f90`), and compositional tracking (`addcomponent`, `compo`, `component`)
+  - `utils/` – helpers for reading output (`read_data`) and reconstructing the particle size distribution
+  - `plot/` – quick-look plotting routines (`panel`, `ipanel`)
+  - `constants/` – physical constants
+- `docs/` – Sphinx documentation. `docs/source` holds the tutorial notebooks.
+- `unit_tests/` – `pytest` unit tests, run by the GitHub Actions workflows in `.github/workflows/`
+- `tests/` – example setups (planetary gap, ice lines) and notebooks that compare `TriPoDPy` with full-coagulation `DustPy` runs
+- `paper/` – the JOSS paper (`paper.md`), its bibliography and figures
+
+
 ## Framework
 
 `TriPoDPy` is using the [Simframe](http://github.com/stammler/simframe/) framework for scientific simulations ([Stammler & Birnstiel 2022](https://joss.theoj.org/papers/0ef61e034c57445e846b2ec383c920a6))

@@ -9,6 +9,8 @@ tests/data*
 # Examples output
 docs/source/data*
 docs/source/*data
+tests/Dustpy_setups/data*
+tests/data*
 # C extensions
 *.so
 
