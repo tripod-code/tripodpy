@@ -41,7 +41,7 @@ bibliography: paper.bib
 
 # Statement of Need
 
-Simulating the dust evolution in protoplanetary disks, including growth and transport, is vital to understanding planet formation and the structure of protoplanetary disks. `TriPoDPy` describes the vertically integrated dust size distribution with a truncated power law, which allows the simulation full access to the dust size distribution, which is essential to accurately model the dust evolution and additional physical effects like photoevaporation. Additionally, TriPodPy enables the addition of tracers in gas and dust, which could be used for tracking of chemical composition, electrical charge, and other parameters. All these features make it a valuable tool for astronomers to quickly model the dust evolution of protoplanetary disks.
+Simulating the dust evolution in protoplanetary disks, including growth and transport, is vital to understanding planet formation and the structure of protoplanetary disks. `TriPoDPy` describes the vertically integrated dust size distribution with a truncated power law, which allows the simulation full access to the dust size distribution, which is essential to accurately model the dust evolution and additional physical effects like photoevaporation. Additionally, `TriPoDPy` enables the addition of tracers in gas and dust, which could be used for tracking of chemical composition, electrical charge, and other parameters. All these features make it a valuable tool for astronomers to quickly model the dust evolution of protoplanetary disks.
 
 # State of the Field
 

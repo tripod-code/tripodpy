@@ -16,9 +16,9 @@ sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'TripoDPy'
-copyright = '2025, TripoDPy Developers'
-author = 'TripoDPy Developers'
+project = 'TriPoDPy'
+copyright = '2025, TriPoDPy Developers'
+author = 'TriPoDPy Developers'
 
 
 # -- General configuration ---------------------------------------------------
