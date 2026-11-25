@@ -48,7 +48,15 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Physics",
 ]
-dependencies = ["dustpy>=1.0.8"]
+dependencies = [
+    # The DustPy development version on GitHub changes the signature of
+    # dustpy.utils.Boundary, which TriPoDPy uses, and is not compatible yet.
+    "dustpy>=1.0.8",
+    "simframe>=1.0.6,<1.1",
+    "numpy",
+    "scipy",
+    "matplotlib",
+]
 
 [project.urls]
 Repository = "https://github.com/tripod-code/tripodpy"

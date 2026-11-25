@@ -17,6 +17,5 @@ dependencies:
   - meson-python
   - ninja
   - pip
-  - pip:
-      - simframe
-      - dustpy>=1.0.8
+# DustPy and Simframe are installed by `pip install .` with the versions
+# pinned in pyproject.toml.

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: TriPoDPy documentation
+    url: https://tripodpy.readthedocs.io/en/latest/
+    about: Tutorials, installation guide and API reference.

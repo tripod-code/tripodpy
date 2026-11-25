@@ -8,7 +8,7 @@ Requirements
 ------------
 
 * **Python** 3.11 or newer (tested with 3.11 – 3.13)
-* **DustPy** 1.0.8 or newer (installed automatically by ``pip``)
+* **DustPy** 1.0.8 or newer and **Simframe** 1.0.6 or a later 1.0.x release (installed automatically from PyPI by ``pip``)
 * **Fortran compiler**: ``gfortran`` (GCC) 9 or newer is recommended and is the compiler used in our tests.
   Other compilers supported by `Meson <https://mesonbuild.com/>`_ (e.g. ``flang``, ``ifx``) may work but are not tested.
 * **Operating systems**: Linux and macOS (Intel and Apple Silicon). On Windows, please use the
@@ -114,9 +114,8 @@ or ``No Fortran compiler found`` means that no Fortran compiler was found on you
 Install one as described above (or use the conda environment) and check it with ``gfortran --version``.
 
 **Dependency versions.** ``TriPoDPy`` builds on `DustPy <https://github.com/stammler/dustpy>`_ and
-`Simframe <https://github.com/stammler/simframe>`_. If you run into incompatibilities, install their latest
-versions from GitHub:
-
-.. code-block:: bash
-
-   pip install git+https://github.com/stammler/simframe.git git+https://github.com/stammler/dustpy.git
+`Simframe <https://github.com/stammler/simframe>`_. It is tested with the PyPI releases DustPy 1.0.8 and
+1.0.9 together with Simframe 1.0.6, which ``pip`` installs automatically, so the GitHub versions are not
+needed. The supported versions are specified in ``pyproject.toml``. The current development version of
+DustPy on GitHub is not compatible with ``TriPoDPy`` yet. If ``pip`` reports a version conflict, install
+``TriPoDPy`` into a fresh environment.

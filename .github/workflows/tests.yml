@@ -1,16 +1,22 @@
-# .github/workflows/run-duffle.yml
-name: Run Duffle on Push
+# .github/workflows/tests.yml
+# Unit tests run automatically on every push to main and on every pull request.
+# The example simulations (DuffellGap, Smooth) take about half an hour and only
+# run when the workflow is started manually from the Actions tab.
+name: Tests
 
 on:
-  workflow_dispatch:  # 👈 This enables manual runs from GitHub UI
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:  # manual runs from the GitHub UI
     inputs:
       run_duffle:
-        description: 'Run Duffle tests'
+        description: 'Run the DuffellGap example simulation'
         required: false
         default: true
         type: boolean
       run_smooth:
-        description: 'Run Smooth tests'
+        description: 'Run the Smooth example simulation'
         required: false
         default: true
         type: boolean
@@ -22,7 +28,7 @@ on:
 
 jobs:
   run-duffle:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_duffle }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_duffle }}
     runs-on: ubuntu-latest
 
     steps:
@@ -37,14 +43,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt  # Optional: only if you use a requirements file
           pip install .
 
-      - name: Run Duffle.py
-        run: python ./tests/Duffle.py
+      - name: Run DuffellGap.py
+        run: python ./tests/DuffellGap.py
 
   run-smooth:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_smooth }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_smooth }}
     runs-on: ubuntu-latest
 
     steps:
@@ -59,10 +64,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt  # Optional: only if you use a requirements file
           pip install .
 
-      - name: Run Duffle.py
+      - name: Run Smooth.py
         run: python ./tests/Smooth.py
   unit_tests:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_unit_tests }}
@@ -92,7 +96,6 @@ jobs:
         run: |
           gfortran --version
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
           pip install .
           pip install pytest pytest-cov
 
